@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+<!DOCTYPE project [
+	<!ENTITY externs SYSTEM "../../../plugin_interactive-map/build/externs.xml">
+	<!ENTITY sources SYSTEM "../../../plugin_interactive-map/build/sources.xml">
+]>
+
+<project name="va" basedir="../../../plugin_interactive-map/" default="compile">
+
+  <taskdef name="jscomp" classname="com.google.javascript.jscomp.ant.CompileTask"
+           classpath="${basedir}/build/compiler.jar"/>
+
+  <target name="compile">
+
+	<jscomp compilationLevel="advanced" warning="verbose" debug="true" languageIn="ECMASCRIPT6" output="compiled/interactive_map_compiled.js">
+		
+		<!--<warning group="reportUnknownTypes" level="WARNING" />-->
+		
+		&externs;
+		&sources;
+		
+		<sources dir="${basedir}/../verba-alpina/im_config">
+		  	<file name="map.js" />
+			<file name="classes/record-window.js" />
+			<file name="classes/concept-filter.js" />
+			<file name="classes/language-families.js" />
+		</sources>
+		
+		<externs dir="${basedir}/../verba-alpina/im_config">
+			<file name="externs.js" />
+		</externs>
+		
+		<externs dir="${basedir}/../verba-alpina/util">
+			<file name="externs_frontend.js" />
+			<file name="externs_tools.js" />
+		</externs>
+		
+    </jscomp>
+
+  </target>
+
+</project>

@@ -1,0 +1,164 @@
+<?php
+function lex_typification (){
+
+$dbname = NULL;
+	
+global $va_xxx;
+$db = $va_xxx;
+
+?>
+<script type="text/javascript">
+var dbname;
+<?php
+if($dbname != NULL){
+	$va_xxx->select($dbname);
+	?>
+		dbname = "<?php echo $dbname;?>";
+	<?php 
+}
+
+?>
+	var scanUrl = "<?php echo home_url('/dokumente/scans/', 'https');?>";
+	var loadingUrl = "<?php echo VA_PLUGIN_URL . '/images/Loading.gif'; ?>";
+</script>
+
+<style>
+	.chosen-container {
+		max-width : 300pt;
+	}
+</style>
+
+<table style="width : 100%; height: 100%">
+	<tr>
+		<td style="width: 50%">
+			<br />
+			<br />
+			
+			<h1><?php _e('Lexical Types', 'verba-alpina');?></h1>
+			
+			<br />
+			<br />
+			<br />
+			
+			<h3>Belege</h3>
+				
+			<select id="filterAtlas" class="chosenSelect">
+				<option value=""><?php _e('Choose Atlas', 'verba-alpina');?></option>
+				<?php
+				$atlanten = $db -> get_col('SELECT DISTINCT Erhebung FROM Stimuli JOIN Tokens USING(Id_Stimulus) ORDER BY Erhebung ASC', 0);
+				foreach ($atlanten as $atlas) {
+					echo '<option value="' . str_replace(' ', '_', $atlas) . '">' . $atlas . '</option>';
+				}
+				?>
+			</select>
+			
+			<?php
+				foreach ($atlanten as $atlas){
+					$stimuli = $db->get_results("SELECT DISTINCT Id_Stimulus, CONCAT(Karte, '_', Nummer, ': ', Stimulus) as TStimulus, Karte FROM Stimuli JOIN Tokens USING(Id_Stimulus) WHERE Erhebung = '$atlas' ORDER BY Stimulus ASC", ARRAY_N);
+					echo '<span class="stimulusList" id="' . str_replace(' ', '_', $atlas) . '" style="display : none">';
+					echo '<select>';
+					echo '<option value="">' . __('Choose Stimulus', 'verba-alpina') . '</option>';
+					foreach ($stimuli as $stimulus){
+						echo '<option value="' . $stimulus[0] . '" data-file="' . $atlas . '#' . $stimulus[2] . '.pdf">' . $stimulus[1] . '</option>';
+					}
+					echo '</select>';
+					echo '</span>';
+				}
+			?>
+			<br />
+			
+			<input type="checkbox" id="AllorNot" checked="checked" /> Nur Belege ohne morph.-lex. Typisierung anzeigen
+			<input type="checkbox" id="AllorNotConcept" /> Nur Belege ohne Konzeptzuweisung anzeigen
+			
+			<br />
+			<br />
+			
+			<div style="min-height: 20px" class="tokenInfo">
+				Belege
+					<select id="tokenAuswahlLex" multiple="multiple" style="width: 400pt">
+					</select>
+					<?php echo va_get_info_symbol('Noch nicht typisierte Belege sind fett markiert. Belege ohne Konzeptzuweisung werden kursiv dargestellt.');?>
+			</div>
+			<img src="<?php echo VA_PLUGIN_URL . '/images/Loading.gif' ?>" style="display: none" id="tokensLoading" />
+			
+			<br />
+			<br />
+			
+			<table id="recordSummary" class="widefat fixed tokenInfo">
+				<tr>
+					<th>Beleg</th>
+					<th>Informanten</th>
+					<th>Konzept(e)</th>
+					<th>VA-Typ</th>
+				</tr>
+			</table>
+			
+			<br />
+			<br />
+			
+			<h3>VA-Typ zuweisen</h3>
+			
+			<select id="morphTypenAuswahl" class="chosenSelect">
+				<?php
+				$typenVA = $db->get_results("SELECT Id_morph_Typ, lex_unique(Orth, Sprache, Genus) as Orth FROM morph_Typen WHERE Quelle = 'VA' ORDER BY Orth ASC", ARRAY_A);
+		
+				foreach ($typenVA as $vat) {
+					echo '<option value="' . $vat['Id_morph_Typ'] . '">' . $vat['Orth'] . '</option>';
+				}
+				?>
+			</select>
+			<input id="assignVA" type="button" class="button button-primary assignButton" value="<?php _e('Assign type', 'verba-alpina');?>" />
+			<input id="newVAType" type="button" class="button button-primary" value="<?php _e('Create new type', 'verba-alpina');?>" />
+			<input id="editVAType" type="button" class="button button-primary" value="Typ bearbeiten" />
+			
+			<br />
+			<br />
+			
+			<h3>Konzept zuweisen</h3>
+			
+			<select id="konzeptAuswahl" class="chosenSelect">
+				<?php
+				$conceptsVA = $db->get_results("SELECT Id_Konzept, IF(Name_D != '', Name_D, Beschreibung_D) as Name FROM Konzepte WHERE Relevanz ORDER BY Name ASC", ARRAY_A);
+		
+				foreach ($conceptsVA as $vac) {
+					echo '<option value="' . $vac['Id_Konzept'] . '">' . $vac['Name'] . '</option>';
+				}
+				?>
+			</select>
+			<input id="assignConcept" type="button" class="button button-primary conceptButton" value="<?php _e('Assign concept', 'verba-alpina');?>" />
+			<input id="newConcept" type="button" class="button button-primary" value="<?php _e('Create new concept', 'verba-alpina');?>" />
+			
+			<br />
+			<br />
+			
+			<div>
+				<h3><?php _e('Typification not necessary', 'verba-alpina');?></h3>
+			
+				Belege sind
+				<select id="keinTypAuswahl" class="chosenSelect">
+					<?php
+					$konzeptNamen = $db -> get_results('SELECT Id_Konzept, Beschreibung_D FROM Konzepte WHERE Grammatikalisch', ARRAY_A);
+			
+					foreach ($konzeptNamen as $name) {
+						echo '<option value="' . $name['Id_Konzept'] . '">' . $name['Beschreibung_D'] . '</option>';
+					}
+					?>
+				</select>
+				<input type="button" class="button button-primary conceptButton" id="noTypeButton" value="<?php _e('Confirm', 'verba-alpina');?>">
+			</div>
+			
+		</td>
+		
+		<td style="width: 50%;">
+			<iframe src="about:blank" style="width : 100%; height: 600pt;" id="pdfFrame">
+				
+			</iframe>
+		</td>
+	</tr>
+</table>
+
+<?php
+createTypeOverlay($db, $dbname);
+
+}
+?>
