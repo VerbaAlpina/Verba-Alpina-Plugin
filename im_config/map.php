@@ -60,9 +60,16 @@ foreach ($extra_cats as $ecat){
 	}
 }
 
+$tagValues = IM_Initializer::$instance->database->get_col('SELECT DISTINCT Wert FROM Orte_Tags');
+
+//TODO Better solutation! Don't abuse getElementName!!!
+$tagNames = IM_Initializer::$instance->database->get_col('SELECT DISTINCT Tag FROM Orte_Tags');
+$tagValues = array_merge($tagValues, $tagNames);
+
 wp_localize_script ('im_map_script', 'Ue', $Ue);
 wp_localize_script ('im_map_script', 'Concepts', $concepts_JS);
 wp_localize_script ('im_map_script', 'ELing', $eling_JS);
+wp_localize_script ('im_map_script', 'TagValues', $tagValues);
 
 $t = microtime(true);$times[] = array('Concept-Transl: ', date("h:i:s") . sprintf(" %06d",($t - floor($t)) * 1000000));
 

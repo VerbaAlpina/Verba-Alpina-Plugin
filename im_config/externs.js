@@ -14,6 +14,11 @@ var Concepts;
 var ELing;
 
 /**
+ * @type {Array<string>}
+ */
+var TagValues;
+
+/**
  * @param {string|Object} p
  * 
  * @return {Array<string>|Array<Object>}

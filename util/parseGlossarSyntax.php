@@ -209,7 +209,7 @@
 	
 	function getThemenkarteId($name){
 		global $vadb;
-		return $vadb->get_var($vadb->prepare("SELECT Id_Themenkarte FROM Themenkarten WHERE Name = %s", $name));
+		return $vadb->get_var($vadb->prepare("SELECT Id_Syn_Map FROM im_syn_maps WHERE Name = %s", $name));
 	}
 	
 	function getCommentHeadline($id, $lang){

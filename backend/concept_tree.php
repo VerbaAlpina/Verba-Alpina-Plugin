@@ -217,7 +217,7 @@ function getConceptForId ($id, $lang, &$Ue, $mkat, $showZeroRecords = false){
 	global $va_xxx;
 	
 	$conceptInfo =  $va_xxx->get_row("SELECT Name_$lang, Beschreibung_$lang, IF(Anzahl_Allein IS NULL, 0, Anzahl_Allein), IF(Anzahl_Komplett IS NULL, 0, Anzahl_Komplett), Hauptkategorie FROM Konzepte LEFT JOIN A_Anzahl_Konzept_Belege USING (Id_Konzept) WHERE Id_Konzept = $id", ARRAY_N);
-	if($conceptInfo[3] == '0' || ($conceptInfo[4] != 'Allgemein' && $conceptInfo[4] != $mkat))
+	if(/*$conceptInfo[3] == '0' || */($conceptInfo[4] != 'Allgemein' && $conceptInfo[4] != $mkat))
 		return '';
 		
 	$children = $va_xxx->get_col("SELECT Id_Konzept FROM Ueberkonzepte WHERE Id_Ueberkonzept = $id");

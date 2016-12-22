@@ -114,10 +114,20 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 		IM_Initializer::$instance->database = $vadb;
 		IM_Initializer::$instance->map_function = 'create_va_map';
 		IM_Initializer::$instance->load_function = 'load_va_data';
-		IM_Initializer::$instance->parse_comment_text = function ($text){
+		
+		add_filter('im_comment', function ($text, $id){
+			global $Ue;
 			parseSyntax($text, true);
+			
+			global $va_current_db_name;
+			
+			if($va_current_db_name != 'va_xxx'){
+				$citation = va_create_comment_citation($id, $Ue);
+				if($citation)
+					$text .= '<span class="quote" title="' . $citation . '" style="font-size: 75%; cursor : pointer; color : grey;">(' . $Ue['ZITIEREN'] . ')</span>';
+			}
 			return $text;
-		};
+		}, 10, 2);
 	}
 	
 	function va_map_plugin_version (){
@@ -132,8 +142,8 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 		$nodes = $wp_admin_bar->get_nodes();
 		
 		foreach ($nodes as $node){
-			if($node->parent == 'my-account')
-				error_log(json_encode($node));
+			//if($node->parent == 'my-account')
+				//error_log(json_encode($node));
 			if($node->id != 'top-secondary' && $node->id != 'my-account' && $node->id != 'user-actions' && $node->parent != 'user-actions'){
 				$wp_admin_bar->remove_node($node->id);
 			}
@@ -185,7 +195,7 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 			if($widget == 'intern-2' && !$admin && !$va_mitarbeiter){
 				unset($sidebar_widgets['sidebar-1'][$key]);
 			}
-			else if($widget == 'version-2' && $post->post_title != 'KARTE' && $post->post_title != 'METHODOLOGIE'){
+			else if($widget == 'version-2' && $post->post_title != 'KARTE' && $post->post_title != 'METHODOLOGIE' && $post->post_title != 'KOMMENTARE'){
 				unset($sidebar_widgets['sidebar-1'][$key]);
 			}
 		}
@@ -193,6 +203,18 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 	}
 	
 	function va_load_textdomain() {
+		//To make this compatible with the native dashboard plugin the respective filter is removed for ajax calls with
+		//a lang attribute
+		global $wp_filter;
+		if(isset($_POST['lang']) && isset($wp_filter['locale']['9999'])){
+			foreach ($wp_filter['locale']['9999'] as $key => $val){
+				if(substr($key, -9) === 'on_locale'){
+					remove_filter('locale', $key, 9999);
+					break;
+				}
+			}
+		}
+		
 		load_plugin_textdomain( 'verba-alpina', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
 	}
 	

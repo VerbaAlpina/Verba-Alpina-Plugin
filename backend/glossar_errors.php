@@ -37,10 +37,10 @@ function search_glossary_errors() {
 				}
 
 				//Maps
-				else if (strpos($link, 'Karte:') === 0) {
-					if (empty($va_xxx -> get_var($va_xxx->prepare("SELECT Id_Themenkarte FROM Themenkarten WHERE Name = %s", substr($link, 6))))) {
-						echo $entry['Terminus_D'] . ' --- ' . $name . ' --- SYNOPTIC MAP NOT FOUND: ' . substr($link, 6) . '<br />';
-					}
+				else if (strpos($link, 'Karte:') === 0) { //TODO use im_syn_maps
+// 					if (empty($va_xxx -> get_var($va_xxx->prepare("SELECT Id_Themenkarte FROM Themenkarten WHERE Name = %s", substr($link, 6))))) {
+// 						echo $entry['Terminus_D'] . ' --- ' . $name . ' --- SYNOPTIC MAP NOT FOUND: ' . substr($link, 6) . '<br />';
+// 					}
 				}
 
 				//TODO Kommentare (oder nur anzeigen wenn existent?)

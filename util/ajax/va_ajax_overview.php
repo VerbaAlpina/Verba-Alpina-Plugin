@@ -83,7 +83,7 @@ function va_overview_build_atlases_concepts (){
 					IF(Name_D = '', Beschreibung_D, Name_D) AS Konzept,
 					Id_Aeusserung,
 					Erhebung,
-					Vorschlag
+					Basiskonzept
 				FROM
 					((SELECT * FROM A_ueberkonzepte_erweitert)
 						UNION ALL 
@@ -92,11 +92,11 @@ function va_overview_build_atlases_concepts (){
 					JOIN VTBL_Aeusserung_Konzept v ON u.Id_Konzept = v.Id_Konzept
 					JOIN Aeusserungen USING (Id_Aeusserung)
 					JOIN Stimuli USING (Id_Stimulus)
+					LEFT JOIN A_Konzept_Tiefen a ON a.Id_Konzept = k.Id_Konzept
 				WHERE 
-					Basiskonzept
-					AND (Aeusserung IS NULL OR (Aeusserung != '<vacat>' AND Aeusserung != '<problem>'))
+					(Aeusserung IS NULL OR (Aeusserung != '<vacat>' AND Aeusserung != '<problem>')) AND k.RELEVANZ
 				GROUP BY u.Id_Ueberkonzept, Id_Aeusserung, Id_Stimulus
-				ORDER BY IF(Name_D = '', Beschreibung_D, Name_D)
+				ORDER BY Basiskonzept DESC, IF(Basiskonzept, Konzept, IF(Tiefe IS NULL, 99, Tiefe)) ASC, Konzept ASC
 			", ARRAY_A);
 			
 			$matrix = array();
@@ -107,7 +107,7 @@ function va_overview_build_atlases_concepts (){
 				foreach ($atlanten as $atlas){
 					$matrix[$beleg['Konzept']][$atlas] = 0;
 				}
-				$vorschlag[$beleg['Konzept']] = $beleg['Vorschlag'];
+				$vorschlag[$beleg['Konzept']] = $beleg['Basiskonzept'];
 			}
 			
 			foreach ($belege as $beleg){

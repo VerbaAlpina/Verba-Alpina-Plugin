@@ -40,9 +40,9 @@
 			case 5: //Extralinguistic
 				//Community flag is ignored, since it does not make sense for most of the extralinguistic data.
 				$query = "
-					SELECT Name, Description, astext(Geo_Data)
-					FROM Z_Geo 
-					WHERE Id_Category = " . substr($_POST['key'], 1) . ($_POST['outside'] == 'false' ? ' and Alpine_Convention' : '') . '
+					SELECT Name, Description, astext(Geo_Data), Tags
+					FROM Z_Geo
+					WHERE Id_Category = " . substr($_POST['key'], 1) . (!isset($_POST['outside']) || $_POST['outside'] == 'false' ? ' and Alpine_Convention' : '') . '
 					ORDER BY Id_Geo ASC';
 				$data = $db->get_results($query, ARRAY_N);
 				
@@ -53,8 +53,34 @@
 					}
 				}
 				else {
-					foreach ($data as $row){
-						$result->addMapElement(-1, new IM_SimpleElementInfoWindowData(va_translate_content($row[0], $Ue), va_translate_content($row[1], $Ue)), $row[2]);
+					if(isset($_POST['filter']['tags'])){
+						$tagsNeeded = $_POST['filter']['tags'];
+						
+						foreach ($data as $row){
+							$useRecord = true;
+							
+							if($row[3] != NULL){
+								$tagArray = json_decode($row[3], true);
+								foreach ($tagArray as $tagName => $tagValue){
+									if(!in_array($tagValue, $tagsNeeded[$tagName])){
+										$useRecord = false;
+										break;
+									}
+								}
+							}
+							if($useRecord){
+								$subVal = -1;
+								if(isset($_POST['filter']['subElementCategory']) && $_POST['filter']['subElementCategory'] == -3 && isset($tagArray[$_POST['filter']['selectedTag']])){
+									$subVal = "#" . $tagArray[$_POST['filter']['selectedTag']];
+								}
+								$result->addMapElement($subVal, new IM_SimpleElementInfoWindowData(va_translate_content($row[0], $Ue), va_translate_content($row[1], $Ue)), $row[2]);
+							}
+						}
+					}
+					else {
+						foreach ($data as $row){
+							$result->addMapElement(-1, new IM_SimpleElementInfoWindowData(va_translate_content($row[0], $Ue), va_translate_content($row[1], $Ue)), $row[2]);
+						}
 					}
 				}
 			break;
@@ -191,12 +217,14 @@ function va_create_result_object ($where_clause, $lang, IM_Result &$result, &$Ue
 }
 
 function va_get_quantify_data_informant ($id_informant, &$db){
-	//TODO maybe more efficient to get all data with one sql statement?
-	$dbdata = $db->get_results($db->prepare('SELECT Id_Kategorie, AIndex FROM A_Informant_Polygon WHERE Id_Informant = %d AND ' . ($_POST['outside'] == 'false' ? 'Alpenkonvention' : 'NOT Alpenkonvention'), $id_informant), ARRAY_A);
-	
 	$res = array();
-	foreach ($dbdata as $row){
-		$res['E' . $row['Id_Kategorie']] = $row['AIndex'];
+			
+	if(va_version_newer_than('va_161')){
+		$dbdata = $db->get_results($db->prepare('SELECT Id_Kategorie, AIndex FROM A_Informant_Polygon WHERE Id_Informant = %d AND ' . ($_POST['outside'] == 'false' ? 'Alpenkonvention' : 'NOT Alpenkonvention'), $id_informant), ARRAY_A);
+		
+		foreach ($dbdata as $row){
+			$res['E' . $row['Id_Kategorie']] = $row['AIndex'];
+		}
 	}
 	
 	return $res;

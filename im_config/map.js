@@ -34,6 +34,12 @@ jQuery(document).on("im_map_initialized", function (){
 	commentManager.commentTabOpened = /** @param {jQuery} element */ function (element){
 		try {
 			addBiblioQTips(element);
+			element.find(".quote").qtip({
+				"show" : "click",
+				"hide" : "unfocus"
+			});
+			jQuery("#commentTitle").append("&nbsp;");
+			jQuery("#commentTitle").append(element.find(".quote"));
 		}
 		catch (/** @type{string} */ e){
 			console.log(e);
@@ -42,6 +48,7 @@ jQuery(document).on("im_map_initialized", function (){
 	
 	commentManager.commentTabClosed = /** @param {jQuery} element */ function (element){
 		element.find(".bibl").qtip("destroy", true);
+		jQuery("#commentTitle").find(".quote").qtip("destroy", true);
 	}
 	
 	/**
@@ -71,9 +78,22 @@ jQuery(document).on("im_map_initialized", function (){
 	}));
 	
 	if(ajax_object.va_staff == "1") {
-		optionManager.addOption("print", new BoolOption(false, TRANSLATIONS["DRUCKFASSUNG"], function (val){
-			
-		}));
+		var /** BoolOption */ printOption = new BoolOption(false, TRANSLATIONS["DRUCKFASSUNG"], function (val){
+			if(val){
+				map.setMapTypeId(google.maps.MapTypeId.ROADMAP);
+				map.setOptions({"styles": emptyMapStyle});
+			}
+			else {
+				map.setMapTypeId(google.maps.MapTypeId.TERRAIN);
+   		  		map.setOptions({styles: {}});
+			}
+		});
+		
+		jQuery(document).on("im_quantify_mode", function (event, val){
+			printOption.setEnabled(!val);
+		});
+		
+		optionManager.addOption("print", printOption);
 	}
 });
 
@@ -273,35 +293,42 @@ categoryManager.registerCategory (
 	)
 );
 
-//var /** FlexSearchComponent */ extraLingFlex = new FlexSearchComponent({
-//	"start" : 0,
-//	"url" : "/wp-content/plugins/flex-search/",
-//	"fields" : 
-//		/**
-//		* @param {number} categoryID
-//		* @param {string} elementID
-//		* 
-//		* @return {Array<{name:string, field:string}>}
-//		*/
-//		function (categoryID, elementID){
-//			var /** {Array<{name:string, field:string}>} */ result = [];
-//			var /** Object<string, Array<string>>|null */ tagList = ELing[categoryID][1];
-//			if(tagList){
-//				for (tag : tagList){
-//					result
-//				}
-//			}
-//		}
-//});
-
 categoryManager.registerCategory (
 	new CategoryInformation (
 		categories.ExtraLing,
 		"E",
-		"",
+		Ue["AUSSERSPR"],
 		"",
 		"extraLingSelect",
-		undefined,
+		[new TagComponent(
+			/**
+			 * @param {number} categoryID
+			 * @param {string} elementID
+			 * 
+			 * @return {Object<string, Array<string>>}
+			 */
+			function (categoryID, elementID){
+				return  /** @type{Object<string, Array<string>>} */ (ELing[elementID.substring(1)][1]);
+			}),
+			new GroupingComponent([], undefined, undefined, undefined,
+					/**
+					 * @param {number} categoryID
+					 * @param {string} elementID
+					 * 
+					 * @return {Array<{tag:string, name:string}>}
+					 */
+					function (categoryID, elementID){
+						var /**Array<{tag:string, name:string}>*/ result = [];
+						var /** Object<string, Array<string>>}*/ tagList = /** @type{Object<string, Array<string>>} */ (ELing[elementID.substring(1)][1]);
+						if(tagList){
+							for (var tagKey in tagList){
+								var /**string*/ translTag = Ue[tagKey];
+								result.push({tag : tagKey, name : (translTag? translTag : tagKey)});
+							}
+						}		
+						return result;
+					}
+				)],
 		undefined,
 		Ue["KOMMENTAR_AUSSERSPR_SCHREIBEN"],
 		undefined,
@@ -311,3 +338,7 @@ categoryManager.registerCategory (
 		}
 	)
 );
+
+for (var i = 0; i < TagValues.length; i++){
+	categoryManager.addElementName("#" + TagValues[i], (Ue[TagValues[i]]? Ue[TagValues[i]] : TagValues[i]));
+}

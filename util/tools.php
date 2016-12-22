@@ -210,7 +210,7 @@ function token_ops (){
 					
 					
 					if($complete){
-						$transformations .= implode('', $token) . ' -> ' . $result . ($addAccent? ' (Akzent hinzugefügt)' : '') . "\n";
+						$transformations .= implode('', $token) . ' -> ' . $result . ($addAccent? ' (Akzent hinzugefÃ¼gt)' : '') . "\n";
 						$va_xxx->query("UPDATE Tokens SET IPA = '" . addslashes($result) . "', Trennzeichen_IPA = (SELECT IPA FROM Codepage_IPA WHERE Art = 'Trennzeichen' AND Beta = Trennzeichen AND Erhebung = '$quelle')
 						 WHERE EXISTS (SELECT * FROM Stimuli WHERE Stimuli.Id_Stimulus = Tokens.Id_Stimulus AND Erhebung = '$quelle') AND Token = '" . addslashes(implode('', $token)) . "'");
 						$numComplete++;
@@ -253,6 +253,36 @@ function token_ops (){
 	
  	return	implode(' / ', $authors) . ': s.v. “' . $title . '”, in: VA-' . substr(get_locale(), 0, 2) . ' ' .
  			substr($va_current_db_name, 3, 2) . '/' . substr($va_current_db_name, 5) . ', ' . $Ue['METHODOLOGIE'] . ', ' . $link;
+ }
+ 
+ function va_create_comment_citation ($id, &$Ue){
+ 	global $vadb;
+ 	global $lang;
+ 	global $va_current_db_name;
+ 
+ 	$content = $vadb->get_var("SELECT Comment FROM im_comments WHERE Id = '$id'");
+ 	$pos_auct = mb_strpos($content, '(auct. ');
+ 	if($pos_auct === false)
+ 		return false;
+ 	
+ 	$authorStr = mb_substr($content, $pos_auct + 7, mb_strpos($content, ')', $pos_auct) - $pos_auct - 7);
+ 	$authors = mb_split('|', $authorStr);
+ 	
+ 	$authorsShort = array();
+ 	foreach ($authors as $author){
+ 		$names = mb_split(' ', $author);
+ 		$authorsShort[] = $names[count($names) - 1] . ', ' . $names[0][0] . '.';
+ 	}
+ 	
+ 	$title = va_sub_translate($vadb->get_var("SELECT getEntryName('$id', '$lang')"), $Ue);
+
+ 	$link = va_get_comments_link();
+ 	$link = add_query_arg('db', substr($va_current_db_name, 3), $link);
+ 	$link = add_query_arg('prefix', substr($id, 0, 1), $link);
+ 	$link .= '#' . $id;
+ 
+ 	return	implode(' / ', $authorsShort) . ': s.v. “' . $title . '”, in: VA-' . substr(get_locale(), 0, 2) . ' ' .
+ 			substr($va_current_db_name, 3, 2) . '/' . substr($va_current_db_name, 5) . ', ' . $Ue['KOMMENTAR'] . ', ' . $link;
  }
  
  function va_version_newer_than ($version){
