@@ -6,6 +6,9 @@ function va_ajax_typification (&$db){
 			break;
 			
 		case 'removeTypification':
+			if(!current_user_can('va_typification_tool_write'))
+				break;
+			
 			$description = json_decode(stripslashes($_POST['description']));
 			$tids = getTokenIds($db, $description);
 			if($description->kind === 'G' || $description->kind === 'K'){
@@ -18,6 +21,9 @@ function va_ajax_typification (&$db){
 		break;
 		
 		case 'removeConcept':
+			if(!current_user_can('va_typification_tool_write'))
+				break;
+			
 			$description = json_decode(stripslashes($_POST['description']));
 			$tids = getTokenIds($db, $description);
 			$placeholder_list = keyPlaceholderList($tids);
@@ -32,6 +38,9 @@ function va_ajax_typification (&$db){
 			break;
 		
 		case 'addTypification':
+			if(!current_user_can('va_typification_tool_write'))
+				break;
+			
 			$descriptions = json_decode(stripslashes($_POST['descriptionList']));
 			foreach ($descriptions as $description){
 				$tids = getTokenIds($db, $description);
@@ -54,6 +63,9 @@ function va_ajax_typification (&$db){
 		break; 
 		
 		case 'addConcept':
+			if(!current_user_can('va_typification_tool_write'))
+				break;
+			
 			$results = array();
 			$descriptions = json_decode(stripslashes($_POST['descriptionList']));
 			foreach ($descriptions as $description){
@@ -94,6 +106,8 @@ function va_ajax_typification (&$db){
 		break;
 		
 		case 'saveMorphType':
+			if(!current_user_can('va_typification_tool_write'))
+				break;
 		
 			//Store type information
 			if(isset($_POST['id'])){

@@ -9,6 +9,7 @@ function konzeptbaum (){
 	<script type="text/javascript">
 	var curNode;
 	var update = false;
+	var writeMode = <?php echo current_user_can('va_concept_tree_write')? 'true': 'false'?>;
 	
 	jQuery(function () {
 		jQuery("#selectMKat").val("0");
@@ -48,11 +49,14 @@ function konzeptbaum (){
 						"plugins" : [ "dnd", "contextmenu" , "sort"],
 						"contextmenu" : {
 							"items" : function (node){
-								return {
-									"newAtTop" : {"label" : "Neues Konzept auf höchster Ebene anlegen", action : function (){update = false; curNode = jQuery("#treeContainer ul > li:first"); neuesKonzept();}},
-									"newAtPos" : {"label" : "Neues Unterkonzept an dieser Stelle anlegen", action : function (){update = false; curNode = jQuery("#" + node.id); neuesKonzept();}},
-									"editConcept" : {"label" : "Dieses Konzept bearbeiten", action : function () {update = true; curNode = jQuery("#" + node.id); neuesKonzept();}}, 
-								};
+								if(writeMode)
+									return {
+										"newAtTop" : {"label" : "Neues Konzept auf höchster Ebene anlegen", action : function (){update = false; curNode = jQuery("#treeContainer ul > li:first"); neuesKonzept();}},
+										"newAtPos" : {"label" : "Neues Unterkonzept an dieser Stelle anlegen", action : function (){update = false; curNode = jQuery("#" + node.id); neuesKonzept();}},
+										"editConcept" : {"label" : "Dieses Konzept bearbeiten", action : function () {update = true; curNode = jQuery("#" + node.id); neuesKonzept();}}, 
+									};
+								else
+									return {};	
 							}
 						}
 					});
@@ -78,6 +82,9 @@ function konzeptbaum (){
 		
 		
 		jQuery.jstree.defaults.dnd.is_draggable = function (nodes) {
+			if(!writeMode)
+				return false;
+			
 			var id_konzept = nodes[0].li_attr["data-konzept"] * 1;
 			if(id_konzept == 707){
 				alert("Bitte das oberste Konzept nicht verschieben!");

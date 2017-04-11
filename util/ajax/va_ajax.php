@@ -25,7 +25,7 @@ function va_ajax_handler (){
 		
 		//Typification tool
 		case 'typification':
-			if(!current_user_can('typification'))
+			if(!current_user_can('va_typification_tool_read'))
 				break;
 			
 			va_ajax_typification($db);
@@ -33,7 +33,7 @@ function va_ajax_handler (){
 		
 		//Transcription tool
 		case 'transcription':
-			if(!current_user_can('transcription'))
+			if(!current_user_can('va_transcription_tool_read'))
 				break;
 			
 			va_ajax_transcription($db);
@@ -49,7 +49,7 @@ function va_ajax_handler (){
 		
 		//Concept tree
 		case 'concept_tree':
-			if(!$intern)
+			if(!current_user_can('va_concept_tree_read'))
 				break;
 			
 			va_ajax_concept_tree($db);
@@ -57,7 +57,7 @@ function va_ajax_handler (){
 		
 		//Overview page
 		case 'overview':
-			if(!$intern)
+			if(!current_user_can('va_see_progress_page'))
 				break;
 					
 			va_ajax_overview($db);
@@ -138,7 +138,7 @@ function va_ajax_handler (){
 		//Util tools
 		case 'util':
 			//TODO maybe better user control
-			if(!$intern && !current_user_can('transcription') && !current_user_can('typification'))
+			if(!$intern && !current_user_can('va_transcription_tool_write') && !current_user_can('va_typification_tool_write'))
 				break;
 			
 			switch ($_REQUEST['query']){

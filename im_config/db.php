@@ -1,5 +1,4 @@
 <?php
-	//TODO SQL injection
 	function load_va_data (){
 		global $Ue;
 		$result = new IM_Result();
@@ -10,46 +9,69 @@
 		
 		switch ($_POST['category']){
 			case 0: //Informanten
-				$query = "SELECT Ortsname, Nummer, AsText(" . ($_POST['community'] == 'true' ? '(SELECT Mittelpunkt FROM Orte WHERE Id_Ort = Id_Gemeinde)' : 'Georeferenz') . ") as Geo, Id_Informant FROM Informanten WHERE Erhebung = '" . substr($_POST['key'], 1) . "'" . ($_POST['outside'] == 'false' ? ' and Alpenkonvention' : '');
-				$data = $db->get_results($query, ARRAY_A);
+				$query = "SELECT Ortsname, Nummer, AsText(" . ($_POST['community'] == 'true' ? '(SELECT Mittelpunkt FROM Orte WHERE Id_Ort = Id_Gemeinde)' : 'Georeferenz') . ") as Geo, Id_Informant FROM Informanten WHERE Erhebung = %s" . ($_POST['outside'] == 'false' ? ' and Alpenkonvention' : '') . ' ORDER BY Position';
+				$data = $db->get_results($db->prepare($query, substr($_POST['key'], 1)), ARRAY_A);
 				
 				foreach ($data as $row){
-					$result->addMapElement(-1, new IM_SimpleElementInfoWindowData($row['Ortsname'], $row['Nummer']), $row['Geo'], va_get_quantify_data_informant($row['Id_Informant'], $db));
+					$result->addMapElement(
+						-1,
+						(isset($_POST['editMode'])? 
+								new IM_EditableElementInfoWindowData($row['Id_Informant'], va_get_edit_data_informant($row['Id_Informant'], $db)) :
+								new IM_SimpleElementInfoWindowData($row['Ortsname'], $row['Nummer'])), 
+						$row['Geo'],
+						va_get_quantify_data_informant($row['Id_Informant'], $db)
+					);
 				}
 			break;
 			
 			case 1: //Concept
 				if(empty($_POST['filter']['conceptIds']))
 					break;
-				$id_string = implode(',', $_POST['filter']['conceptIds']);
-				$where_clause = "Id_Concept IN ($id_string)";
+				$where_clause = $db->prepare("Id_Concept IN " . im_key_placeholder_list($_POST['filter']['conceptIds']), $_POST['filter']['conceptIds']);
 				va_create_result_object($where_clause, $lang, $result, $Ue, $db);
 			break;
 			
 			case 2: //Phonetic Type
 			case 3: //Morphologic Type
-				$where_clause = "Id_Instance IN (SELECT DISTINCT Id_Instance FROM Z_Ling WHERE Type_Kind = '" . $_POST['key'][0] . "' AND Id_Type = " . substr($_POST['key'], 1) . ')';
+				$where_clause = $db->prepare("Id_Instance IN (SELECT DISTINCT Id_Instance FROM Z_Ling WHERE Type_Kind = '" . $_POST['key'][0] . "' AND Id_Type = %d)", substr($_POST['key'], 1));
 				va_create_result_object($where_clause, $lang, $result, $Ue, $db);
 			break;
 			
 			case 4: //Base Type
-				$where_clause = "Id_Instance IN (SELECT DISTINCT Id_Instance FROM Z_Ling WHERE Id_Base_Type = " . substr($_POST['key'], 1) . ')';
+				$where_clause = $db->prepare("Id_Instance IN (SELECT DISTINCT Id_Instance FROM Z_Ling WHERE Id_Base_Type = %d)", substr($_POST['key'], 1));
 				va_create_result_object($where_clause, $lang, $result, $Ue, $db);				
 			break;
 			
 			case 5: //Extralinguistic
+			case 6: //Polygons
 				//Community flag is ignored, since it does not make sense for most of the extralinguistic data.
-				$query = "
-					SELECT Name, Description, astext(Geo_Data), Tags
+				$id_cat = substr($_POST['key'], 1);
+				
+				$query = $db->prepare("
+					SELECT Name, Description, astext(Geo_Data), Tags, Id_Geo
 					FROM Z_Geo
-					WHERE Id_Category = " . substr($_POST['key'], 1) . (!isset($_POST['outside']) || $_POST['outside'] == 'false' ? ' and Alpine_Convention' : '') . '
-					ORDER BY Id_Geo ASC';
+					WHERE Id_Category = %s" . (!isset($_POST['outside']) || $_POST['outside'] == 'false' ? ' and Alpine_Convention' : '') . '
+					ORDER BY Id_Geo ASC', $id_cat);
 				$data = $db->get_results($query, ARRAY_N);
+				
+				$use_quant_data = false;
+				$quant_categories = $db->get_col('SELECT DISTINCT Id_Kategorie FROM A_Informant_Polygon');
+				
+				if(in_array($id_cat, $quant_categories)){
+					$use_quant_data = true;
+				}
 				
 				if(isset($_POST['filter']) && $_POST['filter']['subElementCategory'] == -1){ //Pseudo category
 					$subCategoryId = 0;
 					foreach ($data as $row){
-						$result->addMapElement('?' . $subCategoryId++, new IM_SimpleElementInfoWindowData(va_translate_content($row[0], $Ue), va_translate_content($row[1], $Ue)), $row[2]);
+						va_add_extra_ling_element(
+								$db, 
+								$result, 
+								'?' . $subCategoryId++, 
+								new IM_SimpleElementInfoWindowData(va_translate_content($row[0], $Ue), va_translate_content($row[1], $Ue)), 
+								$row[2], 
+								$row[4], 
+								$use_quant_data);
 					}
 				}
 				else {
@@ -73,13 +95,28 @@
 								if(isset($_POST['filter']['subElementCategory']) && $_POST['filter']['subElementCategory'] == -3 && isset($tagArray[$_POST['filter']['selectedTag']])){
 									$subVal = "#" . $tagArray[$_POST['filter']['selectedTag']];
 								}
-								$result->addMapElement($subVal, new IM_SimpleElementInfoWindowData(va_translate_content($row[0], $Ue), va_translate_content($row[1], $Ue)), $row[2]);
+								
+								va_add_extra_ling_element(
+										$db, 
+										$result, 
+										$subVal, 
+										new IM_SimpleElementInfoWindowData(va_translate_content($row[0], $Ue), va_translate_content($row[1], $Ue)), 
+										$row[2], 
+										$row[4], 
+										$use_quant_data);
 							}
 						}
 					}
 					else {
 						foreach ($data as $row){
-							$result->addMapElement(-1, new IM_SimpleElementInfoWindowData(va_translate_content($row[0], $Ue), va_translate_content($row[1], $Ue)), $row[2]);
+							va_add_extra_ling_element(
+									$db, 
+									$result, 
+									-1, 
+									new IM_SimpleElementInfoWindowData(va_translate_content($row[0], $Ue), va_translate_content($row[1], $Ue)), 
+									$row[2], 
+									$row[4], 
+									$use_quant_data);
 						}
 					}
 				}
@@ -87,6 +124,37 @@
 		}
 		return $result;
 	}
+	
+function va_add_extra_ling_element (&$db, &$result, $subVal, $info, $geo, $id, $use_quant_data){
+	
+	if (isset($_POST['filter']['subElementCategory']) && $_POST['filter']['subElementCategory'] == -4){
+		$subVal = "$" . $db->get_var('SELECT Farbe FROM Orte_Faerbung WHERE Id_Ort = ' . $id);
+	}
+	
+	if (isset($_POST['filter']['onlyMultipolygons']) && strpos($geo, 'MULTIPOLYGON') !== 0){
+		return;
+	}
+	
+	if (isset($_POST['filter']['centerOutsideContour']) && 
+			($db->get_var('SELECT WITHIN(Mittelpunkt, Geodaten) AND ST_WITHIN(Mittelpunkt, Geodaten) FROM Orte WHERE Id_Ort = ' . $id) == '1'
+			|| strtolower($info->getName()) == 'water body')){
+		return;
+	}
+	
+	if (isset($_POST['filter']['addCenterPoints'])){
+		$result->addMapElement(
+				$subVal, 
+				new IM_SimpleElementInfoWindowData('Mittelpunkt ' . $info->getName(), ''),
+				$db->get_var('SELECT AsText(Mittelpunkt) FROM Orte WHERE Id_Ort = ' . $id));
+	}
+	
+	$quant_data = NULL;
+	if ($use_quant_data){
+		$quant_data = new IM_Polygon_Quantify_Info($id);
+	}
+	
+	$result->addMapElement($subVal, $info, $geo, $quant_data);
+}
 
 function va_translate_content ($text, &$Ue){
 	if(isset($Ue[$text])){
@@ -212,22 +280,30 @@ function va_create_result_object ($where_clause, $lang, IM_Result &$result, &$Ue
 		
 		$current_array[] = $row[6]; //community
 		
+		$current_array[] = $row[8]; //original
+		
+		$current_array[] = $row[9]; //encoding
+		
 		$result->addMapElement($va_sub, new IM_RecordInfoWindowData($current_array), $row[5], va_get_quantify_data_informant($row[7], $db));
 	}
 }
 
 function va_get_quantify_data_informant ($id_informant, &$db){
-	$res = array();
+	$res = new IM_Point_Quantify_Info();
 			
 	if(va_version_newer_than('va_161')){
-		$dbdata = $db->get_results($db->prepare('SELECT Id_Kategorie, AIndex FROM A_Informant_Polygon WHERE Id_Informant = %d AND ' . ($_POST['outside'] == 'false' ? 'Alpenkonvention' : 'NOT Alpenkonvention'), $id_informant), ARRAY_A);
+		$dbdata = $db->get_results($db->prepare('SELECT Id_Kategorie, Id_Polygon FROM A_Informant_Polygon_1 WHERE Id_Informant = %d', $id_informant), ARRAY_A);
 		
 		foreach ($dbdata as $row){
-			$res['E' . $row['Id_Kategorie']] = $row['AIndex'];
+			$res->addCategoryIndex('P' . $row['Id_Kategorie'], $row['Id_Polygon']);
 		}
 	}
 	
 	return $res;
+}
+
+function va_get_edit_data_informant ($id_informant, &$db){	
+	return $db->get_row($db->prepare('SELECT Erhebung, Nummer, Ortsname, Bemerkungen FROM Informanten WHERE Id_Informant = %d', $id_informant), ARRAY_A);
 }
 
 function va_build_concept_mapping ($where_clause, &$db){
@@ -299,7 +375,9 @@ function va_create_record_query ($where_clause){
 						Instance_Source,
 						" . ($_POST['community'] == 'true' ? 'Community_Center' : 'Geo_Data') . " AS Geo_Data,
 						Community_Name,
-						Id_Informant
+						Id_Informant,
+						Instance_Original,
+						Instance_Encoding
 					FROM Z_Ling
 					WHERE " . $where_clause 
 							. ($_POST['outside'] == 'false' ? ' AND Alpine_Convention' : '') . "
@@ -451,12 +529,18 @@ class IM_RecordInfoWindowData extends IM_ElementInfoWindowData {
 			'typeTable' => $arr[1], 
 			'concepts' => $arr[2],
 			'source' => $arr[3],
-			'community' => $arr[4]
+			'community' => $arr[4],
+			'original' => $arr[5],
+			'encoding' => $arr[6]
 		);
 	}
 	
 	protected function getTypeSpecificData (){
 	 	return $this->data;
 	}
+}
+
+function edit_va_data (){
+	echo 'Test';
 }
 ?>

@@ -1,4 +1,7 @@
 <?php
+
+//TODO add read mode (wordpress capabilities)
+
 function va_transcription () {
 	global $va_xxx;
 	

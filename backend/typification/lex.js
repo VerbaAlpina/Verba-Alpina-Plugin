@@ -161,7 +161,7 @@ function changeRecord (obj,changed){
 	if(changed.hasOwnProperty("selected")){
 		var descr = descriptionList.getDescription(changed["selected"]);
 		addLock("Tokens", descr.getLockName(), function (response){
-			if(response != 'success'){
+			if(response != 'success' && writeMode){
 				alert("Der Beleg \"" + descr.token + "\" wird bereits von einem anderen Benutzer typisiert!");
 				jQuery("#tokenAuswahlLex").val(jQuery("#tokenAuswahlLex").val().filter(function (e){
 					return e != changed["selected"];

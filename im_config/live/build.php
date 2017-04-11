@@ -12,7 +12,8 @@ $phar->setStub(file_get_contents("stub.php"));
 echo "Build CSS...\n";
 $css_files = array(
 	'../map.css',
-	$srcDir . '/../src/css/styles.css'
+	$srcDir . '/../src/css/styles.css',
+	$srcDir . '/../src/css/google-maps.css'
 );
 
 $css = fopen('im_live.css', 'w');

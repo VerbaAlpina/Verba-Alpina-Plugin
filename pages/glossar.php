@@ -25,11 +25,20 @@ function ladeGlossar (){
 	jQuery(function() {
 		addBiblioQTips(jQuery(".entry-content"));
 
-		jQuery(".quote").qtip({
-			"show" : "click",
-			"hide" : "unfocus"
+		jQuery(".quote").each(function (){
+			jQuery(this).qtip({
+				"show" : "click",
+				"hide" : "unfocus",
+				"content" : {
+					"text" : "<div>" + jQuery(this).prop("title") 
+					+ "</div><br /><input class='copyButton' style='display: block; margin: auto;' type='button' data-content='" 
+					+ jQuery(this).prop("title") + "' value='<?php echo $Ue['KOPIEREN']; ?>' />"
+				}
+			});
 		});
-		
+
+		addCopyButtonSupport();
+
 		jQuery("#sorting").val("<?php echo $mode;?>");
 		
 		jQuery("#sorting").change(function (){
@@ -151,7 +160,8 @@ function ladeGlossar (){
 					echo '&nbsp;<a href="' . get_admin_url(1) . '?page=glossar&entry=' . $e[0] . '" target="_BLANK" style="font-size: 50%">(' . $Ue['BEARBEITEN'] . ')</a>';
 				}
 				if($va_current_db_name != 'va_xxx'){
-					echo '&nbsp;<span class="quote" title="' . va_create_glossary_citation($e[0], $Ue) . '" style="font-size: 50%; cursor : pointer; color : grey;">(' . $Ue['ZITIEREN'] . ')</span>';
+					$cite_text = va_create_glossary_citation($e[0], $Ue);
+					echo '&nbsp;<span class="quote" title="' . $cite_text . '" style="font-size: 50%; cursor : pointer; color : grey;">(' . $Ue['ZITIEREN'] . ')</span>';
 				}
 				echo "	</h1>";			
 				echo "</header>";
@@ -266,6 +276,10 @@ function ladeGlossar (){
 			global $vadb;
 			
 			foreach ($result as &$row){
+				if(isDevTester() && $row[0] == 61 /*Versionierung*/){
+					$row[2] .= va_add_image_gallery();
+				}
+				
 				$ctags = $vadb->get_results("SELECT Id_Tag, Tag FROM Tags JOIN VTBL_Eintrag_Tag USING (Id_Tag) WHERE Id_Eintrag = {$row[0]}", ARRAY_N);
 				foreach ($ctags as &$ctag){
 					$ctag[1] = va_translate($ctag[1], $Ue);
@@ -326,5 +340,26 @@ function ladeGlossar (){
 			</div>
 			<?php
 			
+		}
+		
+		function va_add_image_gallery (){
+			global $va_xxx;
+			global $Ue;
+			$res = "\n\n<h3>" . $Ue['UEBERSCHRIFT_GALLERIE'] . '</h3>';
+			
+			$files = $va_xxx->get_results('SELECT Dateiname, Nummer, Size_Logo, Logo_Left, Logo_Top FROM Versionen JOIN Medien USING (Id_Medium) ORDER BY Nummer ASC', ARRAY_N);
+			foreach ($files as $i => $file){
+				$res .= '<div class="galleryContainer">';
+				$res .= '<img src="' . $file[0] . '" /><p>' . va_format_version_number(va_get_string_or_empty($files, $i - 1)[1]) . '</p>';
+				$res .= '<object type="image/svg+xml" class="galleryLogo" style="width: ' . $file[2] . '%; left: ' . $file[3] . '%; top: ' . $file[4] . '%;" data="' . get_site_url(1) . '/wp-content/uploads/VA_logo.svg"></object>';
+				$res .= '</div>';
+			}
+			return $res;
+		}
+		
+		function va_get_string_or_empty (&$arr, $key){
+			if(array_key_exists($key, $arr))
+				return $arr[$key];
+			return '';
 		}
 ?>

@@ -19,6 +19,11 @@ function tokenizeAeusserungen($id_Stimulus, $vorschau) {
 		foreach ($results as $row) {
 			$tokenizedFlagSet = false;
 			$commentsInTagBrackets = $row['Erhebung'] != 'ALD-I' && $row['Erhebung'] != 'ALD-II';
+			
+			if($row['Erhebung'] == 'BSA'){
+				$row['Aeusserung'] = str_replace(',', '\\\\,', $row['Aeusserung']);
+			}
+			
 			unset($row['Erhebung']);
 		
 			if($commentsInTagBrackets){
@@ -33,8 +38,9 @@ function tokenizeAeusserungen($id_Stimulus, $vorschau) {
 				//Leerzeichen vor Tagklammern entfernen => Wort + Bemerkungen sind ein Token
 				$row["Aeusserung"] = preg_replace("/[ 	]+</", "<", $row["Aeusserung"]);
 			}
-			$row["Aeusserung"] = preg_replace("/[ 	]+/", " ", $row["Aeusserung"]);
-			// entfernung von ueberfluessigen leerzeichen
+			$row["Aeusserung"] = preg_replace("/[ 	]+/", " ", $row["Aeusserung"]); // entfernung von ueberfluessigen leerzeichen
+			$row["Aeusserung"] = preg_replace("/\\\\\\\\,/", "°°°", $row["Aeusserung"]); // Maskierte Kommas
+			$row["Aeusserung"] = preg_replace("/\\\\\\\\;/", "^^^", $row["Aeusserung"]); // Maskierte Semikolons
 
 			$ebene_1 = split(";", trim($row["Aeusserung"]));
 
@@ -145,6 +151,11 @@ function tokenizeAeusserungen($id_Stimulus, $vorschau) {
 						$row['Ebene_2'] = $kk + 1;
 						$row['Ebene_3'] = $kkk + 1;
 						$row['Token'] = $vvv;
+						
+						$row["Token"] = str_replace("°°°", ",", $row["Token"]); // Maskierte Kommas
+						$row["Token"] = str_replace("^^^", ";", $row["Token"]); // Maskierte Semikolons
+						$row["Token"] = str_replace("\\\\\\\\<", "<", $row["Token"]); // Maskierte Tagklammern
+						$row["Token"] = str_replace("\\\\\\\\>", ">", $row["Token"]); // Maskierte Tagklammern
 
 						//Erstelle Typzuweisungen bzw. neue Typen für typisierte Belege
 						if($klass != 'B'){

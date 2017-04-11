@@ -11,7 +11,7 @@
 
   <target name="compile">
 
-	<jscomp compilationLevel="advanced" warning="verbose" debug="false" languageIn="ECMASCRIPT6" output="compiled/interactive_map_compiled.js">
+	<jscomp compilationLevel="simple" warning="verbose" debug="true" languageIn="ECMASCRIPT6_STRICT" output="compiled/interactive_map_compiled.js">
 		
 		<!--<warning group="reportUnknownTypes" level="WARNING" />-->
 		
@@ -22,6 +22,7 @@
 		  	<file name="map.js" />
 			<file name="classes/record-window.js" />
 			<file name="classes/concept-filter.js" />
+			<file name="classes/add-center-filter.js" />
 			<file name="classes/language-families.js" />
 			<file name="map_styles/empty.js" />
 		</sources>

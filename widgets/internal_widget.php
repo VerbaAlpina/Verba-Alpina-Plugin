@@ -11,24 +11,38 @@ class InternalWidget extends WP_Widget {
 
 	
 	public function widget( $args, $instance ) {
-		?>
+		global $va_mitarbeiter;
+		global $admin;
 		
+		$list = array();
+		
+		if($va_mitarbeiter || $admin){
+			$list[] = array(2724, 'Übersicht Datenerhebung');
+		}
+		
+		if (current_user_can('va_see_progress_page')){
+			$list[] = array(1839, 'Fortschritt');
+		}
+		
+		if (current_user_can('va_transcripts_read')){
+			$list[] = array(1760, 'Protokolle');
+		}
+		
+		if(empty($list))
+			return;
+		
+		?>
+
 		<aside class="widget">
 		
 			<h3 class="widget-title">Intern</h3>
 			
 			<ul>
-				<li>
-					<a href="<?php echo get_page_link(1839);?>"> Fortschritt </a>
-				</li>
-				
-				<li>
-					<a href="<?php echo get_page_link(1760);?>"> Protokolle </a>
-				</li>
-				
-				<li>
-					<a href="<?php echo get_page_link(2724);?>"> Übersicht Datenerhebung </a>
-				</li>
+				<?php 
+				foreach ($list as $link){
+					echo '<li><a href="' . get_page_link($link[0]) . '">' . $link[1] . '</a></li>';
+				}
+				?>
 			</ul>
 			
 		</aside>

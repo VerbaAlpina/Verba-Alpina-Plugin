@@ -17,9 +17,12 @@ if($dbname != NULL){
 	<?php 
 }
 
+$can_write = current_user_can('va_typification_tool_write');
+
 ?>
 	var scanUrl = "<?php echo home_url('/dokumente/scans/', 'https');?>";
 	var loadingUrl = "<?php echo VA_PLUGIN_URL . '/images/Loading.gif'; ?>";
+	var writeMode = <?php echo current_user_can('va_typification_tool_write')? "true" : "false";?>;
 </script>
 
 <style>
@@ -107,9 +110,9 @@ if($dbname != NULL){
 				}
 				?>
 			</select>
-			<input id="assignVA" type="button" class="button button-primary assignButton" value="<?php _e('Assign type', 'verba-alpina');?>" />
-			<input id="newVAType" type="button" class="button button-primary" value="<?php _e('Create new type', 'verba-alpina');?>" />
-			<input id="editVAType" type="button" class="button button-primary" value="Typ bearbeiten" />
+			<input id="assignVA" type="button" class="button button-primary assignButton" value="<?php _e('Assign type', 'verba-alpina');?>" <?php if(!$can_write) echo ' disabled';?> />
+			<input id="newVAType" type="button" class="button button-primary" value="<?php _e('Create new type', 'verba-alpina');?>" <?php if(!$can_write) echo ' disabled';?> />
+			<input id="editVAType" type="button" class="button button-primary" value="Typ bearbeiten" <?php if(!$can_write) echo ' disabled';?> />
 			
 			<br />
 			<br />
@@ -125,8 +128,8 @@ if($dbname != NULL){
 				}
 				?>
 			</select>
-			<input id="assignConcept" type="button" class="button button-primary conceptButton" value="<?php _e('Assign concept', 'verba-alpina');?>" />
-			<input id="newConcept" type="button" class="button button-primary" value="<?php _e('Create new concept', 'verba-alpina');?>" />
+			<input id="assignConcept" type="button" class="button button-primary conceptButton" value="<?php _e('Assign concept', 'verba-alpina');?>" <?php if(!$can_write) echo ' disabled';?> />
+			<input id="newConcept" type="button" class="button button-primary" value="<?php _e('Create new concept', 'verba-alpina');?>" <?php if(!$can_write) echo ' disabled';?> />
 			
 			<br />
 			<br />
@@ -144,7 +147,7 @@ if($dbname != NULL){
 					}
 					?>
 				</select>
-				<input type="button" class="button button-primary conceptButton" id="noTypeButton" value="<?php _e('Confirm', 'verba-alpina');?>">
+				<input type="button" class="button button-primary conceptButton" id="noTypeButton" value="<?php _e('Confirm', 'verba-alpina');?>" <?php if(!$can_write) echo ' disabled';?>>
 			</div>
 			
 		</td>

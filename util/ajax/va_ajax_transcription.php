@@ -3,10 +3,16 @@ function va_ajax_transcription (&$db){
 	switch ($_POST['query']){
 		
 		case 'delete_locks':
+			if(!current_user_can('va_transcription_tool_write'))
+				break;
+				
 			va_transcription_delete_locks($db);
 		break;
 			
 		case 'update_informant':
+			if(!current_user_can('va_transcription_tool_write'))
+				break;
+			
 			va_transcription_delete_locks($db);
 			
 			echo va_transcription_update_informant($db, $_POST['id_stimulus'], $_POST['mode'], $_POST['region']);

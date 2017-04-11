@@ -309,6 +309,9 @@
 				
 				<br />
 				
+				<?php
+				if(current_user_can('va_transcripts_write')){
+				?>
 				<div>
 					Modus:&nbsp;&nbsp;&nbsp;
 					<select id="modeList" onChange="changeMode(this.value);">
@@ -316,6 +319,9 @@
 						<option value="edit">Bearbeiten</option>
 					</select>
 				</div>
+				<?php
+				}
+				?>
 			</div>
 			
 			<br />
@@ -361,6 +367,12 @@
 	
 	function showProtocol ($row, $editMode){
 		global $va_xxx;
+		
+		//Ignore edit mode if you only have reading access
+		if(!current_user_can('va_transcripts_write')){
+			$editMode = false;
+		}
+		
 		?>
 		
 		<table>

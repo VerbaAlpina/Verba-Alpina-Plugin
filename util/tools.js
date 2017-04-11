@@ -13,6 +13,52 @@ jQuery(function (){
 });
 
 /**
+*
+* @param {jQuery} parent
+* 
+* @returns {undefined}
+*/
+function addMouseOverHelp (parent){
+	parent.find("img.va_mo_help").each(function (){
+		jQuery(this).qtip({
+			content : {
+				text : jQuery(this).next(),
+				title: {
+					button: true // Close button
+				}
+			},
+			show: {
+				event: 'mouseenter',
+				solo: true
+			},
+			style: {
+				classes : 'qtip-grey'
+			},
+			events: {
+				render:
+				/**
+				 * @param {Object} event
+				 * @param {Object} api
+				 */
+				function(event, api) {
+					api.elements.target.bind('click', function() {
+						api.set('hide.event', false);
+					});
+				},
+				hide: 
+				/**
+				 * @param {Object} event
+				 * @param {Object} api
+				 */
+				function(event, api) {
+					api.set('hide.event', 'mouseleave');
+				}
+			}
+		});
+	});
+}
+
+/**
  * 
  * @param {Array<?>} a
  * @return {number}
@@ -71,6 +117,14 @@ function addBiblioQTips(parent){
 		catch (e){
 			console.log(e);
 		}
+	});
+}
+
+function addCopyButtonSupport () {
+	new Clipboard('.copyButton', {
+	    text: function(trigger) {
+	        return trigger.getAttribute('data-content');
+	    }
 	});
 }
 

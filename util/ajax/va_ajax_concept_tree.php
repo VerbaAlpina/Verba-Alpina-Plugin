@@ -2,6 +2,9 @@
 function va_ajax_concept_tree (&$db){
 	switch ($_POST['query']){
 		case 'update_node':
+			if(!current_user_can('va_concept_tree_write'))
+				break;
+				
 			if($db->query($db->prepare('UPDATE Ueberkonzepte SET Id_Ueberkonzept = %d WHERE ID_Konzept = %d', $_POST['superconcept'], $_POST['concept'])) !== false){
 				echo 'success';
 			}

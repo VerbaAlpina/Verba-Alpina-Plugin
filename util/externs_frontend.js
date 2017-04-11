@@ -18,3 +18,11 @@ var ajax_object;
  * @return {undefined}
  */
 jQuery.prototype.dialog = function (params) {};
+
+/**
+*
+* @param {jQuery} parent
+* 
+* @returns {undefined}
+*/
+function addMouseOverHelp (parent){};

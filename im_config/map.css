@@ -64,3 +64,34 @@ a.encyLink, span.encyLink{
 #commentWindow .entry-content {
 	font-family: "Open Sans",Helvetica,Arial,sans-serif;
 }
+
+.qtip-grey {
+	background-color: #fcfcfc;
+	border-color: black;
+	border-radius: 5px;
+	border-color: grey;
+	box-shadow: 1px 1px 3px 1px rgba(0, 0, 0, 0.15);
+}
+
+.VA_Map_Subhead {
+	font-size: 85%;
+	text-align: center;
+	width: 240pt;
+	margin-bottom: 0.25em;
+	color : #4b4b4b;
+}
+
+.sf-menu-toplevel > li > a{
+	margin-top : -1px;
+}
+
+.chosen-single {
+	margin-top : -1px;
+}
+
+.qtip-record span.originalRecord {
+	font-size : 180%;
+	font-family : arial unicode;
+	color: #2c879b;
+	font-weight: bold;
+}

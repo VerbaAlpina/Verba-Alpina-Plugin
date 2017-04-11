@@ -3,13 +3,25 @@
  * @struct
  * @implements {InfoWindowContent}
  * 
+ * @param {number} categoryID
+ * @param {OverlayType} overlayType
  * @param {Object<string, ?>} data
  */
-function RecordInfoWindowContent (data){
+function RecordInfoWindowContent (categoryID, overlayType, data){
 	/**
 	 * @type {string} record 
 	 */
 	this.record = data["record"];
+	
+	/**
+	 * @type {string}
+	 */
+	this.original = data["original"];
+	
+	/**
+	 * @type {number}
+	 */
+	this.encoding = data["encoding"] * 1;
 	
 	/**
 	 * @type {Array<string>} 
@@ -34,10 +46,15 @@ function RecordInfoWindowContent (data){
 	 */
 	this.communityName = data["community"];
 	
+	/**
+	 * @type {Array<Object>}
+	 */
+	this.tooltipApis = [];
+	
 	/** 
 	 * @return {string} 
 	 */
-	this.getHtmlString = function (){
+	this.getHtml = function (){
 		var /** string */ result = "<div>";
 		var /** number */ hashIndex = this.record.indexOf("###");
 		if(this.record.indexOf("TYP") == 0){
@@ -46,8 +63,20 @@ function RecordInfoWindowContent (data){
 		}
 		else {
 			var /** string */ recordName = hashIndex == -1? this.record : this.record.substring(0, hashIndex) + "<font color='red'>*</font>";
-			result += "<table style='width : 100%'><tr><td><h1 class='singleRecord'>" + recordName + "</h1>";
-			result += "<span>(" + Ue['EINZELBELEG'] + ")</span></td>";
+			result += "<table style='width : 100%'><tr><td><h1 class='singleRecord'>" + recordName + "</h1><div style='display: none'>";
+			if (this.encoding == 1){
+				result += "Darstellung: IPA " + Ue["QUELLE"];
+			}
+			else if (this.encoding == 2){
+				result += "Darstellung: IPA VA";
+			}
+			if (this.encoding == 3){
+				result += "Darstellung: DST " + Ue["QUELLE"];
+			}
+			if(this.original && this.original != this.record){
+				result += "<br /><br /><span>DST Quelle: </span><span class='originalRecord'>" + this.original + "</span>";
+			}
+			result += "</div><span>(" + Ue['EINZELBELEG'] + ")</span></td>";
 			result += "<td><h2 class='community singleRecord'>" + this.communityName + "</h2></td></tr></table>";
 		}
 		result += "<br /><br />" + this.typeTable + "<br /><br /><table class='easy-table easy-table-default'><tr><th>" + Ue["QUELLE"] + "</th><th>" + Ue["KONZEPT"] + "</th></tr>";
@@ -65,7 +94,7 @@ function RecordInfoWindowContent (data){
 				conceptDescription = Ue["KEIN_KONZEPT"];
 			}
 			
-			if(conceptName == "")
+			if(conceptName == "" || conceptName == conceptDescription)
 				result += "<tr><td class='atlasSource'>" + this.sources[i] + "</td><td>" + conceptDescription + "</td></tr>";
 			else
 				result += "<tr><td class='atlasSource'>" + this.sources[i] + "</td><td><div class='currentRecordWindowConcept' data-concept-descr='" + conceptDescription+ "'>" + conceptName + "</div></td></tr>";
@@ -105,28 +134,52 @@ function RecordInfoWindowContent (data){
 	/**
 	 * @override
 	 * 
-	 * @param {InfoBubble} infoWindow
+	 * @param {Element} content
 	 * 
 	 * @return {undefined} 
 	 */
-	this.onOpen = function (infoWindow){
-		//Has to be added every time, since InfoBubble somehow rebuilds the content every time
-		google.maps.event.addListener(infoWindow, 'domready', /** @this{InfoBubble} */ function(){
-			jQuery(this.content_).find(".currentRecordWindowConcept").qtip({
+	this.onOpen = function (content){
+		var /** jQuery*/ concepts = jQuery(content).find(".currentRecordWindowConcept");
+		concepts.qtip({
+			"content" : {
+				"attr" : 'data-concept-descr'
+			},
+			"position" : {
+				"my" : "bottom left",
+				"at" : "top left"
+			}
+		});
+		var /** Object */ capi = concepts.qtip("api");
+		if(capi != null)
+			this.tooltipApis.push(capi);
+		
+		var /** jQuery */ records = jQuery(content).find(".singleRecord:not(.community)");
+		
+		records.each(function (){
+			jQuery(this).qtip({
 				"content" : {
-					"attr" : 'data-concept-descr'
+					text : jQuery(this).next()
 				},
 				"position" : {
-					"my" : "bottom left",
-					"at" : "top left"
+					"my" : "top left",
+					"at" : "bottom left"
+				},
+				"style" : {
+					"classes" : "qtip-record"
 				}
 			});
-			
-			jQuery(this.content_).find(".infoWindowTypeSelect").each(/** @this{Element} */ function (){
-				jQuery(this).change(/** @this{Element} */ function(){
-					//TODO use class or something
-					jQuery(this).parent().parent().children().eq(1).html(/** @type{string} */ (jQuery(this).find("option:selected").data("tname")));
-				});
+		});
+		
+		var /** RecordInfoWindowContent */ thisObject = this;
+		records.each(function (){
+			thisObject.tooltipApis.push(jQuery(this).qtip("api"));
+		});
+
+		//Listener for multiple typings
+		jQuery(content).find(".infoWindowTypeSelect").each(/** @this{Element} */ function (){
+			jQuery(this).change(/** @this{Element} */ function(){
+				//TODO use class or something
+				jQuery(this).parent().parent().children().eq(1).html(/** @type{string} */ (jQuery(this).find("option:selected").data("tname")));
 			});
 		});
 	};
@@ -134,14 +187,14 @@ function RecordInfoWindowContent (data){
 	/**
 	 * @override
 	 * 
-	 * @param {InfoBubble} infoWindow
+	 * @param {Element} content
 	 * 
 	 * @return {undefined} 
 	 */
-	this.onClose = function (infoWindow){
-		//Remove qtips every time, since they cannot be re-used
-		//TODO does not work
-		jQuery(infoWindow.content_).find(".currentRecordWindowConcept").qtip("destroy");
+	this.onClose = function (content){
+		for(var i = 0; i < this.tooltipApis.length; i++){
+			this.tooltipApis[i]["destroy"](true);
+		}
 	};
 	
 	/**
@@ -151,5 +204,14 @@ function RecordInfoWindowContent (data){
 	 */
 	this.getData = function () {
 		return []; //TODO implement
+	};
+	
+	/**
+	 * @override
+	 * 
+	 * @return {string}
+	 */
+	this.getName = function (){
+		return "";
 	};
 }

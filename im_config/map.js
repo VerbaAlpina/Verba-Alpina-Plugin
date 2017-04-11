@@ -1,4 +1,4 @@
-//TODO Änderungsmodus ausblenden für Zitierversion
+ajaxurl = ajax_object.ajaxurl;
 
 jQuery(function (){
 	var/** number */ gm_height = (window.innerHeight - (document.getElementById("content").offsetTop) / 2);
@@ -17,6 +17,8 @@ jQuery(function (){
 			}
 		});
 	});
+	
+	addMouseOverHelp(jQuery("#trSelectionBar"));
 });
 
 jQuery(document).on("im_map_initialized", function (){
@@ -27,7 +29,7 @@ jQuery(document).on("im_map_initialized", function (){
 	categoryManager.addInfoWindowContentConstructor("record", RecordInfoWindowContent);
 	
 	if (PATH["tk"] == undefined)
-		categoryManager.loadData(5, "E17", {"subElementCategory" : -1});
+		categoryManager.loadData(5, "P17", {"subElementCategory" : -1});
 	else
 	 	categoryManager.loadSynopticMap(PATH["tk"] * 1);
 	
@@ -58,23 +60,41 @@ jQuery(document).on("im_map_initialized", function (){
 	commentManager.showCommentMenu = function (categoryID, elementID){
 		return ajax_object.db == "xxx";
 	};
-	
+});
+
+var /** boolean*/ backupCommunities;
+jQuery(document).on("im_edit_mode_started", function (){
+	backupCommunities = /** @type{boolean}*/ (optionManager.getOptionState("comm"));
+	optionManager.setOption("comm", false, {"reload" : false});
+});
+
+jQuery(document).on("im_edit_mode_stopped", function (){
+	if(backupCommunities !== undefined){
+		optionManager.setOption("comm", backupCommunities, {"reload" : false});
+	}
+});
+
+jQuery(document).on("im_add_options", function (){
 	categoryManager.addAjaxData("outside", false);
-	optionManager.addOption("ak", new BoolOption(false, TRANSLATIONS["ALPENKONVENTTION_INFORMANTEN"], function(val) {
-		optionManager.enableOptions(false);
+	optionManager.addOption("ak", new BoolOption(false, TRANSLATIONS["ALPENKONVENTTION_INFORMANTEN"], function(val, details) {
 		categoryManager.addAjaxData("outside", val);
-		legend.reloadMarkers(function (){
-			optionManager.enableOptions(true);
-		});
+		if(!details || details["first"] !== true){
+			optionManager.enableOptions(false);
+			legend.reloadMarkers(function (){
+				optionManager.enableOptions(true);
+			});
+		}
 	}));
 	
 	categoryManager.addAjaxData("community", true);
-	optionManager.addOption("comm", new BoolOption(true, TRANSLATIONS["AUF_GEMEINDE"], function(val) {
-		optionManager.enableOptions(false);
+	optionManager.addOption("comm", new BoolOption(true, TRANSLATIONS["AUF_GEMEINDE"], function(val, details) {
 		categoryManager.addAjaxData("community", val);
-		legend.reloadMarkers(function (){
-			optionManager.enableOptions(true);
-		});
+		if(!details || (details["reload"] !== false && details["first"] !== true)){
+			optionManager.enableOptions(false);
+			legend.reloadMarkers(function (){
+				optionManager.enableOptions(true);
+			});
+		}
 	}));
 	
 	if(ajax_object.va_staff == "1") {
@@ -102,6 +122,18 @@ jQuery(document).on("im_legend_before_rebuild", function (event, legend){
 	//Remove old qtips
 	jQuery("#IM_legend tr td:nth-child(3)").qtip("destroy", true);
 });
+
+jQuery(document).on("im_show_edit_mode", 
+	/**
+	* @param {Event} event
+	* @param {{result : boolean}} paramObject
+	* 
+	* @return {undefined}
+	*/
+	function (event, paramObject){
+		paramObject.result = ajax_object.db == "xxx";
+	}
+);
 	
 jQuery(document).on("im_legend_element_created", 
 	/**
@@ -182,7 +214,8 @@ var categories = {
 	PhoneticType: 2,
 	MorphologicType : 3,
 	BaseType : 4,
-	ExtraLing : 5
+	ExtraLing : 5,
+	Polygons : 6
 };
 
 var /**AlphabetSorter */ alphabetSorter = new AlphabetSorter();
@@ -195,14 +228,15 @@ il.addListPrinter(new CsvListPrinter());
 
 var /** FieldType */ stringInput = new StringInputType();
 
-var /** !Object<string, Array<FieldInformation>> */ informantFields = {};
-informantFields[google.maps.drawing.OverlayType.MARKER] = [
+var /** EditConfiguration */ informatEditConfig = new EditConfiguration();
+informatEditConfig.setFieldData(OverlayType.PointSymbol, [
 	new FieldInformation("Erhebung", stringInput, true),
 	new FieldInformation("Nummer", stringInput, true),
 	new FieldInformation("Ortsname", stringInput, false),
 	new FieldInformation("Bemerkungen", stringInput, false)
-];
-
+]);
+informatEditConfig.allowNewOverlays(OverlayType.PointSymbol);
+informatEditConfig.allowGeoDataChange(OverlayType.PointSymbol);
 
 categoryManager.registerCategory (
 	new CategoryInformation (
@@ -217,12 +251,7 @@ categoryManager.registerCategory (
 		"Informanten-Daten exportieren",
 		il,
 		undefined,
-		new EditConfiguration (
-			informantFields,
-			true,
-			true,
-			true
-		)
+		informatEditConfig
 	)
 );
 
@@ -293,6 +322,26 @@ categoryManager.registerCategory (
 	)
 );
 
+var /** function (number, string) : Object<string, Array<string>> */ elingTagFunction =  function (categoryID, elementID){
+	return  /** @type{Object<string, Array<string>>} */ (ELing[elementID.substring(1)][1]);
+};
+
+var /** function (number, string): Array<{tag:string, name:string}> */ elingGroupFunction = function (categoryID, elementID){
+	var /**Array<{tag:string, name:string}>*/ result = [];
+	var /** Object<string, Array<string>>}*/ tagList = /** @type{Object<string, Array<string>>} */ (ELing[elementID.substring(1)][1]);
+	if(tagList){
+		for (var tagKey in tagList){
+			var /**string*/ translTag = Ue[tagKey];
+			result.push({tag : tagKey, name : (translTag? translTag : tagKey)});
+		}
+	}
+	
+	return result;
+};
+
+var /** TagComponent */ elingTag = new TagComponent(elingTagFunction);
+var /** GroupingComponent */ elingGroupingE = new GroupingComponent([], undefined, undefined, undefined, elingGroupFunction)
+
 categoryManager.registerCategory (
 	new CategoryInformation (
 		categories.ExtraLing,
@@ -300,35 +349,10 @@ categoryManager.registerCategory (
 		Ue["AUSSERSPR"],
 		"",
 		"extraLingSelect",
-		[new TagComponent(
-			/**
-			 * @param {number} categoryID
-			 * @param {string} elementID
-			 * 
-			 * @return {Object<string, Array<string>>}
-			 */
-			function (categoryID, elementID){
-				return  /** @type{Object<string, Array<string>>} */ (ELing[elementID.substring(1)][1]);
-			}),
-			new GroupingComponent([], undefined, undefined, undefined,
-					/**
-					 * @param {number} categoryID
-					 * @param {string} elementID
-					 * 
-					 * @return {Array<{tag:string, name:string}>}
-					 */
-					function (categoryID, elementID){
-						var /**Array<{tag:string, name:string}>*/ result = [];
-						var /** Object<string, Array<string>>}*/ tagList = /** @type{Object<string, Array<string>>} */ (ELing[elementID.substring(1)][1]);
-						if(tagList){
-							for (var tagKey in tagList){
-								var /**string*/ translTag = Ue[tagKey];
-								result.push({tag : tagKey, name : (translTag? translTag : tagKey)});
-							}
-						}		
-						return result;
-					}
-				)],
+		[
+			elingTag, 
+			elingGroupingE
+		],
 		undefined,
 		Ue["KOMMENTAR_AUSSERSPR_SCHREIBEN"],
 		undefined,
@@ -338,6 +362,44 @@ categoryManager.registerCategory (
 		}
 	)
 );
+
+var /** GroupingComponent */ elingGroupingP = new GroupingComponent(function (categoryID, elementID){
+	var /**Array<number>*/ result = [];
+	
+	if(ajax_object.va_staff == "1" && elementID == "P62"){
+		result.push(-4);
+	}
+	
+	return result;
+}, undefined, undefined, undefined, elingGroupFunction);
+
+var /** EditConfiguration */ polyEditConfig = new EditConfiguration();
+polyEditConfig.allowGeoDataChange(OverlayType.PointSymbol, function (elementID){
+	return elementID == "P62";
+});
+
+categoryManager.registerCategory (
+		new CategoryInformation (
+			categories.Polygons,
+			"P",
+			"Polygone", //TODO translation
+			"",
+			"polygonSelect",
+			[
+				elingTag, 
+				elingGroupingP,
+				new CenterPointFilterComponent()
+			],
+			undefined,
+			Ue["KOMMENTAR_AUSSERSPR_SCHREIBEN"],
+			undefined,
+			undefined,
+			function (key){
+				return /** @type{string} */ (ELing[key.substring(1)][0]);
+			},
+			polyEditConfig
+		)
+	);
 
 for (var i = 0; i < TagValues.length; i++){
 	categoryManager.addElementName("#" + TagValues[i], (Ue[TagValues[i]]? Ue[TagValues[i]] : TagValues[i]));

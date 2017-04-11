@@ -8,6 +8,9 @@ add_action('wp_ajax_dbtranskr', 'transkrDB');
 function transkrDB (){
 	global $va_xxx;
 
+	if(!current_user_can('va_transcription_tool_read'))
+		break;
+	
 	switch ($_POST['type']) {
 		case 'changeModus':
 		case 'changeRegion':
@@ -19,6 +22,9 @@ function transkrDB (){
 		break;
 		
 		case 'updateTranscription':
+			
+			if(!current_user_can('va_transcription_tool_write'))
+				break;
 		
 			if($_REQUEST["Aeusserung"] == "" || $_REQUEST["Id_Stimulus"] == "" && $_REQUEST["Id_Informant"] == ""){
 				errorString('Kein Wert eingetragen!');
@@ -166,6 +172,8 @@ $hilfeKonzept = "Wählen Sie das Konzept / die Konzepte aus, die dieser Äußeru
 
 $hilfeProblem = "Dieser Button überspringt den aktuellen Informanten und markiert ihn speziell als problematisch. Später können die Problemfälle über den Modus Probleme im rechten Auswahlmenü eingetragen werden.";
 
+	$can_write = current_user_can('va_transcription_tool_write');
+	
 	$result = getKartenStub()."
 	  
   <div style=\"float:right; display:inline;\">
@@ -197,9 +205,9 @@ $hilfeProblem = "Dieser Button überspringt den aktuellen Informanten und markie
 		</div>
  
 		" . __('Transcription', 'verba-alpina') . " <input id=\"inputAeusserung\" name=\"aeusserung\" size=\"50\" type=\"text\" /> 
-		<input type=\"button\" value=\"" . __('Insert', 'verba-alpina') . "\" onClick=\"writeAeusserung(getElementById('inputAeusserung').value)\" />
-		<input type=\"button\" value=\"<vacat>\"  onClick=\"writeAeusserung('<vacat>')\" />
-		<input type=\"button\" value=\"" . __('Problem', 'verba-alpina') . "\"  onClick=\"writeAeusserung('<problem>')\" />
+		<input type=\"button\" value=\"" . __('Insert', 'verba-alpina') . "\" onClick=\"writeAeusserung(getElementById('inputAeusserung').value)\" " . ($can_write? '' : ' disabled') . " />
+		<input type=\"button\" value=\"<vacat>\"  onClick=\"writeAeusserung('<vacat>')\" " . ($can_write? '' : ' disabled') . " />
+		<input type=\"button\" value=\"" . __('Problem', 'verba-alpina') . "\"  onClick=\"writeAeusserung('<problem>')\" " . ($can_write? '' : ' disabled') . " />
 		<img src=\"".$folder."info.png\" onmouseover=\"Tip('".trim(preg_replace('/\n/','<br />',$hilfeProblem))."', CLICKSTICKY, true, CLOSEBTN, true, WIDTH, 750, OFFSETY, -20, TITLE, 'Hilfe')\" onmouseout=\"UnTip()\" height=\"15px\">
 		
 		<select class=\"noChosen\" id=\"Klasse\">

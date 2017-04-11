@@ -138,7 +138,8 @@ function TokenDescription (id, kind, id_type, token, ipa, original, id_stimulus,
 		else if (this.vatype == "---LOADING---")
 			result += "<td><img src='" + loadingUrl + "' /></td>";
 		else
-			result += "<td><span class='chosen-like-button'><span>" + this.vatype + "</span><a class='deleteTypification' /></span></td>";
+			result += "<td><span class='chosen-like-button" + (writeMode? " chosen-like-button-del" : "") + "'><span>" 
+				+ this.vatype + "</span><a class='deleteTypification' /></span></td>";
 		result += "</tr>";
 		return result;
 	};
@@ -146,7 +147,7 @@ function TokenDescription (id, kind, id_type, token, ipa, original, id_stimulus,
 	this.getConceptName = function (id){
 		if(id){
 			if(this.conceptLoadingList.indexOf(id) === -1){
-				return "<span class='chosen-like-button' id='" + id + "'><span>" 
+				return "<span class='chosen-like-button" + (writeMode? " chosen-like-button-del" : "") + "' id='" + id + "'><span>" 
 					+ jQuery("#konzeptAuswahl option[value=" + id + "]").text() 
 					+ "</span><a class='deleteConcept' /></span>";
 			}

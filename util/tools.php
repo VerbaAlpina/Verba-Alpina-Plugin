@@ -72,14 +72,26 @@ function va_format_bibliography ($author, $title, $year, $loc, $link, $band, $in
 }
 
 function va_format_base_type ($str){
+	global $Ue;
 	if(mb_strpos($str, '*') !== false){
-		return $str . ' (* = rekonstruiert)';
+		return $str . ' (* = ' . $Ue['REKONSTRUIERT'] . ')';
 	}
 	return $str;
 }
 //TODO use icons from plugin everywhere and delete icons folder in va
 function va_get_glossary_help ($id, &$Ue){
 	return '<a href="' . va_get_glossary_link($id) . '" target="_blank"><img  src="' . VA_PLUGIN_URL . '/images/Help.png" style="vertical-align: middle;" title="' . $Ue['HILFE'] . '" /></a>';
+}
+
+//TODO use plugin icons
+function va_get_mouseover_help ($text, &$Ue, &$db, $lang, $id_glossary = NULL){
+	$res = '<img  src="' . VA_PLUGIN_URL . '/images/Help.png" style="vertical-align: middle;" class="va_mo_help" />';
+	$res .= '<div style="display : none;">' . $text; 
+	if($id_glossary != NULL){
+		$entry_name = $db->get_var('SELECT Terminus_' . $lang . ' FROM Glossar WHERE Id_Eintrag = ' . $id_glossary);
+		$res .= '<br /><br />' . '<a href="' . va_get_glossary_link($id_glossary) . '" target="_blank">(' . $Ue['SIEHE'] . ' ' . $entry_name . ')</a>';
+	}
+	return $res . '</div>';
 }
 
 //TODO use plugin icons
@@ -124,6 +136,9 @@ function va_format_lex_type ($orth, $lang, $word_class, $gender, $affix, &$Ue = 
 }
 
 function va_format_version_number ($version){
+	if($version == '')
+		return '';
+	
 	return substr($version, 0, 2) . '/' . substr($version, 2);
 }
 

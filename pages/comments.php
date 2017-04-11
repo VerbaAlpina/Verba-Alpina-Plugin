@@ -14,10 +14,19 @@ function comment_list (){
 			jQuery(function () {
 				addBiblioQTips(jQuery(".entry-content"));
 
-				jQuery(".quote").qtip({
-					"show" : "click",
-					"hide" : "unfocus"
+				jQuery(".quote").each(function (){
+					jQuery(this).qtip({
+						"show" : "click",
+						"hide" : "unfocus",
+						"content" : {
+							"text" : "<div>" + jQuery(this).prop("title") 
+							+ "</div><br /><input class='copyButton' style='display: block; margin: auto;' type='button' data-content='" 
+							+ jQuery(this).prop("title") + "' value='<?php echo $Ue['KOPIEREN']; ?>' />"
+						}
+					});
 				});
+
+				addCopyButtonSupport();
 			})
 		</script>
 		<?php

@@ -2,8 +2,6 @@
 
 function create_va_map (){
 
-$t = microtime(true);$times[] = array('Start: ', date("h:i:s") . sprintf(" %06d",($t - floor($t)) * 1000000));
-
 global $lang;
 global $Ue;
 global $admin;
@@ -31,11 +29,13 @@ foreach ($concepts as $concept){
 	$concepts_JS[$concept['Id_Konzept']] = array ($concept['Name'], $concept['Beschreibung'], $concept['Anzahl_Belege'], $children, $concept['Dateiname']);
 }
 
-$sql_extra = '
-		SELECT Id_Category, Category_Level_1, Category_Level_2, Category_Level_3, Category_Level_4, Category_Level_5, Category_Name, GROUP_CONCAT(DISTINCT Tags) 
+$sql_extra = "
+		SELECT Id_Category, Category_Level_1, Category_Level_2, Category_Level_3, Category_Level_4, Category_Level_5, Category_Name, 
+			GROUP_CONCAT(DISTINCT Tags),
+			GeometryType(Geo_data) != 'POLYGON' AND GeometryType(Geo_data) != 'MULTIPOLYGON'
 		FROM Z_Geo
 		GROUP BY Id_Category
-		ORDER BY Category_Level_1, Category_Level_2, Category_Level_3, Category_Level_4, Category_Level_5';
+		ORDER BY Category_Level_1, Category_Level_2, Category_Level_3, Category_Level_4, Category_Level_5";
 $extra_cats = IM_Initializer::$instance->database->get_results($sql_extra, ARRAY_N);
 $eling_JS = array();
 foreach ($extra_cats as $ecat){
@@ -71,9 +71,6 @@ wp_localize_script ('im_map_script', 'Concepts', $concepts_JS);
 wp_localize_script ('im_map_script', 'ELing', $eling_JS);
 wp_localize_script ('im_map_script', 'TagValues', $tagValues);
 
-$t = microtime(true);$times[] = array('Concept-Transl: ', date("h:i:s") . sprintf(" %06d",($t - floor($t)) * 1000000));
-
-
 ?>
 <div id="<?php echo im_main_div_class();?>">
 	<table id="mainTable" style="width: 100%; height: 100%">
@@ -87,37 +84,34 @@ $t = microtime(true);$times[] = array('Concept-Transl: ', date("h:i:s") . sprint
 								<?php echo va_get_glossary_help(34, $Ue); ?>
 							</h2>
 							<br />
-							<?php
-							//Phonetic types
-							echo im_table_select('Z_Ling', array('Id_Type'), array('Type'), 'phonTypeSelect', array(
-									'placeholder' => $Ue['PHON_TYP'],
-									'width' => '240pt', 
-									'filter' => "Type_Kind = 'P' AND Source_Typing = 'VA'"
-								));
-							echo va_get_glossary_help(58, $Ue);
 							
-							$t = microtime(true);$times[] = array('Phon: ', date("h:i:s") . sprintf(" %06d",($t - floor($t)) * 1000000));
+							<h6 class="VA_Map_Subhead"><?php echo $Ue['SPRACHDATEN']; ?></h6>
+							<?php
+							
+							//Base types
+							echo im_table_select('Z_Ling', array('Id_Base_Type'), array('Base_Type'), 'baseTypeSelect', array(
+									'list_format_function' => array('va_format_base_type', &$Ue),
+									'placeholder' => $Ue['BASISTYP_PLURAL'],
+									'width' => '240pt'
+							));
+							echo va_get_mouseover_help($Ue['HILFE_BASISTYP'], $Ue, IM_Initializer::$instance->database, $lang, 58);
 							
 							//Morphologic types
 							echo im_table_select('Z_Ling', array('Id_Type'), array('Type', 'Type_Lang', 'POS', 'Gender', 'Affix'), 'morphTypeSelect', array(
 									'list_format_function' => array('va_format_lex_type', &$Ue),
-									'placeholder' => $Ue['MORPH_TYP'],
+									'placeholder' => $Ue['MORPH_TYP_PLURAL'],
 									'width' => '240pt',
 									'filter' => "Type_Kind != 'P' AND Source_Typing = 'VA'"
 								));
-							echo va_get_glossary_help(58, $Ue);
+							echo va_get_mouseover_help($Ue['HILFE_MORPH'], $Ue, IM_Initializer::$instance->database, $lang, 58);
 							
-							$t = microtime(true);$times[] = array('Morph: ', date("h:i:s") . sprintf(" %06d",($t - floor($t)) * 1000000));
-							
-							//Base types
-							echo im_table_select('Z_Ling', array('Id_Base_Type'), array('Base_Type'), 'baseTypeSelect', array(
-									'list_format_function' => 'va_format_base_type',
-									'placeholder' => $Ue['BASISTYP'],
-									'width' => '240pt'
-								));
-							echo va_get_glossary_help(58, $Ue);
-							
-							$t = microtime(true);$times[] = array('Base: ', date("h:i:s") . sprintf(" %06d",($t - floor($t)) * 1000000));
+							//Phonetic types
+							echo im_table_select('Z_Ling', array('Id_Type'), array('Type'), 'phonTypeSelect', array(
+									'placeholder' => $Ue['PHON_TYP_PLURAL'],
+									'width' => '240pt',
+									'filter' => "Type_Kind = 'P' AND Source_Typing = 'VA'"
+							));
+							echo va_get_mouseover_help($Ue['HILFE_PHON'], $Ue, IM_Initializer::$instance->database, $lang, 58);
 							
 							?>
 
@@ -164,22 +158,28 @@ $t = microtime(true);$times[] = array('Concept-Transl: ', date("h:i:s") . sprint
 							<div style="display: table;">
 								<div style="display: table-cell; vertical-align: middle;">
 								<?php
-									echo im_hierarchical_select('conceptSelect', $Ue['KONZEPT'], $kats, $params, array ('style' => 'width : 240pt'));
+									echo im_hierarchical_select('conceptSelect', $Ue['KONZEPT_PLURAL'], $kats, $params, array ('style' => 'width : 240pt'));
 								?>
 								</div>
 									<div style="display: table-cell; vertical-align: middle;">
 										<div style="margin-left: 3pt;">
 										<?php
-											echo va_get_glossary_help(37, $Ue);
+										echo va_get_mouseover_help($Ue['HILFE_KONZEPT'], $Ue, IM_Initializer::$instance->database, $lang, 37);
 										?>
 									</div>
 								</div>
 							</div>
 							<hr style="height:5pt; visibility:hidden; margin : 0 0" />
 							
+							<h6 class="VA_Map_Subhead"><?php echo $Ue['PERIPHERIE']; ?></h6>
 							<?php
 							
-							$t = microtime(true);$times[] = array('Concepts: ', date("h:i:s") . sprintf(" %06d",($t - floor($t)) * 1000000));
+							//Informants
+							echo im_table_select('Informanten', 'Erhebung', array('Erhebung'), 'informantSelect', array(
+									'placeholder' => $Ue['INFORMANTEN'],
+									'width' => '240pt'
+								));
+							echo va_get_mouseover_help($Ue['HILFE_INFORMANTEN'], $Ue, IM_Initializer::$instance->database, $lang, 30);
 							
 							//Extra-linguistic
 							foreach($extra_cats as &$row){
@@ -188,9 +188,13 @@ $t = microtime(true);$times[] = array('Concept-Transl: ', date("h:i:s") . sprint
 										$row[$i] = $Ue[$row[$i]];
 								}
 							}
-							
-							
-							?>
+								
+							$extra_cats = array_filter($extra_cats, function ($e){
+								return $e[8] == '1';
+							});
+									
+									
+								?>
 							<div style="display: table;">
 								<div style="display: table-cell; vertical-align: middle;">
 								<?php
@@ -200,25 +204,23 @@ $t = microtime(true);$times[] = array('Concept-Transl: ', date("h:i:s") . sprint
 									<div style="display: table-cell; vertical-align: middle;">
 										<div style="margin-left: 3pt;">
 										<?php
-											echo va_get_glossary_help(3, $Ue);
+										echo va_get_mouseover_help($Ue['HILFE_AUSSERSPR'], $Ue, IM_Initializer::$instance->database, $lang, 3);
 										?>
 									</div>
 								</div>
 							</div>
 							
-							<hr style="height:5pt; visibility:hidden; margin : 0 0" />
-							
 							<?php
-							$t = microtime(true);$times[] = array('Extra_Ling: ', date("h:i:s") . sprintf(" %06d",($t - floor($t)) * 1000000));
 							
-							//Informants
-							echo im_table_select('Informanten', 'Erhebung', array('Erhebung'), 'informantSelect', array(
-									'placeholder' => $Ue['INFORMANTEN'],
-									'width' => '240pt'
-								));
-							echo va_get_glossary_help(30, $Ue);
+							//Areas
+							echo im_table_select('Z_Geo', 'Id_Category', array('Category_Name'), 'polygonSelect', array(
+									'placeholder' => $Ue['POLYGONE'],
+									'width' => '240pt',
+									'list_format_function' => array('va_sub_translate', &$Ue),
+									'filter' => "GeometryType(Geo_data) = 'POLYGON' OR GeometryType(Geo_data) = 'MULTIPOLYGON'"
+							));
 							
-							$t = microtime(true);$times[] = array('Informants: ', date("h:i:s") . sprintf(" %06d",($t - floor($t)) * 1000000));
+							echo va_get_mouseover_help($Ue['HILFE_FLAECHEN'], $Ue, IM_Initializer::$instance->database, $lang, 88);
 							
 							?>
 							
@@ -235,8 +237,8 @@ $t = microtime(true);$times[] = array('Concept-Transl: ', date("h:i:s") . sprint
 					<tr style="height: 85px">
 						<td>
 							<?php 
-							echo im_create_synoptic_map_div('220pt',  $va_current_db_name !== 'va_xxx');
-							echo va_get_glossary_help(56, $Ue); ?>
+							echo im_create_synoptic_map_div('220pt',  $va_current_db_name !== 'va_xxx', va_get_glossary_help(56, $Ue));
+							?>
 							<br />
 							<br />
 						</td>
@@ -251,7 +253,6 @@ $t = microtime(true);$times[] = array('Concept-Transl: ', date("h:i:s") . sprint
 </div>
 
 <?php 
-$t = microtime(true);$times[] = array('Rest: ', date("h:i:s") . sprintf(" %06d",($t - floor($t)) * 1000000));
 
 im_create_filter_popup_html();
 im_create_comment_popup_html();
@@ -259,13 +260,5 @@ im_create_save_map_popup_html();
 im_create_ajax_nonce_field ();
 im_create_debug_area();
 
-$t = microtime(true);$times[] = array('End: ', date("h:i:s") . sprintf(" %06d",($t - floor($t)) * 1000000));
-
-//TODO comment time measurements
-/*echo '<table>';
-foreach ($times as $time){
-	echo '<tr><td>' . $time[0] . '</td><td>' . $time[1] . '</td></tr>';
-}
-echo '</table>';*/
 }
 ?>

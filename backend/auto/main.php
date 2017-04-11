@@ -1,11 +1,11 @@
 <?php
 
 //Action Handler
-add_action('wp_ajax_auto_ops', 'auto_ajax_ops');
+add_action('wp_ajax_va_auto_ops', 'va_auto_ajax_ops');
 
 include_once("tokenize.php");
 
-function auto_ajax_ops (){
+function va_auto_ajax_ops (){
 	switch ($_POST['type']){
 		case 'tokenize':
 			echo tokenizeAeusserungen($_POST['id_stimulus'], $_POST['vorschau'] == 'true'? true: false); //in tokenize.php
@@ -31,7 +31,7 @@ function auto_ajax_ops (){
 
 
 
-function auto (){
+function va_auto (){
 	
 /*for ($i = 59; $i <= 70; $i++){
 	$data = get_userdata($i);
@@ -69,7 +69,7 @@ foreach ($names as $name){
 	var vorschau;
 
 	function tokenize (){
-		var data = {'action' : 'auto_ops',
+		var data = {'action' : 'va_auto_ops',
 					'type' : 'tokenize',
 					'id_stimulus' : jQuery("#id_stimFeld").val(),
 					'vorschau' : vorschau,
@@ -81,7 +81,7 @@ foreach ($names as $name){
 	}
 	
 	function ipa (){
-		var data = {'action' : 'auto_ops',
+		var data = {'action' : 'va_auto_ops',
 					'type' : 'ipa'
 		};
 		jQuery.post(ajaxurl, data, function (response) {
@@ -91,7 +91,7 @@ foreach ($names as $name){
 	
 	
 	function updateATabelle (ids){
-		var data = {'action' : 'auto_ops',
+		var data = {'action' : 'va_auto_ops',
 					'type' : 'updateAT',
 					'id_stimulus' : ids,
 		};
@@ -144,7 +144,7 @@ function kml_transform () {
 
 <script type="text/javascript">
 	function kml (){
-		var data = {'action' : 'auto_ops',
+		var data = {'action' : 'va_auto_ops',
 					'type' : 'kml',
 					'sql' : jQuery("#sqlArea").val(),
 		};
