@@ -93,7 +93,7 @@
 		global $va_xxx;
 		$protokolle = $va_xxx->get_results('SELECT * FROM Protokolle ORDER BY DATUM DESC', ARRAY_A);
 
-		if($_GET['mode']){
+		if(isset($_GET['mode'])){
 			$edit = $_GET['mode'] === 'edit';
 		}
 		
@@ -142,12 +142,12 @@
     			});
 				
 				<?php
-				if($_GET['protocol'])
+				if(isset($_GET['protocol']))
 					echo 'jQuery("#protocolList").val("' . $_GET['protocol'] . '");';
 				?>
 				
 				<?php
-				if($_GET['search'])
+				if(isset($_GET['search']))
 					echo 'jQuery("#searchBox").val("' . urldecode($_GET['search']) . '");';
 				?>
 				
@@ -160,7 +160,7 @@
 				
 				jQuery("#searchBox").keypress(function (event){
 					if(event.which == 13) { //Enter
-						History.pushState({"search" : this.value}, "", url + "&search=" + encodeURIComponent(this.value));
+						History.pushState({"search" : this.value}, "", ((url.indexOf("?") === -1)? "?search=" : "&search=") + encodeURIComponent(this.value));
 					}
 				});
 
@@ -230,7 +230,16 @@
 			
 			function selectProtocol (id, mode){
 				jQuery("#protocolList").val(id);
-				History.pushState({"id" : id, "mode" : mode}, "", url + "&protocol=" + id + "&mode=" + mode);
+				History.pushState({"id" : id, "mode" : mode}, "", getUrl(id, mode));
+			}
+
+			function getUrl(id, mode){
+				if (url.indexOf("?") === -1){
+					return url + "?protocol=" + id + "&mode=" + mode;
+				}
+				else {
+					return url + "&protocol=" + id + "&mode=" + mode;
+				}
 			}
 			
 			function addTop (){
@@ -284,7 +293,7 @@
 			
 			function changeMode (val){
 				var pid = jQuery("#protocolNumber").text().trim();
-				History.pushState({"id" : pid, "mode" : val}, "", url + "&protocol=" + pid + "&mode=" + val);
+				History.pushState({"id" : pid, "mode" : val}, "", getUrl(pid, val));
 			}
 			
 		</script>
@@ -329,7 +338,7 @@
 			
 			<div id ="protocolArea">
 				<?php
-				if($_GET['protocol']){
+				if(isset($_GET['protocol'])){
 					foreach ($protokolle as $protokoll){
 						if($protokoll['Id_Protokoll'] === $_GET['protocol']){
 							if(!isset($edit)){
@@ -343,7 +352,7 @@
 					}
 					
 				}
-				else if($_GET['search']){
+				else if(isset($_GET['search'])){
 					showSearchPage(searchResults(urldecode($_GET['search'])), urldecode($_GET['search']));
 				}
 				else {
@@ -359,7 +368,7 @@
 		</div>
 		
 		<script type="text/javascript">
-			jQuery("#modeList").val("<?php echo $edit? 'edit': 'read';?>");
+			jQuery("#modeList").val("<?php echo (isset($edit) && $edit)? 'edit': 'read';?>");
 		</script>
 		
 		<?php
@@ -566,12 +575,14 @@
 
 	function showSearchPage ($protocols, $searchWords){
 		
-		echo '<h2>Suchergebnisse<h2>';		
-		
-		$firstWord =  array_shift(explode(' ', $searchWords));
+		echo '<h2>Suchergebnisse</h2>';		
+		$searchWordList = explode(' ', $searchWords);
+		$firstWord =  array_shift($searchWordList);
 			
 		foreach ($protocols as $protocol){
-			echo '<h3><a href="' . get_permalink(1760) . '&protocol=' . $protocol['Id_Protokoll'] . '"> Protokoll ' . $protocol['Id_Protokoll'] . ' (' . $protocol['Datum'] . ')</a></h3>';
+			$protocolLink = get_page_link(get_page_by_title('Protokolle'));
+			
+			echo '<h3><a href="' . add_query_arg('protocol', $protocol['Id_Protokoll'], $protocolLink) . '"> Protokoll ' . $protocol['Id_Protokoll'] . ' (' . $protocol['Datum'] . ')</a></h3>';
 
 			$indexSearchWord = mb_stripos($protocol['Titel'], $firstWord);
 			if($indexSearchWord !== false){

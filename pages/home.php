@@ -54,17 +54,17 @@ function showStartPage (){
 		Thomas Krefeld | Stephan Lücke
 		
 		<?php
-		$tutorial_post = get_page_by_title('Interaktive Karte Tutorial');
-		if($tutorial_post){
-			if(function_exists('mlp_get_linked_elements')){ //Translated version
-				$linked = mlp_get_linked_elements( 3105, '', 1 );
-			}
-			else {
-				$linked = array(3105);
-			}
+// 		$tutorial_post = get_page_by_title('Interaktive Karte Tutorial', OBJECT, 'post');
+// 		if($tutorial_post){
+// 			if(function_exists('mlp_get_linked_elements')){ //Translated version
+// 				$linked = mlp_get_linked_elements( 3105, '', 1 );
+// 			}
+// 			else {
+// 				$linked = array(3105);
+// 			}
 			
-			echo '<span class="eyecatcher"><a href="' . get_permalink($linked[get_current_blog_id()]) . '">TUTORIAL</a></span>';
-		}
+// 			echo '<span class="eyecatcher"><a href="' . get_permalink($linked[get_current_blog_id()]) . '">TUTORIAL</a></span>';
+// 		}
 		?>
 		
 		<h3><?php echo $Ue['DAS_PROJEKT']; ?></h3>
@@ -75,7 +75,7 @@ function showStartPage (){
 		va_add_glossary_meta_information($res, $lang);
 		echo $res[0][1];
 		echo '<br />';
-		va_add_glossary_authors($res[0][3], $res[0][4]);
+		echo va_add_glossary_authors($res[0][3], $res[0][4]);
 		?>
 	</div>
 	<?php

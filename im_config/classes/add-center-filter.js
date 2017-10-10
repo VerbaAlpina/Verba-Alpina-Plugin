@@ -12,7 +12,7 @@ function CenterPointFilterComponent (){
 	 * @param {Object<string, ?>} filterData
 	 * @param {Element} element
 	 * 
-	 * @return {undefined} 
+	 * @return {boolean} 
 	 */
 	this.storeData = function (filterData, element){
 		if(jQuery("#centerOption").is(":checked")){
@@ -24,6 +24,18 @@ function CenterPointFilterComponent (){
 		if(jQuery("#outsideOption").is(":checked")){
 			filterData["centerOutsideContour"] = "1";
 		}
+		return true;
+	};
+	
+	/**
+	 * @override
+	 * 
+	 * @param {Object<string, ?>} filterData
+	 * 
+	 * @return {undefined} 
+	 */
+	this.storeDefaultData = function (filterData){
+		//Do nothing
 	};
 	
 	/**
@@ -36,9 +48,10 @@ function CenterPointFilterComponent (){
 	 */
 	this.getFilterScreenElement = function (categoryId, elementId){
 		
-		if(elementId == "P62"){
+		if(elementId.startsWith("A62") || elementId.startsWith("A60") || elementId.startsWith("A17")){
 		
 			var /** Element */ result = document.createElement("div");
+			result["style"]["margin-top"] = "5px";
 			
 			var /** Element */ centerOption = document.createElement("input");
 			centerOption["type"] = "checkbox";

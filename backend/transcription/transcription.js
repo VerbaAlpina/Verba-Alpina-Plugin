@@ -116,7 +116,7 @@ jQuery(function (){
     	}, 0);
     });
     
-    parser = PEG.buildParser(grammarText);
+    parser = peg.generate(grammarText);
 });
 
 function addUpperQTips (){

@@ -53,10 +53,10 @@ function ladeGlossar (){
 	</script> 
 	
 	<style type="text/css">
-		a:link {color: grey}
-		a:visited {color: grey}
-		.entry-content a:visited {color: grey}
-		.bibl {color: grey}
+		.linkSpan {
+			margin-bottom : 0.5em;
+			display: inline-block;
+		}
 	</style>
 
 	<?php
@@ -120,7 +120,7 @@ function ladeGlossar (){
 						$style = 'style = "color : blue"';
 					}
 					$url = add_query_arg('letter', $letter, get_permalink());
-					echo "<a href = \"$url\" $style> $letter</a>&nbsp;&nbsp;\n";
+					echo "<span class='linkSpan'><a href = \"$url\" $style> $letter</a></span>&nbsp;&nbsp;\n";
 					while($currentTitle < sizeof($entryNames) && strcasecmp(remove_accents($entryNames[$currentTitle][0])[0],$letter) === 0){
 						if(!$letterSet){
 							$url = add_query_arg('letter', $letter, get_permalink()) . '#' . $entryNames[$currentTitle][1];
@@ -152,8 +152,8 @@ function ladeGlossar (){
 			
 			foreach ($entries as $e){
 				echo "<header class=\"entry-header\">";
-				echo "	<h1 class=\"entry-title\">";
-				echo '		<a name="' . $e[0] . "\"></a>";
+				echo "	<h1 class=\"entry-title va-title\">";
+				echo '<span class="va-rel-link" id="' . $e[0] . '"></span>';
 				$estyle = va_get_glossary_link_style($e[0]);
 				echo "<span style='$estyle'>" . $e[1] . '</span>';
 				if($intern){
@@ -171,7 +171,7 @@ function ladeGlossar (){
 				echo '<div class="entry-content">';
 				echo "$e[2] <br />";
 				
-				va_add_glossary_authors($e[4], $e[5]);
+				echo va_add_glossary_authors($e[4], $e[5]);
 				va_add_glossary_tags($e[3]);
 				
 				echo'</div><br /><br /><br />';
@@ -207,14 +207,16 @@ function ladeGlossar (){
 	}
 	
 	function va_add_glossary_authors($authors, $translators){
+		$res = '';
 		if(count($authors) > 0){
-			echo '<br />';
-			echo '(auct. ' . implode(' | ', $authors);
+			$res .= '<br />';
+			$res .= '(auct. ' . implode(' | ', $authors);
 			if(count($translators) > 0){
-				echo ' - trad. ' . implode(' | ', $translators);
+				$res .= ' - trad. ' . implode(' | ', $translators);
 			}
-			echo ')<br />';
+			$res .= ')<br />';
 		}
+		return $res;
 	}
 	
 	function va_add_glossary_tags($tags){
@@ -276,7 +278,7 @@ function ladeGlossar (){
 			global $vadb;
 			
 			foreach ($result as &$row){
-				if(isDevTester() && $row[0] == 61 /*Versionierung*/){
+				if($row[0] == 61 /*Versionierung*/){
 					$row[2] .= va_add_image_gallery();
 				}
 				
@@ -348,10 +350,14 @@ function ladeGlossar (){
 			$res = "\n\n<h3>" . $Ue['UEBERSCHRIFT_GALLERIE'] . '</h3>';
 			
 			$files = $va_xxx->get_results('SELECT Dateiname, Nummer, Size_Logo, Logo_Left, Logo_Top FROM Versionen JOIN Medien USING (Id_Medium) ORDER BY Nummer ASC', ARRAY_N);
+			$size = 45;
 			foreach ($files as $i => $file){
 				$res .= '<div class="galleryContainer">';
-				$res .= '<img src="' . $file[0] . '" /><p>' . va_format_version_number(va_get_string_or_empty($files, $i - 1)[1]) . '</p>';
-				$res .= '<object type="image/svg+xml" class="galleryLogo" style="width: ' . $file[2] . '%; left: ' . $file[3] . '%; top: ' . $file[4] . '%;" data="' . get_site_url(1) . '/wp-content/uploads/VA_logo.svg"></object>';
+				$res .= '<object type="image/svg+xml" class="galleryLogo" style="width: ' 
+					. $file[2] * $size / 100 . '%; left: ' 
+					. $file[3] * $size / 100 . '%; top: ' 
+					. $file[4] . '%;" data="' . get_site_url(1) . '/wp-content/uploads/VA_logo.svg"></object>';
+					$res .= '<img style="width: ' . $size . '%" src="' . $file[0] . '" /><p>' . va_format_version_number(va_get_string_or_empty($files, $i - 1)[1]) . '</p>';
 				$res .= '</div>';
 			}
 			return $res;

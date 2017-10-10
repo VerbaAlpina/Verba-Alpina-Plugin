@@ -517,7 +517,12 @@ function saveGeo ($br, $la, $id){
 
 function getVA_ID ($wp_id){
 	global $va_xxx;
+	
 	$url = set_url_scheme(wp_get_attachment_url($wp_id), 'https');
+	
+	//Remove tranlslation url parts from url
+	$url = preg_replace('#www\.verba-alpina\.gwi\.uni-muenchen\.de/[a-z][a-z]/#', 'www.verba-alpina.gwi.uni-muenchen.de/', $url);
+	
 	select: 
 	$va_id = $va_xxx->get_results("SELECT Id_Medium FROM Medien WHERE Dateiname = '$url'", ARRAY_N);
 	//TODO evtl. für lokale Versionen verhindern

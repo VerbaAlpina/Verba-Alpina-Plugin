@@ -1,6 +1,82 @@
 <?php
-function tokenizeAeusserungen($id_Stimulus, $vorschau) {
+function tok_page (){
+	?>
+	<script type='text/javascript'>
+	var vorschau;
+
+	function tokenize (){
+		var data = {"action" : "va",
+					"namespace" : "tokenize",
+					"query" : "tokenize",
+					'id_stimulus' : jQuery("#id_stimFeld").val(),
+					"preview" : vorschau,
+		};
+		jQuery.post(ajaxurl, data, function (response) {
+			document.getElementById("Test").innerHTML = response;
+			updateATabelle(jQuery("#id_stimFeld").val());
+		});
+	}
+	
+	function updateATabelle (ids){
+		var data = {"action" : "va",
+					"namespace" : "tokenize",
+					"query" : "updateTable",
+					"id_stimulus" : ids,
+		};
+		jQuery.post(ajaxurl, data, function (response) {
+			jQuery('#atabelle').html(response);
+		});
+		
+	}
+	jQuery("document").ready(function (){
+		jQuery("#id_stimFeld").val("");
+		vorschau = jQuery("#vorschauID").prop("checked");
+	});
+
+	</script>
+	
+	<br />
+	<h1>Tokenisierung</h1>
+	
+	<br />
+	<br />
+	<br />
+	<br />
+	
+	<input class="button button-primary" type="button" value="Äußerungen tokenisieren" onClick="tokenize()"/>
+	WHERE Id_Stimulus <input id="id_stimFeld" type="text" onChange="updateATabelle(this.value);"/>
+	<?php echo va_get_info_symbol("Muss zusammen eine gültige WHERE-Klausel ergeben, mögliche Eingaben, z.B.:\n\n= 12\nIN (1, 2, 3)\nBETWEEN 100 AND 107"); ?>
+	
+	
+	<br />
+	<br />
+	<input type="radio" name="modus" checked onChange="vorschau = !this.checked;"> Datenbank
+	<input type="radio" name="modus" id="vorschauID" onChange="vorschau = this.checked;"> Vorschau
+	
+	<br />
+	<br />
+	
+	<div id="atabelle">
+		<?php echo va_records_for_stimulus(''); ?>
+	</div>
+	
+	
+	<br />
+	<br />
+	
+	
+	
+	<div id="Test">
+	
+	</div>
+	<?php
+}
+
+
+function va_tokenize_records ($id_Stimulus, $vorschau) {
 	global $va_xxx;
+	
+	$id_Stimulus = stripslashes($id_Stimulus);
 
 	$sql = "SELECT Aeusserungen.*,Erhebung from Aeusserungen JOIN Stimuli USING (Id_Stimulus) WHERE Tokenisiert = 0 AND Aeusserung != '<vacat>' AND Aeusserung != '<problem>' AND Aeusserung NOT REGEXP '^<.*>$' AND Id_Stimulus " . $id_Stimulus;
 	$results = $va_xxx -> get_results($sql, ARRAY_A);
@@ -14,6 +90,9 @@ function tokenizeAeusserungen($id_Stimulus, $vorschau) {
 	
 	if (count($results) > 0) {
 		
+		$updates = array();
+		$insertsKonz = array();
+		
 		//Tokenisierung
 		$j = 0;
 		foreach ($results as $row) {
@@ -22,9 +101,16 @@ function tokenizeAeusserungen($id_Stimulus, $vorschau) {
 			
 			if($row['Erhebung'] == 'BSA'){
 				$row['Aeusserung'] = str_replace(',', '\\\\,', $row['Aeusserung']);
+				$row['Aeusserung'] = str_replace(';', '\\\\;', $row['Aeusserung']);
+			}
+			
+			if($row['Erhebung'] == 'CROWD'){
+				$row['Aeusserung'] = str_replace(';-)', '---SMILIE---', $row['Aeusserung']);
+				$row['Aeusserung'] = str_replace('(', '<', str_replace(')', '>', $row['Aeusserung']));
 			}
 			
 			unset($row['Erhebung']);
+			unset($row['Gesperrt']);
 		
 			if($commentsInTagBrackets){
 				if (preg_match("/<.*>/U", $row["Aeusserung"])) {
@@ -42,10 +128,11 @@ function tokenizeAeusserungen($id_Stimulus, $vorschau) {
 			$row["Aeusserung"] = preg_replace("/\\\\\\\\,/", "°°°", $row["Aeusserung"]); // Maskierte Kommas
 			$row["Aeusserung"] = preg_replace("/\\\\\\\\;/", "^^^", $row["Aeusserung"]); // Maskierte Semikolons
 
-			$ebene_1 = split(";", trim($row["Aeusserung"]));
+			$ebene_1 = explode(";", trim($row["Aeusserung"]));
 
 			unset($row["Aeusserung"]);
 			unset($row["Tokenisiert"]);
+			unset($row['WBOE_Code']);
 			
 			$klass = $row["Klassifizierung"];			
 			unset($row["Klassifizierung"]);
@@ -53,7 +140,7 @@ function tokenizeAeusserungen($id_Stimulus, $vorschau) {
 			$bemerkungA = $row['Bemerkung'];
 			
 			foreach ($ebene_1 as $k => $v) {
-				$ebene_2 = split(",", trim($v));
+				$ebene_2 = explode(",", trim($v));
 				$kk = 0;
 				do {
 					$vv = $ebene_2[$kk];
@@ -100,6 +187,7 @@ function tokenizeAeusserungen($id_Stimulus, $vorschau) {
 					
 					$current_gender = '';
 					
+					
 					if($klass == 'M'){
 						$mtokens = explode(' ', trim($vv));
 						if(count($mtokens) == 1){
@@ -124,11 +212,11 @@ function tokenizeAeusserungen($id_Stimulus, $vorschau) {
 					
 					$row['Bemerkung'] = addslashes($row['Bemerkung']);
 					
-					if($komp_typ[$j]){ //nicht tokenisieren, es wird ein leerer Beleg erstellt, dem ein Kompositions-Typ zugewiesen wird
+					if($klass == 'M' && $komp_typ[$j]){ //nicht tokenisieren, es wird ein leerer Beleg erstellt, dem ein Kompositions-Typ zugewiesen wird
 						$ebene_3 = array(trim($vv));
 					}
 					else { //sonst tokenisieren
-						$ebene_3 = split(" ", trim($vv));
+						$ebene_3 = explode(" ", trim($vv));
 					}
 					
 					$length_tokengruppe = sizeof($ebene_3);
@@ -156,6 +244,7 @@ function tokenizeAeusserungen($id_Stimulus, $vorschau) {
 						$row["Token"] = str_replace("^^^", ";", $row["Token"]); // Maskierte Semikolons
 						$row["Token"] = str_replace("\\\\\\\\<", "<", $row["Token"]); // Maskierte Tagklammern
 						$row["Token"] = str_replace("\\\\\\\\>", ">", $row["Token"]); // Maskierte Tagklammern
+						$row["Bemerkung"] = str_replace('---SMILIE---', ';-)', $row['Bemerkung']);
 
 						//Erstelle Typzuweisungen bzw. neue Typen für typisierte Belege
 						if($klass != 'B'){
@@ -250,33 +339,35 @@ function tokenizeAeusserungen($id_Stimulus, $vorschau) {
 						
 						//Setzte Tokenisiert-Flag
 						if(!$tokenizedFlagSet){
-							$updates[$j] .= 'UPDATE Aeusserungen SET Tokenisiert = 1 WHERE ID_Aeusserung = ' . $row['Id_Aeusserung'] . ";\n";
+							$updates[$j] = 'UPDATE Aeusserungen SET Tokenisiert = 1 WHERE ID_Aeusserung = ' . $row['Id_Aeusserung'] . ";\n";
 							$tokenizedFlagSet = true;
 						}
-						
+						else {
+							$updates[$j] = '';
+						}
 						
 						//Konzeptzuweisung
 						if (sizeof($ebene_3) == 1) {
 							if(!$komp_typ[$j]){ //Nur ein Token => Konzept dem Token zuweisen
-								$insertsKonz[$j] .= 'INSERT INTO VTBL_Token_Konzept (SELECT %%%, Id_Konzept FROM VTBL_Aeusserung_Konzept WHERE ID_Aeusserung =  ' . $row['Id_Aeusserung'] . ");\n";
+								$insertsKonz[$j] = 'INSERT INTO VTBL_Token_Konzept (SELECT %%%, Id_Konzept FROM VTBL_Aeusserung_Konzept WHERE ID_Aeusserung =  ' . $row['Id_Aeusserung'] . ");\n";
 								$row['Genus'] = $current_gender;
 							}
 						} else {
-							if (in_array(stripslashes($vvv), $sonderzeichen)) { //Aktuelles Token ist Sonderzeichen => 779 zuweisen
-								$insertsKonz[$j] .= "INSERT INTO VTBL_Token_Konzept VALUES (%%%, 779);\n";
+							if (in_array(stripslashes(str_replace('°°°', ',', $vvv)), $sonderzeichen)) { //Aktuelles Token ist Sonderzeichen => 779 zuweisen
+								$insertsKonz[$j] = "INSERT INTO VTBL_Token_Konzept VALUES (%%%, 779);\n";
 								$length_tokengruppe--; //Sonderzeichen werden nicht für die Tokengruppe gezählt
 							}
-							else if (array_key_exists(stripslashes($vvv), $artikel)) { //Aktuelles Token ist Artikel => 699 zuweisen
-								$insertsKonz[$j] .= "INSERT INTO VTBL_Token_Konzept VALUES (%%%, 699);\n";
+							else if (array_key_exists(stripslashes(str_replace('°°°', ',', $vvv)), $artikel)) { //Aktuelles Token ist Artikel => 699 zuweisen
+								$insertsKonz[$j] = "INSERT INTO VTBL_Token_Konzept VALUES (%%%, 699);\n";
 								$length_tokengruppe--; //Artikel werden nicht für die Tokengruppe gezählt
 								if($artikel[stripslashes($vvv)] != 'x'  && $current_gender == '' && $row['Ebene_3'] == 1)
 									$current_gender = $artikel[stripslashes($vvv)]; //Falls es Genus-Information in der Bemerkung und durch den Artikel gibt, wird die aus der Bemerkung verwendet
 							}
 							else if ((sizeof($ebene_3) == 2 || (sizeof($ebene_3) == 3 && in_array(stripslashes($ebene_3[2]), $sonderzeichen))) && array_key_exists(stripslashes($ebene_3[0]), $artikel) && $row["Ebene_3"] == 2) { //Einzelnes Token nach Artikel bzw. Token von Artikel und Sonderzeichen eingeschlossen => Token das Konzept zuweisen
-								$insertsKonz[$j] .= 'INSERT INTO VTBL_Token_Konzept (SELECT %%%, Id_Konzept FROM VTBL_Aeusserung_Konzept WHERE ID_Aeusserung =  ' . $row['Id_Aeusserung'] . ");\n";
+								$insertsKonz[$j] = 'INSERT INTO VTBL_Token_Konzept (SELECT %%%, Id_Konzept FROM VTBL_Aeusserung_Konzept WHERE ID_Aeusserung =  ' . $row['Id_Aeusserung'] . ");\n";
 								$row['Genus'] = $current_gender;
 							} else {
-								$insertsKonz[$j] .= '';
+								$insertsKonz[$j] = '';
 							}
 						}
 						
@@ -296,7 +387,7 @@ function tokenizeAeusserungen($id_Stimulus, $vorschau) {
 						//Abzüglich Sonderzeichen und Artikel mehr als ein Token oder kompTyp? => Tokengruppe erstellen
 						if($length_tokengruppe > 1 || $komp_typ[$j-1]) {
 							if($n == sizeof($ebene_3)){
-								$insertsGroup[$j - $n] = "INSERT INTO Tokengruppen (Genus, Bemerkung) VALUES ('" . $current_gender . "', '" . $str_bemerkung . "')\n";
+								$insertsGroup[$j - $n] = "INSERT INTO Tokengruppen (Genus, Bemerkung) VALUES ('" . $current_gender . "', '" . $row['Bemerkung'] . "')\n";
 								$insertsTGK[$j - $n] = 'INSERT INTO VTBL_Tokengruppe_Konzept (SELECT %%%, Id_Konzept FROM VTBL_Aeusserung_Konzept WHERE ID_Aeusserung =  ' . $row['Id_Aeusserung'] . ");\n";
 							}
 							else {
@@ -319,9 +410,14 @@ function tokenizeAeusserungen($id_Stimulus, $vorschau) {
 		//Ausgabe und Ausführung der SQL-Befehle
 		$ret = '';
 		for ($i = 0; $i < $j; $i++) {
-			if(!$vorschau && $insertsGroup[$i] && $insertsGroup[$i] != 'R'){
-				$va_xxx->query($insertsGroup[$i]);
-				$group_id = $va_xxx -> insert_id;
+			if($insertsGroup[$i] && $insertsGroup[$i] != 'R'){
+				if($vorschau){
+					$group_id = '0';
+				}
+				else {
+					$va_xxx->query($insertsGroup[$i]);
+					$group_id = $va_xxx -> insert_id;
+				}
 			}
 				
 			if($insertsGroup[$i]){
@@ -371,8 +467,10 @@ function tokenizeAeusserungen($id_Stimulus, $vorschau) {
 	return '<pre>' . $ret . '</pre>';
 }
 
-function anzahlAeusserungen($id_Stimulus) {
+function va_records_for_stimulus ($id_Stimulus) {
 	global $va_xxx;
+	
+	$id_Stimulus = stripslashes($id_Stimulus);
 
 	$sql = "select count(*), (select count(*) from Aeusserungen WHERE Aeusserung != '<vacat>' AND Aeusserung != '<problem>' AND Id_Stimulus " . $id_Stimulus . ") from Aeusserungen where Tokenisiert = 0 AND Aeusserung != '<vacat>' AND Aeusserung != '<problem>'  AND Aeusserung NOT REGEXP '^<.*>$' AND Id_Stimulus " . $id_Stimulus;
 	$result = $va_xxx -> get_results($sql, ARRAY_N);

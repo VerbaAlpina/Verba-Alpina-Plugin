@@ -85,19 +85,32 @@
 				}
 			}
 			,$value);
-			
+		
+		$is_lex = false;
+		global $post;
+		if($post && $post->post_title === 'KOMMENTARE'){
+			$is_lex = true;
+		}
+		
 		//Kommentare	
 		$value = preg_replace_callback('/(\A|[^-])\[\[(([^\]]*)\|)?Kommentar:(.)(.*)\]\]/U',
-			function($treffer) {
+			function($treffer) use ($is_lex, $lang) {
 				global $comment_path;
 				$prefix = $treffer[4];
 				$id = $treffer[5];
-				if($treffer[2] == ''){
-					$name = getCommentHeadline($prefix.$id, $lang);			
-					return "$treffer[1]<a target='_BLANK' href='$comment_path&prefix=$prefix#$prefix$id'>$name</a>";
+				if($is_lex){
+					$start ='<a';
 				}
 				else {
-					return "$treffer[1]<a target='_BLANK' href='$comment_path&prefix=$prefix#$prefix$id'>$treffer[3]</a>";
+					$start = "<a target='_BLANK'";
+				}
+				
+				if($treffer[2] == ''){
+					$name = getCommentHeadline($prefix.$id, $lang);			
+					return "$treffer[1]$start href='$comment_path#$prefix$id'>$name</a>";
+				}
+				else {
+					return "$treffer[1]$start href='$comment_path#$prefix$id'>$treffer[3]</a>";
 				}
 			}
 			,$value);
@@ -128,7 +141,7 @@
 		}, $value);
 		
 		//SQL
-		$value = preg_replace_callback('/([^-])\[\[SQL:(.*)((?:\|(?:db|width|height)=.*)*)\]\]/U',	function($treffer) {
+		$value = preg_replace_callback('/([^-])\[\[SQL:(.*)((?:\|(?:db|width|height)=.*)*)\]\]/U', function($treffer) {
 			$atts['db'] = 'va_xxx';
 			$atts['query'] = $treffer[2];
 			$atts['login'] = 'va_wordpress';
@@ -141,6 +154,22 @@
 				}
 			}
 			return $treffer[1] . sth_parseSQL($atts);
+		}, $value);
+		
+		//Seiten
+		$value = preg_replace_callback('/(\A|[^-])\[\[(([^\]]*)\|)?Seite:(.*)\]\]/U',	function($treffer) {
+			global $Ue;
+			$page = get_page_by_title($treffer[4]);
+			if(!$page){
+				return 'PAGE NOT FOUND!';
+			}
+			$link = get_page_link($page->ID);
+			if($treffer[2] == ''){
+				return "$treffer[1]<a href='" . $link . "'>" . $Ue[$treffer[4]] . "</a>";
+			}
+			else {
+				return "$treffer[1]<a href='" . $link . "'>" . $treffer[3] . "</a>";
+			}
 		}, $value);
 		
 		//Lokale UND globale Links

@@ -3,6 +3,12 @@
 //Action Handler
 add_action('wp_ajax_token_ops', 'token_ops'); //TODO integrate into va_ajax
 
+$mapPage = get_page_by_title('KARTE');
+global $va_map_url;
+if($mapPage != null){
+	$va_map_url = get_page_link($mapPage);
+}
+
 function va_get_glossary_link ($id = null){
 
 	$glossarPage = get_page_by_title('METHODOLOGIE');
@@ -24,12 +30,17 @@ function va_get_glossary_link ($id = null){
 	return $link;
 }
 
-function va_get_map_link (){
-	$mapPage = get_page_by_title('KARTE');
-	if($mapPage != null){
-		return get_page_link($mapPage);
+function va_get_map_link ($element = null){
+	global $va_map_url;
+	$result = '';
+	
+	if($va_map_url){
+		$result = $va_map_url;
+		if($element != null){
+			$result = add_query_arg('single', $element, $result);
+		}
 	}
-	return '';
+	return $result;
 }
 
 function va_get_comments_link (){
@@ -55,10 +66,10 @@ function va_format_bibliography ($author, $title, $year, $loc, $link, $band, $in
 		$res .= ($author == ''? '': ': ') . $title;
 		if($loc != '')
 			$res .= ', ' . $loc;
-		if($band != '')
-			$res .= ', vol. ' . $band;
 		if($in != '')
 			$res .= ', in ' . $in;
+		if($band != '')
+			$res .= ', vol. ' . $band;
 		if($seiten != '')
 			$res .= ', ' . $seiten;
 		if($verlag != '')
@@ -71,22 +82,25 @@ function va_format_bibliography ($author, $title, $year, $loc, $link, $band, $in
 		return $res;
 }
 
-function va_format_base_type ($str){
+function va_format_base_type ($str, $uncertain = '0'){
 	global $Ue;
 	if(mb_strpos($str, '*') !== false){
 		return $str . ' (* = ' . $Ue['REKONSTRUIERT'] . ')';
 	}
+	if($uncertain === '1'){
+		$str = '(?) ' . $str;
+	}
+	
 	return $str;
 }
 //TODO use icons from plugin everywhere and delete icons folder in va
 function va_get_glossary_help ($id, &$Ue){
-	return '<a href="' . va_get_glossary_link($id) . '" target="_blank"><img  src="' . VA_PLUGIN_URL . '/images/Help.png" style="vertical-align: middle;" title="' . $Ue['HILFE'] . '" /></a>';
+	return '<a href="' . va_get_glossary_link($id) . '" target="_blank"><i class="helpsymbol fa fa-question-circle-o" style="vertical-align: middle;" title="' . $Ue['HILFE'] . '" ></i></a>';
 }
 
-//TODO use plugin icons
 function va_get_mouseover_help ($text, &$Ue, &$db, $lang, $id_glossary = NULL){
-	$res = '<img  src="' . VA_PLUGIN_URL . '/images/Help.png" style="vertical-align: middle;" class="va_mo_help" />';
-	$res .= '<div style="display : none;">' . $text; 
+	$res = '<i class="helpsymbol fa fa-question-circle-o va_mo_help" style="vertical-align: middle;"></i>';
+	$res .= '<div style="display : none;">' . nl2br($text); 
 	if($id_glossary != NULL){
 		$entry_name = $db->get_var('SELECT Terminus_' . $lang . ' FROM Glossar WHERE Id_Eintrag = ' . $id_glossary);
 		$res .= '<br /><br />' . '<a href="' . va_get_glossary_link($id_glossary) . '" target="_blank">(' . $Ue['SIEHE'] . ' ' . $entry_name . ')</a>';
@@ -270,35 +284,41 @@ function token_ops (){
  			substr($va_current_db_name, 3, 2) . '/' . substr($va_current_db_name, 5) . ', ' . $Ue['METHODOLOGIE'] . ', ' . $link;
  }
  
- function va_create_comment_citation ($id, &$Ue){
+function va_remove_special_chars ($str){
+ 	return preg_replace('/[^a-zA-Z0-9]/', '', remove_accents($str));
+}
+ 
+function va_create_comment_citation ($id, &$Ue){
  	global $vadb;
  	global $lang;
  	global $va_current_db_name;
- 
- 	$content = $vadb->get_var("SELECT Comment FROM im_comments WHERE Id = '$id'");
- 	$pos_auct = mb_strpos($content, '(auct. ');
- 	if($pos_auct === false)
- 		return false;
- 	
- 	$authorStr = mb_substr($content, $pos_auct + 7, mb_strpos($content, ')', $pos_auct) - $pos_auct - 7);
- 	$authors = mb_split('|', $authorStr);
- 	
- 	$authorsShort = array();
- 	foreach ($authors as $author){
- 		$names = mb_split(' ', $author);
- 		$authorsShort[] = $names[count($names) - 1] . ', ' . $names[0][0] . '.';
+ 	if(va_version_newer_than('va_171')){
+ 		$authors = $vadb->get_col("SELECT CONCAT(Name, ', ', SUBSTR(Vorname, 1, 1), '.') FROM VTBL_Kommentar_Autor JOIN Personen USING (Kuerzel) WHERE Aufgabe = 'auct' AND Id_Kommentar = '$id' ORDER BY Name ASC, Vorname ASC");
  	}
- 	
+ 	else {
+ 		$content = $vadb->get_var("SELECT Comment FROM im_comments WHERE Id = '$id'");
+ 		$pos_auct = mb_strpos($content, '(auct. ');
+ 		if($pos_auct === false)
+ 			return false;
+ 		
+ 		$authorStr = mb_substr($content, $pos_auct + 7, mb_strpos($content, ')', $pos_auct) - $pos_auct - 7);
+ 		$authorsL = mb_split('|', $authorStr);
+ 		
+ 		$authors = array();
+ 		foreach ($authorsL as $author){
+ 			$names = mb_split(' ', $author);
+ 			$authors[] = $names[count($names) - 1] . ', ' . $names[0][0] . '.';
+ 		}
+ 	}
  	$title = va_sub_translate($vadb->get_var("SELECT getEntryName('$id', '$lang')"), $Ue);
 
  	$link = va_get_comments_link();
  	$link = add_query_arg('db', substr($va_current_db_name, 3), $link);
- 	$link = add_query_arg('prefix', substr($id, 0, 1), $link);
  	$link .= '#' . $id;
  
- 	return	implode(' / ', $authorsShort) . ': s.v. “' . $title . '”, in: VA-' . substr(get_locale(), 0, 2) . ' ' .
- 			substr($va_current_db_name, 3, 2) . '/' . substr($va_current_db_name, 5) . ', ' . $Ue['KOMMENTAR'] . ', ' . $link;
- }
+ 	return	implode(' / ', $authors) . ': s.v. “' . $title . '”, in: VA-' . substr(get_locale(), 0, 2) . ' ' .
+ 			substr($va_current_db_name, 3, 2) . '/' . substr($va_current_db_name, 5) . ', Lexicon alpinum, ' . $link;
+}
  
  function va_version_newer_than ($version){
  	global $va_current_db_name;

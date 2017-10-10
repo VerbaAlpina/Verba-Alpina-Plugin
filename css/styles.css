@@ -148,6 +148,13 @@
 	font-family: arial unicode;
 }
 
+#translatorList_chosen .chosen-drop, #commTranslatorList_chosen .chosen-drop {
+	border-bottom: 0;
+	border-top: 1px solid #aaa;
+	top: auto;
+	bottom: 40px;
+}
+
 #translatorList_chosen .chosen-drop {
 	border-bottom: 0;
 	border-top: 1px solid #aaa;
@@ -183,3 +190,25 @@ li.specificConcept {
     font-family: zrcola;
     src: url(../fonts/ZRColaRe.otf);
 }
+
+ol.footnotes p {
+	margin-bottom : 0;
+}
+
+.va-title {
+	position : relative;
+}
+
+.va-title span.va-rel-link {
+	position : absolute;
+	top: -100px;
+}
+
+.va-marked {
+	background : yellow;
+}
+
+.entry-content a {text-decoration : underline;}
+.entry-content a:link {color: grey}
+.entry-content a:visited {color: grey}
+.bibl {color: #5E99BD}

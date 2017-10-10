@@ -2,12 +2,13 @@
 
 var /** DescriptionList*/ descriptionList;
 var /** jQuery */ currentStimulusList;
+var /** boolean */ shiftPressed = false;
 
 jQuery(function() {
 	
 	addNewEnumValueScript(undefined, undefined, dbname);
 	
-	jQuery(".chosenSelect").chosen();
+	jQuery(".chosenSelect").chosen({"normalize_search_text" : removeDiacritics});
 	
 	descriptionList = new DescriptionList();
 	
@@ -15,6 +16,20 @@ jQuery(function() {
 		jQuery('#filterAtlas').val(window.localStorage.getItem('atlas'));
 		jQuery('#filterAtlas').trigger("chosen:updated");
 	}
+	
+	jQuery(document).keydown(function (key){
+		if(key.keyCode == 16){
+			shiftPressed = true;
+		}
+	});
+	
+	jQuery(document).keyup(function (key){
+		if(key.keyCode == 16){
+			shiftPressed = false;
+		}
+	});
+	
+	jQuery("#emptySelection").click(emptySelection);
 	
 	//Change atlas
 	jQuery("#filterAtlas").change (changeAtlas);
@@ -54,12 +69,49 @@ jQuery(function() {
 	
 	jQuery("#newBaseTypeButton").click(function () {
 		showTableEntryDialog('NeuerBTypFuerZuweisung', callbackSaveBaseType, selectModes.Chosen, dbname);
-});
+	});
 	
 	jQuery('.infoSymbol').qtip();
 	
+	jQuery("#auswahlBasistyp").change(function (){
+		addBaseType(this.value, jQuery(this).find("option:selected").text(), false);
+	});
+	
+	jQuery(document).on("click", ".deleteBaseType", function (){
+		jQuery("#auswahlBasistyp option[value=" + jQuery(this).closest("tr").data("bid") + "]").prop("disabled", false);
+		jQuery("#auswahlBasistyp").trigger("chosen:updated");
+		jQuery(this).closest("tr").remove();
+	});
+	
+	jQuery(document).on("click", ".correctButton", function (){
+		var description = descriptionList.getDescription(jQuery(this).closest("tr").data("id-description"));
+		if(description.kind == "T" || description.kind == "P" || description.kind == "M")
+			alert("Token-Ids:\n" + description.idlist.replace(/,/g, ",\n"));
+		else
+			alert("Tokengruppe-Ids:\n" + description.idlist.replace(/,/g, ",\n"));
+	});
+	
 	changeAtlas(true);
 });
+
+function addBaseType (id, type, unsure){
+	var btypeSpan = "<span class='chosen-like-button chosen-like-button-del'><span>" + type + "</span><a class='deleteBaseType'></a></span>";
+	jQuery("#baseTypeTable").append("<tr data-bid='" + id + "'><td>" + btypeSpan + "</td><td><input type='checkbox'" + (unsure? " checked": "") + " />Unsicher</td></tr>");
+	jQuery("#auswahlBasistyp").find("option[value=" + id + "]").prop("disabled", true);
+	jQuery("#auswahlBasistyp").val([]).trigger("chosen:updated");
+}
+
+function emptySelection (){
+	var values = jQuery("#tokenAuswahlLex").val();
+	if (values != null){
+		for (var i = 0; i < values.length; i++){
+			var descr = descriptionList.getDescription(values[i]);
+			jQuery("#recordSummary tr").filter("tr[data-id-description=" + values[i] + "]").remove();
+			removeLock("Tokens", descr.getLockName(), null, dbname);
+		}
+		jQuery("#tokenAuswahlLex").val([]).trigger("chosen:updated");
+	}
+}
 
 /**
  * 
@@ -85,7 +137,7 @@ function changeAtlas (firstCall){
 	currentStimulusList = jQuery(".stimulusList#" + atlas);
 	currentStimulusList.find("select").val("");
 	currentStimulusList.toggle(true);
-	currentStimulusList.find("select").chosen({"allow_single_deselect" : true});
+	currentStimulusList.find("select").chosen({"allow_single_deselect" : true, "normalize_search_text" : removeDiacritics});
 	
 	changeStimulus(firstCall);
 }
@@ -134,7 +186,8 @@ function changeStimulus(firstCall) {
 	jQuery.post(ajaxurl, data, function(response) {
 		var tokens = JSON.parse(response);
 		
-		var optionsHtml = "";
+		descriptionList = new DescriptionList();
+		
 		for (var i = 0; i < tokens.length; i++){
 			descriptionList.addDescription(tokens[i]);
 		}
@@ -143,7 +196,7 @@ function changeStimulus(firstCall) {
 		
 		jQuery("#tokenAuswahlLex").html(descriptionList.getOptionsHtml());
 		jQuery(".tokenInfo").toggle(true);
-		jQuery("#tokenAuswahlLex").chosen({"allow_single_deselect" : true});
+		jQuery("#tokenAuswahlLex").chosen({"allow_single_deselect" : true, "normalize_search_text" : removeDiacritics});
 		
 		jQuery("#AllorNot").prop("disabled", false);
 		jQuery("#AllorNotConcept").prop("disabled", false);
@@ -153,11 +206,23 @@ function changeStimulus(firstCall) {
 	
 	if(this.id != "AllorNot" && this.id != "AllorNotConcept"){
 		var file = selectObject.find(":selected").attr("data-file").replace("#", "%23");
-		jQuery("#pdfFrame").attr("src", scanUrl + file);
+		
+		var data = {
+			"action" : "va",
+			"namespace" : "typification",
+			"query" : "checkFileExists",
+			"file" : file
+		};
+		
+		jQuery.post(ajaxurl, data, function (response){
+			if(response == "1")
+				jQuery("#pdfFrame").attr("src", scanUrl + file);
+		});
 	}
 }
 
 function changeRecord (obj,changed){
+	
 	if(changed.hasOwnProperty("selected")){
 		var descr = descriptionList.getDescription(changed["selected"]);
 		addLock("Tokens", descr.getLockName(), function (response){
@@ -174,6 +239,29 @@ function changeRecord (obj,changed){
 		jQuery("#recordSummary").append(descr.createTableRow());
 		
 		addRowEventListeners();
+		
+		if(shiftPressed){
+			var otherIds = descriptionList.getIdenticalNames(descr.name, descr.id);
+			var oldIds = jQuery("#tokenAuswahlLex").getSelectionOrder();
+			for (var i = 0; i < otherIds.length; i++){
+				if (oldIds.indexOf(otherIds[i] + "") == -1){
+					var descrOther = descriptionList.getDescription(otherIds[i]);
+					oldIds.push(otherIds[i] + "");
+					addLock("Tokens", descrOther.getLockName(), function (name, id, response){
+						if(response != 'success' && writeMode){
+							alert("Der Beleg \"" + name + "\" wird bereits von einem anderen Benutzer typisiert!");
+							jQuery("#tokenAuswahlLex").val(jQuery("#tokenAuswahlLex").val().filter(function (e){
+								return e != id;
+							}));
+							jQuery("#tokenAuswahlLex").trigger("chosen:updated");
+							jQuery("#recordSummary tr").filter("tr[data-id-description=" + id + "]").remove();
+						}
+					}.bind(this, descrOther.token, otherIds[i]), dbname);
+				}
+			}
+			jQuery("#tokenAuswahlLex").setSelectionOrder(oldIds, true);
+			repaintRecordSummary();
+		}
 	}
 	else if (changed.hasOwnProperty("deselected")){
 		var descr = descriptionList.getDescription(changed["deselected"]);
@@ -252,14 +340,16 @@ function deleteConcept (element){
 }
 
 function repaintRecordSummary (){
-	var selectedIds = jQuery("#tokenAuswahlLex").getSelectionOrder();
-	
-	jQuery("#recordSummary tr").not(":has(th)").remove();
-	
-	for (var index in selectedIds){
-		jQuery("#recordSummary").append(descriptionList.getDescription(selectedIds[index]).createTableRow());
+	if(jQuery("#tokenAuswahlLex").data("chosen")){
+		var selectedIds = jQuery("#tokenAuswahlLex").getSelectionOrder();
+		
+		jQuery("#recordSummary tr").not(":has(th)").remove();
+		
+		for (var index in selectedIds){
+			jQuery("#recordSummary").append(descriptionList.getDescription(selectedIds[index]).createTableRow());
+		}
+		addRowEventListeners();
 	}
-	addRowEventListeners();
 }
 
 function addRowEventListeners (){
@@ -281,7 +371,7 @@ function typify (){
 	
 	var selectedIds = jQuery("#tokenAuswahlLex").getSelectionOrder();
 	if(selectedIds.length == 0){
-		alert("Keine Belege ausgewÃ¤hlt!");
+		alert("Keine Belege ausgewählt!");
 		return;
 	}
 	
@@ -289,7 +379,7 @@ function typify (){
 		var newTypeId = jQuery("#morphTypenAuswahl").val();
 	}
 	else {
-		alert("UngÃ¼ltige Auswahl!");
+		alert("Ungültige Auswahl!");
 		return;
 	}
 	
@@ -298,7 +388,7 @@ function typify (){
 	for (var i = 0; i < selectedIds.length; i++){
 		var descr = descriptionList.getDescription(selectedIds[i]);
 		if(!warningMessage && descr.id_vatype != null && descr.id_vatype != newTypeId){
-			var cont = confirm("Manche der Belege wurden bereits abweichend typisiert. Diese Typisierung wird Ã¼berschrieben. Fortsetzen?");
+			var cont = confirm("Manche der Belege wurden bereits abweichend typisiert. Diese Typisierung wird überschrieben. Fortsetzen?");
 			if(!cont){
 				return;
 			}
@@ -361,7 +451,7 @@ function assignConcept (){
 		var multiple = true;
 	}
 	else {
-		alert("UngÃ¼ltige Auswahl!");
+		alert("Ungültige Auswahl!");
 		return;
 	}
 	

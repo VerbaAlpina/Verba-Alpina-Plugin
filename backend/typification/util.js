@@ -5,14 +5,19 @@
  */
 function DescriptionList (){
 	var list = {};
+	var ortho = {};
 	var currentId = -1;
 	
 	this.addDescription = function (ajaxObject){
-		var description = new TokenDescription (++currentId, ajaxObject["Art"], ajaxObject["Id_Typ"], 
+		var description = new TokenDescription (this, ++currentId, ajaxObject["Art"], ajaxObject["Id_Typ"], 
 			ajaxObject["Token"], ajaxObject["IPA"], ajaxObject["Original"], ajaxObject["Id_Stimulus"], ajaxObject["Erhebung"], 
-			ajaxObject["Genus"], ajaxObject["Konzepte"], ajaxObject["Informanten"], ajaxObject["Id_morph_Typ"],
-			ajaxObject["Typ"]);
+			ajaxObject["Genus"], ajaxObject["Konzepte"], ajaxObject["Informanten"], ajaxObject["Tokengruppe"], ajaxObject["Bemerkungen"], 
+			ajaxObject["Id_morph_Typ"],	ajaxObject["Typ"], ajaxObject["Relevanz"], ajaxObject["TokenIds"]);
 		list[currentId] = description;
+		if(ortho[description.name] == undefined){
+			ortho[description.name] = []
+		}
+		ortho[description.name].push(currentId);
 		return description;
 	};
 	
@@ -29,6 +34,13 @@ function DescriptionList (){
 		list = {};
 		currentId = -1;
 	};
+	
+	this.getNumber = function (orth, id){
+		if(ortho[orth].length <= 1)
+			return -1;
+		else
+			return ortho[orth].indexOf(id) + 1;
+	}
 	
 	this.removeDuplicatesOf = function (descr){
 		var removed = [];
@@ -59,6 +71,12 @@ function DescriptionList (){
 			}
 		}
 	};
+	
+	this.getIdenticalNames = function (name, id){
+		ids = ortho[name];
+		var indexId = ids.indexOf(id);
+		return ids.filter(i => i != id);
+	};
 }
 
 /**
@@ -79,7 +97,7 @@ function DescriptionList (){
  * @param {number} id_vatype
  * @param {number} vatype
  */
-function TokenDescription (id, kind, id_type, token, ipa, original, id_stimulus, source, gender, concepts, informants, id_vatype, vatype){
+function TokenDescription (owner, id, kind, id_type, token, ipa, original, id_stimulus, source, gender, concepts, informants, group, remarks, id_vatype, vatype, relevance, idlist){
 	this.id = id;
 	this.kind = kind;
 	this.id_type = id_type;
@@ -94,6 +112,7 @@ function TokenDescription (id, kind, id_type, token, ipa, original, id_stimulus,
 		this.name = token + ' (' + (gender == ''? '?': gender) + ')';
 	}
 	
+	this.owner = owner;
 	this.token = token;
 		
 	this.id_stimulus = id_stimulus;
@@ -103,6 +122,10 @@ function TokenDescription (id, kind, id_type, token, ipa, original, id_stimulus,
 	this.conceptLoadingList = [];
 	
 	this.informants = informants;
+	this.group = group;
+	this.remarks = remarks;
+	this.relevant = relevance;
+	this.idlist = idlist;
 	
 	this.vatype = vatype;
 	this.id_vatype = id_vatype;
@@ -124,13 +147,19 @@ function TokenDescription (id, kind, id_type, token, ipa, original, id_stimulus,
 		if(this.concepts.length == 0){
 			style += "font-style: italic;";
 		}
-		return '<option value="' + this.id + '" style="' + style + '">' + this.name + '</option>';
+		if (this.relevant != "1"){
+			style += "background: #e1e1e1;";
+		}
+		var number = this.owner.getNumber(this.name, this.id);
+		return '<option value="' + this.id + '" style="' + style + '">' + this.name + (number == -1? "": " [" + number + "]") + '</option>';
 	};
 	
 	this.createTableRow = function (){
 		var result = "<tr data-id-description='" + this.id + "'>";
-		result += "<td style='font-size: 16px;'>" + this.name + "</td>";
+		var number = this.owner.getNumber(this.name, this.id);
+		result += "<td style='font-size: 16px;'>" + this.name + (number == -1? "": " [" + number + "]") + "</td>";
 		result += "<td>" + this.informants + "</td>";
+		result += "<td>" + (this.group != ""? "<b>Tokengruppe: " + this.group + "</b><br />": "") + this.remarks + "</td>";
 		var conceptList = this.concepts.map(this.getConceptName.bind(this));
 		result += "<td>" + conceptList.join("") + "</td>";
 		if(this.vatype == null)
@@ -140,6 +169,7 @@ function TokenDescription (id, kind, id_type, token, ipa, original, id_stimulus,
 		else
 			result += "<td><span class='chosen-like-button" + (writeMode? " chosen-like-button-del" : "") + "'><span>" 
 				+ this.vatype + "</span><a class='deleteTypification' /></span></td>";
+		result += "<td><input type='button' class='button button-secondary correctButton' value='Korrigieren' /></td>";
 		result += "</tr>";
 		return result;
 	};
@@ -171,7 +201,7 @@ function TokenDescription (id, kind, id_type, token, ipa, original, id_stimulus,
 	};
 	
 	this.equals = function (obj){
-		return this.token == obj.token && this.id_stimulus == obj.id_stimulus && this.gender == obj.gender && 
+		return this.token == obj.token && this.id_stimulus == obj.id_stimulus && this.gender == obj.gender && this.remarks == obj.remarks && this.group == obj.group &&
 			this.kind == obj.kind && this.id_type == obj.id_type && this.id_vatype == obj.id_vatype && arraysEqual(this.concepts, obj.concepts);
 	};
 	
@@ -205,7 +235,7 @@ function TokenDescription (id, kind, id_type, token, ipa, original, id_stimulus,
 	};
 	
 	this.getLockName = function (){
-		return this.token + "%%%" + this.gender + "%%%" + this.id_stimulus;
+		return this.token + "%%%" + this.gender + "%%%" + this.id_stimulus + "%%%" + this.remarks.substring(0,70) + "%%%" + this.group + "%%%" + this.kind + "%%%" + JSON.stringify(this.concepts.map(x => x * 1));
 	}
 }
 
@@ -230,7 +260,12 @@ function setMorphTypeData (data){
 
 	jQuery("#auswahlBestandteile").val(data.parts).trigger("chosen:updated");
 	jQuery("#auswahlReferenz").val(data.refs).trigger("chosen:updated");
-	jQuery("#auswahlBasistyp").val(data.btypes).trigger("chosen:updated");
+	//jQuery("#auswahlBasistyp").val(data.btypes).trigger("chosen:updated");
+	jQuery("#baseTypeTable").empty();
+	jQuery("#auswahlBasistyp option").prop("disabled", false);
+	for (var i = 0; i < data.btypes.length; i++){
+		addBaseType(data.btypes[i][0], jQuery("#auswahlBasistyp option[value=" + data.btypes[i][0] + "]").text(), data.btypes[i][1] == "1");
+	}
 }
 
 function getMorphTypeData (id){
@@ -256,7 +291,8 @@ function getMorphTypeData (id){
 
 	data.parts = jQuery("#auswahlBestandteile").val();
 	data.refs = jQuery("#auswahlReferenz").val();
-	data.btypes = jQuery("#auswahlBasistyp").val();
+	data.btypes = jQuery("#auswahlBasistyp option:disabled").map(function () {return jQuery(this).val();}).get();
+	data.unsures = jQuery("#baseTypeTable tr input[type=checkbox]").map(function (){return jQuery(this).is(":checked")? "1" : "0";}).get();
 	
 	return data;
 }
@@ -271,6 +307,8 @@ function openMorphTypeDialog(){
 	jQuery("#auswahlBestandteile").val([]);
 	jQuery("#auswahlReferenz").val([]);
 	jQuery("#auswahlBasistyp").val([]);
+	jQuery("#baseTypeTable").empty();
+	jQuery("#auswahlBasistyp option").prop("disabled", false);
 	
 	jQuery('#VATypeOverlay').dialog({
 		"minWidth" : 700,
@@ -280,8 +318,8 @@ function openMorphTypeDialog(){
 		}
 	});
 	
-	jQuery("#VATypeOverlay form[name=eingabeMorphTyp] select").chosen({"allow_single_deselect" : true, "width": "165px"});
-	jQuery("#VATypeOverlay select[multiple=multiple]").chosen({"allow_single_deselect" : true, "width": "600px"});
+	jQuery("#VATypeOverlay form[name=eingabeMorphTyp] select").chosen({"allow_single_deselect" : true, "width": "165px", "normalize_search_text" : removeDiacritics});
+	jQuery("#VATypeOverlay select[multiple=multiple], #auswahlBasistyp").chosen({"allow_single_deselect" : true, "width": "600px", "normalize_search_text" : removeDiacriticsPlusSpecial, "search_contains": true});
 }
 
 function closeMorphDialog (){

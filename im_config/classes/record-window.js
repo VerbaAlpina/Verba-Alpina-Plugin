@@ -4,19 +4,20 @@
  * @implements {InfoWindowContent}
  * 
  * @param {number} categoryID
+ * @param {string} elementID
  * @param {OverlayType} overlayType
  * @param {Object<string, ?>} data
  */
-function RecordInfoWindowContent (categoryID, overlayType, data){
+function RecordInfoWindowContent (categoryID, elementID, overlayType, data){
 	/**
 	 * @type {string} record 
 	 */
 	this.record = data["record"];
 	
 	/**
-	 * @type {string}
+	 * @type {Array<string>}
 	 */
-	this.original = data["original"];
+	this.original = [data["original"]];
 	
 	/**
 	 * @type {number}
@@ -52,17 +53,23 @@ function RecordInfoWindowContent (categoryID, overlayType, data){
 	this.tooltipApis = [];
 	
 	/** 
+	 * @override
+	 * 
+	 * @param {number} index
+	 * 
 	 * @return {string} 
 	 */
-	this.getHtml = function (){
+	this.getHtml = function (index){
 		var /** string */ result = "<div>";
 		var /** number */ hashIndex = this.record.indexOf("###");
 		if(this.record.indexOf("TYP") == 0){
 			result += "<table style='width : 100%'><tr><td>" + Ue['KEIN_BELEG'] + "</td>";
-			result += "<td><h2 class='community singleRecord'>" + this.communityName + "</h2></td></tr></table>";
+			if(index == 0 || optionManager.getOptionState("polymode") == "hex")
+				result += "<td><h2 class='community singleRecord'>" + this.communityName + "</h2></td>";
+			result += "</tr></table>";
 		}
 		else {
-			var /** string */ recordName = hashIndex == -1? this.record : this.record.substring(0, hashIndex) + "<font color='red'>*</font>";
+			var /** string */ recordName = hashIndex == -1? escapeHtml(this.record) : escapeHtml(this.record.substring(0, hashIndex)) + "<font color='red'>*</font>";
 			result += "<table style='width : 100%'><tr><td><h1 class='singleRecord'>" + recordName + "</h1><div style='display: none'>";
 			if (this.encoding == 1){
 				result += "Darstellung: IPA " + Ue["QUELLE"];
@@ -70,14 +77,47 @@ function RecordInfoWindowContent (categoryID, overlayType, data){
 			else if (this.encoding == 2){
 				result += "Darstellung: IPA VA";
 			}
-			if (this.encoding == 3){
+			else if (this.encoding == 3){
 				result += "Darstellung: DST " + Ue["QUELLE"];
 			}
-			if(this.original && this.original != this.record){
-				result += "<br /><br /><span>DST Quelle: </span><span class='originalRecord'>" + this.original + "</span>";
+			
+			var /** string */ tokenAlone = this.record;
+			var /** number */ indexHashes = tokenAlone.indexOf("###");
+			if(indexHashes != -1){
+				tokenAlone = tokenAlone.substring(0, indexHashes);
+			}
+			
+			var /** string */ originalString;
+			var /** string */ firstOriginal = this.original[0];
+			var /** boolean */ allIdentical = true;
+			var /** boolean */ emptyValues = false;
+			for (var j = 0; j < this.original.length; j++){
+				if(!this.original[j]){
+					emptyValues = true;
+					break;
+				}
+				if(this.original[j] != firstOriginal){
+					allIdentical = false;
+				}
+			}
+			
+			if(!emptyValues){
+				if(allIdentical){
+					originalString = firstOriginal;
+				}
+				else {
+					originalString = this.original.join(" / ");
+				}
+			}
+			
+			
+			if(this.encoding != 3 && originalString && originalString != tokenAlone){
+				result += "<br /><br /><span>DST " + Ue["QUELLE"] + ": </span><span class='originalRecord'>" + escapeHtml(originalString) + "</span>";
 			}
 			result += "</div><span>(" + Ue['EINZELBELEG'] + ")</span></td>";
-			result += "<td><h2 class='community singleRecord'>" + this.communityName + "</h2></td></tr></table>";
+			if(index == 0  || optionManager.getOptionState("polymode") == "hex")
+				result += "<td><h2 class='community singleRecord'>" + this.communityName + "</h2></td>";
+			result += "</tr></table>";
 		}
 		result += "<br /><br />" + this.typeTable + "<br /><br /><table class='easy-table easy-table-default'><tr><th>" + Ue["QUELLE"] + "</th><th>" + Ue["KONZEPT"] + "</th></tr>";
 		
@@ -103,7 +143,7 @@ function RecordInfoWindowContent (categoryID, overlayType, data){
 		result += "</table>";
 		
 		if(hashIndex != -1){
-			result += "<br /><font color='red'>* " + Ue["BELEG_TEIL"] + " <b>" + this.record.substring(hashIndex + 3) + "</b></font>";
+			result += "<br /><font color='red'>* " + Ue["BELEG_TEIL"] + " <b>" + escapeHtml(this.record.substring(hashIndex + 3)) + "</b></font>";
 		}
 		
 		return result + "</div>";
@@ -120,10 +160,11 @@ function RecordInfoWindowContent (categoryID, overlayType, data){
 	this.tryMerge = function (mapSymbol, owner){
 		for (var /** number */ i = 0; i < mapSymbol.infoWindowContents.length; i++){
 			var /**InfoWindowContent */ content = mapSymbol.infoWindowContents[i];
-			if(content instanceof RecordInfoWindowContent && owner == mapSymbol.owners[i] && content.record == this.record){
+			if(content instanceof RecordInfoWindowContent && owner == mapSymbol.getOwner(i) && content.record == this.record){
 				for(var j = 0; j < this.sources.length; j++){
 					content.sources.push(this.sources[j]);
 					content.concepts.push(this.concepts[j]);
+					content.original.push(this.original[0]);
 				}
 				return true;
 			}
@@ -156,18 +197,21 @@ function RecordInfoWindowContent (categoryID, overlayType, data){
 		var /** jQuery */ records = jQuery(content).find(".singleRecord:not(.community)");
 		
 		records.each(function (){
-			jQuery(this).qtip({
-				"content" : {
-					text : jQuery(this).next()
-				},
-				"position" : {
-					"my" : "top left",
-					"at" : "bottom left"
-				},
-				"style" : {
-					"classes" : "qtip-record"
-				}
-			});
+			var /** jQuery*/ textElement = jQuery(this).next();
+			if(textElement.html() != ""){
+				jQuery(this).qtip({
+					"content" : {
+						text : textElement
+					},
+					"position" : {
+						"my" : "top left",
+						"at" : "bottom left"
+					},
+					"style" : {
+						"classes" : "qtip-record"
+					}
+				});
+			}
 		});
 		
 		var /** RecordInfoWindowContent */ thisObject = this;

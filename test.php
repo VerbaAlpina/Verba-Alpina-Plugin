@@ -179,7 +179,7 @@ function test_token_bsa (){
 function test (){
 
 ?>
-<script type="text/javascript" src="<?php echo content_url() ?>/lib/peg-0.8.0.min.js"></script>
+<script type="text/javascript" src="<?php echo VA_PLUGIN_URL; ?>/lib/peg-0.10.0.min.js"></script>
 <script type="text/javascript">
 	var parser, parser2, parserBSA;
 	jQuery(function() {

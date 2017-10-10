@@ -12,7 +12,7 @@ function va_ajax_edit_glossary ($db){
 				
 				$translators = $db->get_col($db->prepare('SELECT Kuerzel FROM VTBL_Eintrag_Autor WHERE Id_Eintrag = %d AND Sprache = %s AND Aufgabe = %s', $_POST['id'], $lang, 'trad'));
 			}
-			$result = $db->get_row($db->prepare("SELECT Erlaeuterung_D as erlaeuterung_d, Fertig" . $transl . " FROM Glossar WHERE Id_Eintrag = %d", $_POST['id']), ARRAY_A);
+			$result = $db->get_row($db->prepare("SELECT Erlaeuterung_D as erlaeuterung_d, Fertig, Intern" . $transl . " FROM Glossar WHERE Id_Eintrag = %d", $_POST['id']), ARRAY_A);
 			
 			$tags = $db->get_col($db->prepare('SELECT Id_Tag FROM VTBL_Eintrag_Tag WHERE Id_Eintrag = %d', $_POST['id']));
 			$result['tags'] = $tags;
@@ -33,7 +33,7 @@ function va_ajax_edit_glossary ($db){
 				if(strlen($lang) !== 1){
 					break;
 				}
-				$query = $db->prepare("UPDATE Glossar set Erlaeuterung_D = %s, Fertig = %d, Erlaeuterung_$lang = %s, Terminus_$lang = %s where Id_Eintrag = %d", stripslashes($_POST['content']), $_POST['ready'], stripslashes($_POST['erlaeuterung']), stripslashes($_POST['terminus']), $_POST['id']);
+				$query = $db->prepare("UPDATE Glossar set Erlaeuterung_D = %s, Fertig = %d, Intern = %s, Erlaeuterung_$lang = %s, Terminus_$lang = %s where Id_Eintrag = %d", stripslashes($_POST['content']), $_POST['ready'], $_POST['internal'], stripslashes($_POST['erlaeuterung']), stripslashes($_POST['terminus']), $_POST['id']);
 				
 				$db->delete('VTBL_Eintrag_Autor', array('Id_Eintrag' => $_POST['id'], 'Aufgabe' => 'trad', Sprache => $lang), array ('%d', '%s', '%s'));
 				if($_POST['translators']){
@@ -43,7 +43,7 @@ function va_ajax_edit_glossary ($db){
 				}
 			}
 			else {
-				$query = $db->prepare('UPDATE Glossar set Erlaeuterung_D = %s, Fertig = %d where Id_Eintrag = %d', stripslashes($_POST['content']), $_POST['ready'], $_POST['id']);
+				$query = $db->prepare('UPDATE Glossar set Erlaeuterung_D = %s, Fertig = %d, Intern = %s where Id_Eintrag = %d', stripslashes($_POST['content']), $_POST['ready'], $_POST['internal'], $_POST['id']);
 			}
 			$db->query($query);
 			
@@ -75,6 +75,23 @@ function va_ajax_edit_glossary ($db){
 			$result['uebersetzer'] = $db->get_col($db->prepare('SELECT Kuerzel FROM VTBL_Eintrag_Autor WHERE Id_Eintrag = %d AND Sprache = %s AND Aufgabe = %s', $_POST['id'], $lang, 'trad'));
 			
 			echo json_encode($result);
+			break;
+			
+		case 'updateList':
+		
+			if(strpos($_POST['filter'], 'MISSING_') === 0){
+				$entries = $db->get_results('select Id_Eintrag, Terminus_D from glossar WHERE Erlaeuterung_' . substr($_POST['filter'], 8, 1) . " = '' AND Intern = '0' AND Fertig AND Kategorie = 'Methodologie'", ARRAY_A);
+			}
+			else {
+				$entries = $db->get_results('select Id_Eintrag, Terminus_D from glossar', ARRAY_A);
+			}
+			
+			$res = '<option value="0">' . DEFAULT_SELECT . '</option>';
+			
+			foreach ($entries as $e){
+				$res .= "<option value='{$e['Id_Eintrag']}'>{$e['Terminus_D']}</option>\n";
+			}
+			echo $res;
 			break;
 	}
 }

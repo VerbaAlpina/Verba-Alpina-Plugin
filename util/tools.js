@@ -1,17 +1,3 @@
-jQuery(function (){
-	jQuery("#changeDBSelect").change(/** @this {Element} */ function (){
-		var db = /** @type{string} */ (this.value);
-		
-		var col = /** @type{string} */ (jQuery(this).children("option[value=" + db + "]").css("background-color"));
-		jQuery(this).css("background-color", col);
-		
-		if(db == "va_xxx")
-			reloadPageWithParam("db", undefined);
-		else
-			reloadPageWithParam("db", db.substring(3));
-	});
-});
-
 /**
 *
 * @param {jQuery} parent
@@ -19,7 +5,7 @@ jQuery(function (){
 * @returns {undefined}
 */
 function addMouseOverHelp (parent){
-	parent.find("img.va_mo_help").each(function (){
+	parent.find("i.va_mo_help").each(function (){
 		jQuery(this).qtip({
 			content : {
 				text : jQuery(this).next(),
@@ -53,8 +39,65 @@ function addMouseOverHelp (parent){
 				function(event, api) {
 					api.set('hide.event', 'mouseleave');
 				}
+			},
+			position : {
+				viewport: jQuery(window),
+				adjust : {
+					method : "flip"
+				}
 			}
 		});
+	});
+}
+
+/**
+*
+* @param {jQuery} element
+* @param {string} content
+* 
+* @returns {undefined}
+*/
+function addMouseOverHelpSingleElement (element, content){
+	element.qtip({
+		content : {
+			text : content,
+			title: {
+				button: true // Close button
+			}
+		},
+		show: {
+			event: 'mouseenter',
+			solo: true
+		},
+		style: {
+			classes : 'qtip-grey'
+		},
+		events: {
+			render:
+			/**
+			 * @param {Object} event
+			 * @param {Object} api
+			 */
+			function(event, api) {
+				api.elements.target.bind('click', function() {
+					api.set('hide.event', false);
+				});
+			},
+			hide: 
+			/**
+			 * @param {Object} event
+			 * @param {Object} api
+			 */
+			function(event, api) {
+				api.set('hide.event', 'mouseleave');
+			}
+		},
+		position : {
+			viewport: jQuery(window),
+			adjust : {
+				method : "flip"
+			}
+		}
 	});
 }
 
@@ -76,7 +119,8 @@ function lengthNull (a){
 * @returns {undefined}
 */
 function addBiblioQTips(parent){
-	parent.find(".bibl").each(/** @this{Element} */ function (){
+	var elements = parent.find(".bibl");
+	elements.each(/** @this{Element} */ function (){
 		try {
 			jQuery(this).qtip({
 				content: {
@@ -118,6 +162,8 @@ function addBiblioQTips(parent){
 			console.log(e);
 		}
 	});
+	
+	return elements.qtip("api");
 }
 
 function addCopyButtonSupport () {
@@ -283,6 +329,11 @@ function removeDiacritics (str) {
     return str;
 }
 
+function removeDiacriticsPlusSpecial (str){
+	var result = removeDiacritics(str);
+	return result.replace(/[^a-zA-Z0-9]/g, "");
+}
+
 function arraysEqual(a, b) {
 	  if (a === b) return true;
 	  if (a == null || b == null) return false;
@@ -292,4 +343,84 @@ function arraysEqual(a, b) {
 	    if (a[i] !== b[i]) return false;
 	  }
 	  return true;
+}
+
+function getOccurances (content, searchString){
+	
+	content = removeDiacritics(content).toLowerCase();
+	searchString = removeDiacritics(searchString).toLowerCase();
+	
+	var result = [];
+	
+	var index = content.indexOf(searchString);
+	while (index !== -1){
+		result.push(index);
+		index = content.indexOf(searchString, index + 1);
+	}
+	
+	//Filter out results in tag brackets
+	for (var i = result.length - 1; i >= 0; i--){
+		var lastOpeningTag = content.lastIndexOf("<", result[i]);
+		var lastClosingTag = content.lastIndexOf(">", result[i]);
+		if(lastOpeningTag > lastClosingTag){
+			result.splice(i, 1);
+		}
+	}
+	
+	return result;
+}
+
+function markIndexes (str, indexes, searchString){
+	if(indexes.length == 0)
+		return str;
+	
+	var res = "";
+	var currentIndex = -length;
+	var length = searchString.length;
+	
+	for (var i = 0; i < indexes.length; i++){
+		if(i > 0 && indexes[i] < indexes[i-1] + length)
+			continue;
+		
+		var lastIndex = currentIndex;
+		var markedPart = str.substring(indexes[i], indexes[i] + length);
+		
+		//Some diacritics are replaced by two character (e.g. ß => ss), so the indexes might be shifted
+		while (removeDiacritics(markedPart[0]).toLowerCase() != removeDiacritics(searchString[0]).toLowerCase()){
+			indexes[i]--;
+			markedPart = str.substring(indexes[i], indexes[i] + length);
+		}
+		
+		var preMarked = str.substring(currentIndex + length, indexes[i]);
+
+		currentIndex = indexes[i];
+		res += preMarked + "<span class='va-marked'>" + markedPart + "</span>";
+	}
+	return res + str.substring(currentIndex + length);
+}
+
+function removeMarkers(elements){
+	elements.each(function (){
+		jQuery(this).find(".va-marked").each (function (){
+			var span = jQuery(this);
+			span.replaceWith(span.text());
+		});
+	});
+}
+
+var entityMap = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;',
+  '/': '&#x2F;',
+  '`': '&#x60;',
+  '=': '&#x3D;'
+};
+
+function escapeHtml (string) {
+  return String(string).replace(/[&<>"'`=\/]/g, function (s) {
+    return entityMap[s];
+  });
 }

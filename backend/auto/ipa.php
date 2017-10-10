@@ -12,7 +12,6 @@ function ipa_page (){
 									GROUP BY Erhebung", ARRAY_A);	
 	?>
 	
-	<script type="text/javascript" src="<?php echo content_url() ?>/lib/peg-0.8.0.min.js"></script>
 	<script type="text/javascript">
 		var tokenNumbers = {
 		<?php
@@ -28,8 +27,8 @@ function ipa_page (){
 		jQuery(function (){
 			jQuery("#ipaSelectSource").val("0");
 			jQuery("#IPAonlyMissing").prop("checked", true);
-			parserBeta = PEG.buildParser(jQuery("#grammarBeta").val());
-			parserBSA = PEG.buildParser(jQuery("#grammarBSA").val());
+			parserBeta = peg.generate(jQuery("#grammarBeta").val());
+			parserBSA = peg.generate(jQuery("#grammarBSA").val());
 			jQuery("#grammarBeta").toggle(false);
 			
 			jQuery("#ipaSelectSource").on("change", function (){

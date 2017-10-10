@@ -12,7 +12,7 @@ function ConceptFilterComponent (){
 	 * @param {Object<string, ?>} filterData
 	 * @param {Element} element
 	 * 
-	 * @return {undefined} 
+	 * @return {boolean} 
 	 */
 	this.storeData = function (filterData, element){
 
@@ -21,9 +21,25 @@ function ConceptFilterComponent (){
 		jQuery.each(elements, /** @this{string} */ function (){
 			ids.push(/** @type {string} */ (jQuery("#" + this).data("concept")));
 		});
+		
+		if(ids.length == 0)
+			return false;
+		
 		filterData["conceptIds"] = ids;
 		
 		jQuery(element).children("div").jstree("destroy");
+		return true;
+	};
+	
+	/**
+	 * @override
+	 * 
+	 * @param {Object<string, ?>} filterData
+	 * 
+	 * @return {undefined} 
+	 */
+	this.storeDefaultData = function (filterData){
+		filterData["conceptIds"] = "ALL";
 	};
 	
 	/**

@@ -1,6 +1,13 @@
-#IM_googleMap {
-	width: 98%;
+#IM_map_div {
+	/*width: 98%;*/
+	width: 100%;
+    height: 100%;
+    position: absolute;
+    margin-top: 45px;
+    height: calc(100% - 45px);
 }
+
+
 
 #mainTable > tbody > tr > td {
 	vertical-align: top;
@@ -8,7 +15,7 @@
 
 .qtip {
 	z-index: 120;
-	max-width: 500px;
+	max-width: 300px;
 }
 
 .community {
@@ -75,9 +82,9 @@ a.encyLink, span.encyLink{
 
 .VA_Map_Subhead {
 	font-size: 85%;
-	text-align: center;
-	width: 240pt;
-	margin-bottom: 0.25em;
+	padding-left: 2px;
+	padding-top: 10px;
+	padding-bottom: 10px;
 	color : #4b4b4b;
 }
 

@@ -134,32 +134,145 @@ function infoMat (){
 	global $va_xxx;
 	global $Ue;
 	
+	if(function_exists('switch_to_blog'))
+		switch_to_blog(1);
+	
 	$args = array ('post_type' => 'attachment', 'posts_per_page' => -1, 'post_mime_type' => 'application/pdf');
 	$posts = get_posts($args);
-
 	?>
+
+	<div class="entry-sub-head"><?php echo $Ue['PRESS_MATERIAL'];?></div>
+
+	<div class="press_container">
+		
+		<div style="margin-bottom: 10px;">
+
+			<div class="entry-small_head_indent" ><a href="https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/verbaalpina_pressetext_deutsch.pdf"><?php echo $Ue['PRESSTEXT_DE'];?></a></div>
+				<div class="entry-small_head_indent" ><a href="https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/verbaalpina_pressetext_italienisch.pdf"><?php echo $Ue['PRESSTEXT_ITA'];?></a></div>
+					<div class="entry-small_head_indent" ><a href="https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/verbaalpina_pressetext_franzoesisch.pdf"><?php echo $Ue['PRESSTEXT_FR'];?></a></div>
+
+	    </div>				
+
+
+		<div class="entry-small_head_indent" ><a href="https://www.youtube.com/watch?v=hxbtXzxa5LY">Crowdsourcing Video:</a></div>
+
+		<a href="https://www.youtube.com/watch?v=hxbtXzxa5LY"><img class="cs_video_image" src="https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/play_movie-1024x575.png"></a>
+
+
+
+
+		<div class="entry-small_head_indent"> <?php echo $Ue['BILDMATERIAL'];?>:</div>
+
+		<div class="image_table">
+
+				    <div class="thumb_img_table">
+					    <a href="https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/gs_2522.jpg">
+						    <div class="thumb_img_container" style="background: url(https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/schuerzetaetigkeit-zur-extraktiongs_2522.png) 0% 0% / cover no-repeat;">
+						    </div>
+					    </a>
+				    </div>
+
+				        <div class="thumb_img_table">
+					    <a href="https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/gs_2106.jpg">
+						    <div class="thumb_img_container" style="background: url(https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/getreideerntegs_2106.png) 0% 0% / cover no-repeat;">
+						    </div>
+					    </a>
+				    </div>
+
+				        <div class="thumb_img_table">
+					    <a href="https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/gs_2179.jpg">
+						    <div class="thumb_img_container" style="background: url(https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/transport-von-heu-mit-seilgs_2179.png) 0% 0% / cover no-repeat;">
+						    </div>
+					    </a>
+				    </div>
+
+				        <div class="thumb_img_table">
+					    <a href="https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/gs_2108.jpg">
+						    <div class="thumb_img_container" style="background: url(https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/getreideerntesensesichelgs_2108.png) 0% 0% / cover no-repeat;">
+						    </div>
+					    </a>
+				    </div>
+		
+			        <div class="thumb_img_table">
+					    <a href="https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/gs_2169_edited_better_smaller.jpg">
+						    <div class="thumb_img_container" style="background: url(https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/graserntegs_2169.png) 0% 0% / cover no-repeat;">
+						    </div>
+					    </a>
+				    </div>
+			
+		</div>
+
+
+		<div class="entry-small_head_indent" >Screenshots Crowdsourcing:</div>
+
+		<div class="image_table">
+
+			<?php 
+				for ($c = 1; $c < 4; $c++) {
+				    echo '<div class="thumb_img_table"><a href="https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/cs_'.$c.'.jpg">
+				    <div class="thumb_img_container" style="background: url(https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/cs_'.$c.'.jpg) 0% 0% / cover no-repeat;">
+				    </div>
+				    </a>
+				    </div>';
+				} 
+
+				   echo '<div class="thumb_img_table"><a href="https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/cs_4a.jpg"><div class="thumb_img_container" style="background: url(https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/cs_4a.jpg) 0% 0% / cover no-repeat;">
+				   </div>
+				   </a>
+				   </div>';
+
+
+					for ($c = 5; $c < 16; $c++) {
+					    echo '<div class="thumb_img_table"><a href="https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/cs_'.$c.'.jpg">
+					    <div class="thumb_img_container" style="background: url(https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/cs_'.$c.'.jpg) 0% 0% / cover no-repeat;">	    
+					    </div>
+					    </a>
+					    </div>';
+					} 
+				?>
+					
+		</div>
+
+	</div>	
+
+
+    <div class="entry-sub-head"><?php echo $Ue['INFO_MATERIAL'];?></div>
 	
 	<div class="entry-content">
-		<h2>
-			<?php echo $Ue['INFORMATIONSMATERIAL']; ?>
-		</h2>	
-	
-		<br />
-	
+
 		<ul>
 		<?php
 		
 			foreach ($posts as $post){
 				if(has_term('informationsmaterial', 'media_category', $post) ){
-					echo '<li>';
-					echo '<a href="' . $post->guid . '">' . $va_xxx->get_var('SELECT Gegenstand FROM Medien WHERE Id_Medium = ' . getVA_ID($post->ID), 0, 0) . '</a>';
-					echo '</li>';
-					echo '<br />';
+					echo '<li class="entry-small_head_indent">';
+					echo '<a href="' . $post->guid . '">' . va_translate($va_xxx->get_var('SELECT Gegenstand FROM Medien WHERE Id_Medium = ' . getVA_ID($post->ID), 0, 0), $Ue) . '</a>';
+					echo '</li>';		
 				}
 			}
 		?>
 		</ul>
 	</div>
 	<?php
+	if(function_exists('switch_to_blog'))
+		restore_current_blog();
+}
+
+function va_echo_page (){
+	global $va_xxx;
+	global $Ue;
+	
+
+	$res = '<div class="entry-content"><ul>';
+	
+	$entries = $va_xxx->get_results('SELECT Datum, Medium, Link FROM Echo ORDER BY Datum DESC', ARRAY_A);
+	
+	foreach ($entries as $entry){
+		$res.= '<li>' . date('d.m.Y', strtotime($entry['Datum'])) . ' - ' . '<a href="' . $entry['Link'] . '" target="_BLANK">' . $entry['Medium'] . '</a></li>';
+	}
+	
+	$res .= '</ul></div><br /><br /><br />';
+	
+	return $res;
 }
 ?>

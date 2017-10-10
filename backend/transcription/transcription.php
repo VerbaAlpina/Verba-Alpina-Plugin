@@ -45,7 +45,7 @@ function va_transcription () {
 		<iframe src="about:blank" id="iframeScan"></iframe>
 	</div>
 	<div id="iframeCodepageDiv">
-		<iframe src="<?php echo home_url('/dokumente/transkription/Codepage_Allgemein.pdf', 'https');?>" id="iframeCodepage" /></iframe>
+		<iframe src="<?php echo VA_PLUGIN_URL;?>/backend/transcription/Codepage_Allgemein.pdf" id="iframeCodepage" /></iframe>
 	</div>
 	<div id="enterTranscription">
 	<?php

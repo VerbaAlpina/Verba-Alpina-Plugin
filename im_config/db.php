@@ -1,135 +1,348 @@
 <?php
+
+	//TODO Übersetzung der Sprachgebiete in den Info-Windows funktioniert zumindest in der 161 nicht
 	function load_va_data (){
-		global $Ue;
-		$result = new IM_Result();
-
-		$db = IM_Initializer::$instance->database;
-
-		$lang = strtoupper(substr($_POST['lang'], 0, 1));
-		
-		switch ($_POST['category']){
-			case 0: //Informanten
-				$query = "SELECT Ortsname, Nummer, AsText(" . ($_POST['community'] == 'true' ? '(SELECT Mittelpunkt FROM Orte WHERE Id_Ort = Id_Gemeinde)' : 'Georeferenz') . ") as Geo, Id_Informant FROM Informanten WHERE Erhebung = %s" . ($_POST['outside'] == 'false' ? ' and Alpenkonvention' : '') . ' ORDER BY Position';
-				$data = $db->get_results($db->prepare($query, substr($_POST['key'], 1)), ARRAY_A);
-				
-				foreach ($data as $row){
-					$result->addMapElement(
-						-1,
-						(isset($_POST['editMode'])? 
-								new IM_EditableElementInfoWindowData($row['Id_Informant'], va_get_edit_data_informant($row['Id_Informant'], $db)) :
-								new IM_SimpleElementInfoWindowData($row['Ortsname'], $row['Nummer'])), 
-						$row['Geo'],
-						va_get_quantify_data_informant($row['Id_Informant'], $db)
-					);
-				}
-			break;
+		try {
+			set_error_handler(function ($severity, $message, $file, $line){
+				throw new ErrorException($message, 0, $severity, $file, $line);
+				//TODO get this running, especially with wordpress db errors
+			});
 			
-			case 1: //Concept
-				if(empty($_POST['filter']['conceptIds']))
-					break;
-				$where_clause = $db->prepare("Id_Concept IN " . im_key_placeholder_list($_POST['filter']['conceptIds']), $_POST['filter']['conceptIds']);
-				va_create_result_object($where_clause, $lang, $result, $Ue, $db);
-			break;
+			global $Ue;
+			$result = new IM_Result();
+	
+			$db = IM_Initializer::$instance->database;
+	
+			$lang = strtoupper(substr($_POST['lang'], 0, 1));
 			
-			case 2: //Phonetic Type
-			case 3: //Morphologic Type
-				$where_clause = $db->prepare("Id_Instance IN (SELECT DISTINCT Id_Instance FROM Z_Ling WHERE Type_Kind = '" . $_POST['key'][0] . "' AND Id_Type = %d)", substr($_POST['key'], 1));
-				va_create_result_object($where_clause, $lang, $result, $Ue, $db);
-			break;
+			$epsilon = 0;
+			$grid_category = NULL;
+			if(isset($_POST['hexgrid'])){
+				$pos_pipe = strpos($_POST['hexgrid'], '|');
+				$epsilon = substr($_POST['hexgrid'], $pos_pipe + 1);
+				$grid_category = substr($_POST['hexgrid'], 1, $pos_pipe - 1);
+			}
 			
-			case 4: //Base Type
-				$where_clause = $db->prepare("Id_Instance IN (SELECT DISTINCT Id_Instance FROM Z_Ling WHERE Id_Base_Type = %d)", substr($_POST['key'], 1));
-				va_create_result_object($where_clause, $lang, $result, $Ue, $db);				
-			break;
-			
-			case 5: //Extralinguistic
-			case 6: //Polygons
-				//Community flag is ignored, since it does not make sense for most of the extralinguistic data.
-				$id_cat = substr($_POST['key'], 1);
-				
-				$query = $db->prepare("
-					SELECT Name, Description, astext(Geo_Data), Tags, Id_Geo
-					FROM Z_Geo
-					WHERE Id_Category = %s" . (!isset($_POST['outside']) || $_POST['outside'] == 'false' ? ' and Alpine_Convention' : '') . '
-					ORDER BY Id_Geo ASC', $id_cat);
-				$data = $db->get_results($query, ARRAY_N);
-				
-				$use_quant_data = false;
-				$quant_categories = $db->get_col('SELECT DISTINCT Id_Kategorie FROM A_Informant_Polygon');
-				
-				if(in_array($id_cat, $quant_categories)){
-					$use_quant_data = true;
-				}
-				
-				if(isset($_POST['filter']) && $_POST['filter']['subElementCategory'] == -1){ //Pseudo category
-					$subCategoryId = 0;
-					foreach ($data as $row){
-						va_add_extra_ling_element(
-								$db, 
-								$result, 
-								'?' . $subCategoryId++, 
-								new IM_SimpleElementInfoWindowData(va_translate_content($row[0], $Ue), va_translate_content($row[1], $Ue)), 
-								$row[2], 
-								$row[4], 
-								$use_quant_data);
-					}
-				}
-				else {
-					if(isset($_POST['filter']['tags'])){
-						$tagsNeeded = $_POST['filter']['tags'];
-						
-						foreach ($data as $row){
-							$useRecord = true;
-							
-							if($row[3] != NULL){
-								$tagArray = json_decode($row[3], true);
-								foreach ($tagArray as $tagName => $tagValue){
-									if(!in_array($tagValue, $tagsNeeded[$tagName])){
-										$useRecord = false;
-										break;
-									}
-								}
-							}
-							if($useRecord){
-								$subVal = -1;
-								if(isset($_POST['filter']['subElementCategory']) && $_POST['filter']['subElementCategory'] == -3 && isset($tagArray[$_POST['filter']['selectedTag']])){
-									$subVal = "#" . $tagArray[$_POST['filter']['selectedTag']];
-								}
-								
-								va_add_extra_ling_element(
-										$db, 
-										$result, 
-										$subVal, 
-										new IM_SimpleElementInfoWindowData(va_translate_content($row[0], $Ue), va_translate_content($row[1], $Ue)), 
-										$row[2], 
-										$row[4], 
-										$use_quant_data);
-							}
+			switch ($_POST['category']){
+				case 0: //Informanten
+					
+					if($epsilon === 0){
+						if($_POST['community'] == 'true'){
+							$geo_sql = '(SELECT Mittelpunkt FROM Orte WHERE Id_Ort = Id_Gemeinde)';
+						}
+						else {
+							$geo_sql = 'Georeferenz';
 						}
 					}
 					else {
+						$geo_sql = $db->prepare('(SELECT Center FROM Z_Geo WHERE Id_Geo = Id_Polygon AND Epsilon = %f)', $epsilon);
+					}
+					
+					//Cannot come from zgeo, since informant nets without records should still be shown!
+					
+					if($grid_category !== NULL){
+						$query = "
+						SELECT Ortsname, Nummer, AsText(" . $geo_sql. ") as Geo, Id_Informant, Id_Polygon
+						FROM Informanten JOIN A_Informant_Polygon USING (Id_Informant)
+						WHERE Erhebung = %s" . ($_POST['outside'] == 'false' ? ' and Alpenkonvention' : '') . ' AND Id_Kategorie = %d
+						GROUP BY Id_Informant
+						ORDER BY Id_Polygon, Position';
+						
+						$data = $db->get_results($db->prepare($query, substr($_POST['key'], 1), $grid_category), ARRAY_A);
+						
+						$last_poly = -1;
+						$last_id = -1;
+						$last_geo = NULL;
+						$info_windows = [];
 						foreach ($data as $row){
-							va_add_extra_ling_element(
-									$db, 
-									$result, 
-									-1, 
-									new IM_SimpleElementInfoWindowData(va_translate_content($row[0], $Ue), va_translate_content($row[1], $Ue)), 
-									$row[2], 
-									$row[4], 
-									$use_quant_data);
+							if ($row['Id_Polygon'] !== $last_poly) {
+								if(count($info_windows) > 0){
+									$result->addMapElements(-1, $info_windows, $last_geo, NULL, va_get_quantify_data_informant($last_id, $db));
+								}
+								
+								$last_poly = $row['Id_Polygon'];
+								$last_geo = $row['Geo'];
+								$last_id = $row['Id_Informant'];
+								$info_windows = [];
+							}
+							
+							$info_windows[] = (isset($_POST['editMode'])?
+									new IM_EditableElementInfoWindowData($row['Id_Informant'], va_get_edit_data_informant($row['Id_Informant'], $db)) :
+									new IM_SimpleElementInfoWindowData($row['Ortsname'], $row['Nummer']));
+						}
+						if(count($info_windows) > 0){
+							$result->addMapElements(-1, $info_windows, $last_geo, NULL, va_get_quantify_data_informant($last_id, $db));
+						}
+						
+					}
+					else {
+						$query = "
+						SELECT Ortsname, Nummer, AsText(" . $geo_sql. ") as Geo, Id_Informant
+						FROM Informanten JOIN A_Informant_Polygon USING (Id_Informant)
+						WHERE Erhebung = %s" . ($_POST['outside'] == 'false' ? ' and Alpenkonvention' : '') . '
+						GROUP BY Id_Informant
+						ORDER BY Position';
+						
+						$data = $db->get_results($db->prepare($query, substr($_POST['key'], 1)), ARRAY_A);
+						
+						foreach ($data as $row){
+							$result->addMapElement(
+									-1,
+									(isset($_POST['editMode'])?
+											new IM_EditableElementInfoWindowData($row['Id_Informant'], va_get_edit_data_informant($row['Id_Informant'], $db)) :
+											new IM_SimpleElementInfoWindowData($row['Ortsname'], $row['Nummer'])),
+									$row['Geo'],
+									NULL,
+									va_get_quantify_data_informant($row['Id_Informant'], $db)
+									);
 						}
 					}
-				}
+				break;
+				
+				case 1: //Concept
+					if($_POST['filter']['conceptIds'] == 'ALL'){
+						$concepts = $db->get_col($db->prepare('SELECT Id_Konzept FROM A_Ueberkonzepte_Erweitert WHERE Id_Ueberkonzept = %d', substr($_POST['key'], 1)));
+						$concepts[] = substr($_POST['key'], 1);
+					}
+					else if(empty($_POST['filter']['conceptIds']))
+						break;
+					else {
+						$concepts = $_POST['filter']['conceptIds'];
+					}
+						
+					$where_clause = $db->prepare("Id_Concept IN " . im_key_placeholder_list($concepts), $concepts);
+					va_create_result_object($where_clause, $lang, $epsilon, $grid_category, $result, $Ue, $db);
+				break;
+				
+				case 2: //Phonetic Type
+				case 3: //Morphologic Type
+					$where_clause = $db->prepare("Id_Instance IN (SELECT DISTINCT Id_Instance FROM Z_Ling WHERE Type_Kind = '" . $_POST['key'][0] . "' AND Id_Type = %d)", substr($_POST['key'], 1));
+					va_create_result_object($where_clause, $lang, $epsilon, $grid_category, $result, $Ue, $db);
+				break;
+				
+				case 4: //Base Type
+					//Key format <ID>|<0 for sure, 1 for unsure>
+					$uncertain = substr($_POST['key'], -1) == '1';
+					$_POST['key'] = substr($_POST['key'], 0, -2);
+					
+					$where_clause = $db->prepare("Id_Instance IN (SELECT DISTINCT Id_Instance FROM Z_Ling WHERE Id_Base_Type = %d AND Base_Type_Unsure = %d)", substr($_POST['key'], 1), $uncertain);
+					va_create_result_object($where_clause, $lang, $epsilon, $grid_category, $result, $Ue, $db);				
+				break;
+				
+				case 5: //Extralinguistic
+				case 6: //Polygons
+					
+					$id_cat = substr($_POST['key'], 1);
+					
+					$pos_col = strpos($id_cat, '|');
+					if($pos_col !== false){
+						$id_cat = substr($id_cat, 0, $pos_col); //Epsilon can be ignored, since it is set in $_POST['hexgrid'] before loading!
+					}
+					
+					if(isset($_POST['hexgrid']) && !va_is_hex_category($id_cat, $_POST['category'])){
+						return new IM_Error_Result('Not possible in hexagon mode!');
+					}
+					
+					//Community flag is ignored, since it does not make sense for most of the extralinguistic data.
+					if(isset($_POST['filter']['tags'])){ //Tag filter
+						$tagsNeeded = $_POST['filter']['tags'];
+						
+						$whereClause = $db->prepare('Id_Geo IN (SELECT Id_Ort
+									FROM 
+										A_Tag_Werte
+									WHERE 
+										Id_Kategorie = %d AND
+										CASE Tag
+								', $id_cat);
+						
+						foreach ($tagsNeeded as $tag => $values){
+							$whereClause .= $db->prepare('WHEN %s THEN ', $tag);
+							
+							if(in_array('EMPTY', $values)){
+								$whereClause .= 'Wert IS NULL OR ';
+								$values = array_filter($values, function ($e){return $e != 'EMPTY';});
+							}
+							
+							$whereClause .= $db->prepare('Wert IN ' . im_string_placeholder_list($values) . ' ', $values);
+						}
+						
+						$whereClause .= $db->prepare(' END
+									GROUP BY Id_Ort
+									HAVING count(*) = (SELECT count(DISTINCT Tag) FROM a_kategorie_tag_werte WHERE Id_Kategorie = %d))', $id_cat);
+					}
+					else {
+						$whereClause = $db->prepare('Id_Category = %s', $id_cat);
+					}
+					
+					$default_epsilons = array ('60' => 0.001, '62' => 0.0006, '1' => 0.005, '17' => 0.002, '63' => 0.003);
+					
+					if (isset($_POST['simple_polygons']) && $_POST['simple_polygons'] == 'true' && $epsilon === 0 && isset($default_epsilons[$id_cat])){
+						$epsilon = $default_epsilons[$id_cat];
+					}
+					
+					//TODO if default-epsilon is set but no simplified polygon exists for a certain polygon nothing is loaded!!!
+					
+					//TODO split areas and extra-ling and move code for tags etc. to functions
+					
+					if($_POST['category'] == 5){ //ExtraLing
+						if($grid_category === NULL){
+							$geo_sql = 'Geo_Data';
+						}
+						else {
+							$geo_sql = $db->prepare('
+								(SELECT Center 
+								FROM Z_Geo z2 JOIN A_Ort_Polygon a2 ON z2.Id_Geo = a2.Id_Polygon  AND a2.Id_Kategorie = %d
+								WHERE a2.Id_Ort = z1.Id_Geo AND z2.Epsilon = %f)', $grid_category, $epsilon);
+						}
+						
+						$query = "
+						SELECT Name, Description, astext(" . $geo_sql . "), Tags, Id_Geo, GROUP_CONCAT(CONCAT(Id_Kategorie, ':', Id_Polygon)), ContainsTranslations, Cluster_Id, AsText(ST_Envelope(Geo_Data))
+						FROM Z_Geo z1 LEFT JOIN A_Ort_Polygon ON Id_Geo = Id_Ort
+						WHERE " . $whereClause . (!isset($_POST['outside']) || $_POST['outside'] == 'false' ? ' and Alpine_Convention' : '') . ' AND Epsilon = 0
+						GROUP BY Id_Geo
+						ORDER BY Cluster_Id ASC';
+						$data = $db->get_results($query, ARRAY_N);
+					}
+					else { //Areas
+						$query = "
+						SELECT Name, Description, astext(Geo_Data), Tags, Id_Geo, '' AS Quant, ContainsTranslations, Cluster_Id, AsText(ST_Envelope(Geo_Data))
+						FROM Z_Geo
+						WHERE " . $whereClause . (!isset($_POST['outside']) || $_POST['outside'] == 'false' ? ' and Alpine_Convention' : '') . ' AND Epsilon = %f
+						GROUP BY Id_Geo
+						ORDER BY Cluster_Id ASC';
+						$data = $db->get_results($db->prepare($query, $epsilon), ARRAY_N);
+					}
+					
+					
+	
+					//Compute categories for records:
+					if(isset($_POST['filter']) && $_POST['filter']['subElementCategory'] == -1){ //Pseudo category
+						$subCategoryId = 0;
+						foreach ($data as $key => $row){
+							$data[$key][9] = '?' . $subCategoryId++;
+						}
+					}
+					else if(isset($_POST['filter']) && $_POST['filter']['subElementCategory'] == -3){ //Tags
+						foreach ($data as $key => $row){
+							$subVal = -1;
+							$tagArray = json_decode($row[3], true);
+							if($tagArray != NULL && isset($tagArray[$_POST['filter']['selectedTag']])){
+								$subVal = "#" .$tagArray[$_POST['filter']['selectedTag']];
+							}
+							$data[$key][9] = $subVal;
+						}
+					}
+					else if (isset($_POST['filter']['subElementCategory']) && $_POST['filter']['subElementCategory'] == -4){ //All distinct
+						foreach ($data as $key => $row){
+							$data[$key][9] = "$" . $db->get_var('SELECT Farbe FROM Orte_Faerbung WHERE Id_Ort = ' . $row[4]);
+						}
+					}
+					else {
+						foreach ($data as $key => $row){
+							$data[$key][9] = '-1';
+						}
+					}
+					
+					usort($data, function ($a, $b){
+						$cat = strcmp($a[9], $b[9]);
+						
+						if($cat == 0){
+							return $a[7] - $b[7];
+						}
+						return $cat;
+					});
+					
+					//Add records:
+					$last_id = -1;
+					$last_cat = -1;
+					$current_windows = NULL;
+					$last_geo_data = NULL;
+					$last_quant_data = NULL;
+					foreach ($data as $row){
+						if($row[7] == -1){
+							if($current_windows != NULL){
+								//Has to be a point symbol => most of the special cases treated in va_add_extra_ling_element can be omitted
+								$result->addMapElements($last_cat, $current_windows, $last_geo_data, NULL, $last_quant_data);
+								$current_windows = NULL;
+							}
+							
+							//No clusterung => directly add record
+							va_add_extra_ling_element(
+								$db,
+								$result,
+								$row[9],
+								va_extra_ling_info_window($_POST['category'], $row, $Ue, $lang),
+								$row[2],
+								va_format_bounding_box($row[8]),
+								$row[4],
+								$row[5],
+								$epsilon);
+						}
+						else if ($row[7] != $last_id || $last_cat != $row[9]){
+							if($current_windows != NULL){
+								//Has to be a point symbol => most of the special cases treated in va_add_extra_ling_element can be omitted
+								$result->addMapElements($last_cat, $current_windows, $last_geo_data, NULL, $last_quant_data);
+							}
+							$current_windows = array(va_extra_ling_info_window($_POST['category'], $row, $Ue, $lang));
+							$last_id = $row[7];
+							$last_cat = $row[9];
+							$last_geo_data = $row[2];
+							$last_quant_data = va_get_quantify_data_extra_ling($row[5]);
+						}
+						else {
+							$current_windows[] = va_extra_ling_info_window($_POST['category'], $row, $Ue, $lang);
+						}
+					}
+					if($current_windows != NULL){
+						//Has to be a point symbol => most of the special cases treated in va_add_extra_ling_element can be omitted
+						$result->addMapElements($last_cat, $current_windows, $last_geo_data, NULL, $last_quant_data);
+					}
+				break;
+			}
+			
+			return $result;
+		}
+		catch (ErrorException $exception){
+			return new IM_Error_Result($exception);
+		}
+	}
+
+function va_extra_ling_info_window ($category, $row, $Ue, $lang){
+	
+	
+	if($row[6] == '0'){ //No translations
+		$name = $row[0];
+		$descr = $row[1];
+	}
+	else {
+		$name = va_translate_content(va_translate_extra_ling_name($row[0], $lang), $Ue);
+		$descr = va_translate_content($row[1], $Ue);
+	}
+	
+	if ($category == 6){
+		$id = $row[4];
+		return new IM_PolygonInfoWindowData($name, $descr, $id);
+	}
+	else {
+		return new IM_SimpleElementInfoWindowData($name, $descr);
+	}
+}
+	
+function va_translate_extra_ling_name ($name, $lang){
+	//Check potential name translations:
+	$name_list = explode('###', $name);
+	$oname = $name_list[0];
+	unset($name_list[0]);
+	foreach ($name_list as $curr_oname){
+		if($curr_oname[0] === $lang){
+			$oname = mb_substr($curr_oname, 2);
 			break;
 		}
-		return $result;
 	}
+	return $oname;
+}
 	
-function va_add_extra_ling_element (&$db, &$result, $subVal, $info, $geo, $id, $use_quant_data){
-	
-	if (isset($_POST['filter']['subElementCategory']) && $_POST['filter']['subElementCategory'] == -4){
-		$subVal = "$" . $db->get_var('SELECT Farbe FROM Orte_Faerbung WHERE Id_Ort = ' . $id);
-	}
+function va_add_extra_ling_element (&$db, &$result, $subVal, $info, $geo, $bounding_box, $id, $poly, $epsilon){
 	
 	if (isset($_POST['filter']['onlyMultipolygons']) && strpos($geo, 'MULTIPOLYGON') !== 0){
 		return;
@@ -145,15 +358,19 @@ function va_add_extra_ling_element (&$db, &$result, $subVal, $info, $geo, $id, $
 		$result->addMapElement(
 				$subVal, 
 				new IM_SimpleElementInfoWindowData('Mittelpunkt ' . $info->getName(), ''),
-				$db->get_var('SELECT AsText(Mittelpunkt) FROM Orte WHERE Id_Ort = ' . $id));
+				$db->get_var($db->prepare('SELECT AsText(Center) FROM Z_Geo WHERE Id_Geo = ' . $id . ' AND Epsilon = %f', $epsilon)),
+				NULL);
 	}
 	
 	$quant_data = NULL;
-	if ($use_quant_data){
+	if (strpos($geo, 'POLYGON') === 0 || strpos($geo, 'MULTIPOLYGON') === 0){
 		$quant_data = new IM_Polygon_Quantify_Info($id);
 	}
-	
-	$result->addMapElement($subVal, $info, $geo, $quant_data);
+	else {
+		$quant_data = va_get_quantify_data_extra_ling($poly);
+	}
+
+	$result->addMapElement($subVal, $info, $geo, $bounding_box, $quant_data);
 }
 
 function va_translate_content ($text, &$Ue){
@@ -170,14 +387,11 @@ function va_translate_content ($text, &$Ue){
 	return $text;
 }
 
-function va_create_result_object ($where_clause, $lang, IM_Result &$result, &$Ue, &$db){
-	
-	$t = microtime(true);$times[] = array('Start: ', date("h:i:s") . sprintf(" %06d",($t - floor($t)) * 1000000));
-	$query = va_create_record_query($where_clause);
+function va_create_result_object ($where_clause, $lang, $epsilon, $grid_cat, IM_Result &$result, &$Ue, &$db){
+	$query = va_create_record_query($where_clause, $epsilon, $grid_cat, $db);
 
+	$db->query('SET SESSION group_concat_max_len = 100000');
 	$dbresult = $db->get_results($query, ARRAY_N);
-	
-	$t = microtime(true);$times[] = array('SQL: ', date("h:i:s") . sprintf(" %06d",($t - floor($t)) * 1000000));
 	
 	$subElementType = $_POST['filter']['subElementCategory'];
 	
@@ -185,11 +399,7 @@ function va_create_result_object ($where_clause, $lang, IM_Result &$result, &$Ue
 		$concept_mapping = va_build_concept_mapping($where_clause, $db);			
 	}
 	
-	$t = microtime(true);$times[] = array('ConceptMapping: ', date("h:i:s") . sprintf(" %06d",($t - floor($t)) * 1000000));
-	
-	//$dt = $db = $dc = $dtt = 0;
-	
-	$sub_list = array(); //Stores all sub ids
+	$map_data = array();
 	foreach ($dbresult as $row){
 		$va_sub = '-1'; //The group for the selected record
 		$current_array = array($row[0]); //Beleg
@@ -272,33 +482,132 @@ function va_create_result_object ($where_clause, $lang, IM_Result &$result, &$Ue
 			$va_sub = 'C' . $concept_mapping[$conceptArray[0]];
 		}
 		
+		if($subElementType == -3){ //Tags
+			switch ($_POST['filter']['selectedTag']){
+				case 'ERHEBUNG':
+					$va_sub = '#' . substr($row[4], 0, strpos($row[4], ':'));
+					break;
+			}
+		}
+		
 		$current_array[] = va_create_type_table($type_array, $base_array, $lang, $row[4], $Ue);
 		
 		$current_array[] = $conceptArray;
 		
-		$current_array[] = $row[4]; //source
+		$pos_col = strpos($row[4], ':');
+		if($pos_col === false){
+			$current_array[] = $row[4]; //source //TODO only needed since older version don't contain a colon => better solution = rebuild va_161 - va_171 tables and remove the if clause here!
+		}
+		else {
+			$current_array[] = substr_replace($row[4], '', $pos_col, 1); //source
+		}
 		
-		$current_array[] = $row[6]; //community
+		//community
+		$community_names = explode('###', $row[6]);
+		$cname = $community_names[0];
+		unset($community_names[0]);
+		foreach ($community_names as $curr_cname){
+			if($curr_cname[0] === $lang){
+				$cname = mb_substr($curr_cname, 2);
+			}
+		}
+		$current_array[] = $cname;
 		
 		$current_array[] = $row[8]; //original
 		
 		$current_array[] = $row[9]; //encoding
 		
-		$result->addMapElement($va_sub, new IM_RecordInfoWindowData($current_array), $row[5], va_get_quantify_data_informant($row[7], $db));
+		$markingColor = -1;
+		if(isset($_POST['filter']['markings'])){
+			switch ($_POST['filter']['markings']['tagName']){
+				case 'ERHEBUNG':
+					foreach ($_POST['filter']['markings']['tagValues'] as $key => $color){
+						if(strtolower($key) == strtolower(substr($row[4], 0, strpos($row[4], ':')))){
+							$markingColor = $color;
+							break;
+						}
+					}
+					break;
+			}
+		}
+
+		$map_data[] = array($va_sub, new IM_RecordInfoWindowData($current_array), $row[5], va_get_quantify_data_informant($row[7], $db), $row[10], $markingColor);
+	}
+	
+	usort($map_data, function ($a, $b){
+		$cat = strcmp($a[0], $b[0]);
+			
+		if($cat == 0){
+			$diff = intval($a[4]) - intval($b[4]); //Geodata ID
+			
+			if($diff == 0){
+				return intval($a[5]) - intval($b[5]); //Marking color
+			}
+			
+			return $diff;
+		}
+		return $cat;
+	});
+	
+	$last_id = -1;
+	$last_cat = -1;
+	$last_mcolor = -1;
+	$last_geo_data = NULL;
+	$last_quantify_data = NULL;
+	$current_windows = NULL;
+	foreach ($map_data as $row){
+		if($row[4] == -1){ //No clusterung => directly add record
+			if($current_windows != NULL){
+				$result->addMapElements($last_cat, $current_windows, $last_geo_data, NULL, $last_quantify_data, $last_mcolor);
+				$current_windows = NULL;
+			}
+			
+			$result->addMapElement($row[0], $row[1], $row[2], NULL, $row[3], $row[5]);
+		}
+		else if ($row[4] != $last_id || $last_cat != $row[0] || $last_mcolor != $row[5]){
+			if($current_windows != NULL){
+				$result->addMapElements($last_cat, $current_windows, $last_geo_data, NULL, $last_quantify_data, $last_mcolor);
+			}
+			$current_windows = [$row[1]];
+			$last_id = $row[4];
+			$last_cat = $row[0];
+			$last_mcolor = $row[5];
+			$last_quantify_data = $row[3];
+			$last_geo_data = $row[2];
+		}
+		else {
+			$current_windows[] = $row[1];
+		}
+	}
+	if($current_windows != NULL){
+		$result->addMapElements($last_cat, $current_windows, $last_geo_data, NULL, $last_quantify_data, $last_mcolor);
 	}
 }
 
 function va_get_quantify_data_informant ($id_informant, &$db){
 	$res = new IM_Point_Quantify_Info();
 			
-	if(va_version_newer_than('va_161')){
-		$dbdata = $db->get_results($db->prepare('SELECT Id_Kategorie, Id_Polygon FROM A_Informant_Polygon_1 WHERE Id_Informant = %d', $id_informant), ARRAY_A);
-		
-		foreach ($dbdata as $row){
-			$res->addCategoryIndex('P' . $row['Id_Kategorie'], $row['Id_Polygon']);
-		}
+	$dbdata = $db->get_results($db->prepare('SELECT Id_Kategorie, Id_Polygon FROM A_Informant_Polygon WHERE Id_Informant = %d', $id_informant), ARRAY_A);
+	
+	foreach ($dbdata as $row){
+		$res->addCategoryIndex('A' . $row['Id_Kategorie'], $row['Id_Polygon']);
 	}
 	
+	return $res;
+}
+
+function va_get_quantify_data_extra_ling ($poly){
+	$res = new IM_Point_Quantify_Info();
+	
+	if($poly){
+		$polies = explode(',', $poly);
+		
+		foreach ($polies as $entry){
+			$edata = explode(':', $entry);
+			$res->addCategoryIndex('A' . $edata[0], $edata[1]);
+		}
+	}
+
 	return $res;
 }
 
@@ -366,22 +675,46 @@ function va_build_concept_mapping ($where_clause, &$db){
 	return $concept_mapping;
 }
 
-function va_create_record_query ($where_clause){
+function va_create_record_query ($where_clause, $epsilon, $grid_cat, &$db){
+	
+	if($epsilon === 0){
+		if($_POST['community'] == 'true'){
+			$geo_sql = 'Community_Center';
+		}
+		else {
+			$geo_sql = 'Geo_Data';
+		}
+	}
+	else {
+		$geo_sql = $db->prepare('(SELECT AsText(Center) FROM Z_Geo WHERE Id_Geo = Id_Polygon AND Epsilon = %f)', $epsilon);
+	}
+	
+	if($grid_cat === NULL){
+		$cluster_id = 'Cluster_Id';
+		$where_app = '';
+	}
+	else {
+		$cluster_id = 'Id_Polygon';
+		$where_app = $db->prepare(' AND Id_Kategorie = %d', $grid_cat);
+	}
+	
 	return "SELECT
-						Instance,
-						GROUP_CONCAT(DISTINCT CONCAT(Type_Kind, '#', Id_Type, '#', Type, '#', Type_Lang, '#', POS, '#', Gender, '#', Affix, '#', Source_Typing, '#', IF(Type_Reference IS NULL, '', Type_Reference)) SEPARATOR '-+-') AS Typings,
-						GROUP_CONCAT(DISTINCT CONCAT(Id_Base_Type, '#', Base_Type, IF(Etymon IS NULL, '', CONCAT('#', Etymon))) SEPARATOR '-+-') AS Base_Types,
-						GROUP_CONCAT(DISTINCT CONCAT('C', Id_Concept)) AS Concepts,
-						Instance_Source,
-						" . ($_POST['community'] == 'true' ? 'Community_Center' : 'Geo_Data') . " AS Geo_Data,
-						Community_Name,
-						Id_Informant,
-						Instance_Original,
-						Instance_Encoding
-					FROM Z_Ling
-					WHERE " . $where_clause 
-							. ($_POST['outside'] == 'false' ? ' AND Alpine_Convention' : '') . "
-					GROUP BY Id_Instance";
+				Instance,
+				GROUP_CONCAT(DISTINCT CONCAT(Type_Kind, '#', Id_Type, '#', Type, '#', Type_Lang, '#', POS, '#', Gender, '#', Affix, '#', Source_Typing, '#', IF(Type_Reference IS NULL, '', Type_Reference)) SEPARATOR '-+-') AS Typings,
+				GROUP_CONCAT(DISTINCT CONCAT(Id_Base_Type, '|', Base_Type_Unsure, '#', IF(Base_Type_Unsure, '(?) ', ''), Base_Type, IF(Etymon IS NULL, '', CONCAT('#', Etymon))) SEPARATOR '-+-') AS Base_Types,
+				GROUP_CONCAT(DISTINCT CONCAT('C', Id_Concept)) AS Concepts,
+				Instance_Source,
+				" . $geo_sql . " AS Geo_Data,
+				Community_Name,
+				Id_Informant,
+				Instance_Original,
+				Instance_Encoding,
+				" . $cluster_id . "
+			FROM Z_Ling JOIN A_Informant_Polygon USING (Id_Informant)
+			WHERE " . $where_clause 
+					. ($_POST['outside'] == 'false' ? ' AND Alpine_Convention' : '') .
+					$where_app. "
+			GROUP BY Id_Instance";
 }
 
 function va_create_type_table (&$types, &$btypes, $lang, $source, &$Ue){
@@ -541,6 +874,51 @@ class IM_RecordInfoWindowData extends IM_ElementInfoWindowData {
 }
 
 function edit_va_data (){
-	echo 'Test';
+	$db = IM_Initializer::$instance->database;
+
+	$db->insert('a_karte_aenderungen', array('Aenderung' => json_encode($_POST['changes'])));
+	echo $db->insert_id;
+	//echo 'Just logging...';
+}
+
+function va_format_bounding_box ($wkt){
+	$index = 9;
+	
+	$pos_space = strpos($wkt, ' ', $index);
+	$first = substr($wkt, $index, $pos_space - $index);
+	
+	$index = $pos_space + 1;
+
+	$pos_comma = strpos($wkt, ',', $index);
+	$second = substr($wkt, $index, $pos_comma - $index);
+	
+	//Skip useless point:
+	$index = strpos($wkt, ',', $pos_comma + 1) + 1;
+	
+	$pos_space = strpos($wkt, ' ', $index);
+	$third = substr($wkt, $index, $pos_space - $index);
+	
+	$index = $pos_space + 1;
+	
+	$pos_comma = strpos($wkt, ',', $index);
+	$fourth = substr($wkt, $index, $pos_comma - $index);
+	
+	return array($first, $second, $third, $fourth);
+}
+
+function va_is_hex_category ($id_cat, $type){
+	$db = IM_Initializer::$instance->database;
+	
+	if($type == 6){
+		//Accept all areas that have a hexagon grid (== entry in Polygone_Vereinfacht with epsilon < 0)
+		return $db->get_var($db->prepare('
+			SELECT DISTINCT Epsilon FROM Z_Geo
+			WHERE Epsilon < 0 AND Id_Category = %d', $id_cat)) != NULL;
+	}
+	else {
+		//Accept all categories that exclusively consist of points
+		return $db->get_var($db->prepare("
+			SELECT DISTINCT GeometryType(Geo_Data) FROM Z_Geo WHERE GeometryType(Geo_Data) != 'POINT' AND Id_Category = %d", $id_cat)) == NULL;
+	}
 }
 ?>

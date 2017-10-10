@@ -66,7 +66,7 @@ function createTypeOverlay (&$db, $dbname){
 	<input type="button" class="button button-primary" id="newReferenceButton" value="Neue Referenz anlegen">
 	
 	<h2>Zugeordnete Basistypen</h2>
-	<select id="auswahlBasistyp" multiple="multiple">
+	<select id="auswahlBasistyp">
 		<?php
 		$btypes = $db->get_results("SELECT Id_Basistyp, Orth FROM Basistypen WHERE Quelle = 'VA'", ARRAY_N);
 		foreach ($btypes as $btype){
@@ -76,6 +76,12 @@ function createTypeOverlay (&$db, $dbname){
 	</select>
 
 	<input type="button" class="button button-primary" id="newBaseTypeButton" value="Neuen Basistyp anlegen" />
+	
+	<table id="baseTypeTable">
+		<tbody>
+			
+		</tbody>
+	</table>
 	
 	<br />
 	<br />

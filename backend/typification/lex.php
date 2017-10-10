@@ -34,13 +34,8 @@ $can_write = current_user_can('va_typification_tool_write');
 <table style="width : 100%; height: 100%">
 	<tr>
 		<td style="width: 50%">
-			<br />
-			<br />
-			
 			<h1><?php _e('Lexical Types', 'verba-alpina');?></h1>
 			
-			<br />
-			<br />
 			<br />
 			
 			<h3>Belege</h3>
@@ -57,7 +52,12 @@ $can_write = current_user_can('va_typification_tool_write');
 			
 			<?php
 				foreach ($atlanten as $atlas){
-					$stimuli = $db->get_results("SELECT DISTINCT Id_Stimulus, CONCAT(Karte, '_', Nummer, ': ', Stimulus) as TStimulus, Karte FROM Stimuli JOIN Tokens USING(Id_Stimulus) WHERE Erhebung = '$atlas' ORDER BY Stimulus ASC", ARRAY_N);
+					if ($atlas == 'CROWD'){
+						$stimuli = $db->get_results("SELECT DISTINCT Sprache, Sprache AS TStimulus, '' AS Karte FROM Informanten ORDER BY Sprache ASC", ARRAY_N);
+					}
+					else {
+						$stimuli = $db->get_results("SELECT DISTINCT Id_Stimulus, CONCAT(Karte, '_', Nummer, ': ', REPLACE(Stimulus, '\"', '')) as TStimulus, Karte FROM Stimuli JOIN Tokens USING(Id_Stimulus) WHERE Erhebung = '$atlas' ORDER BY Stimulus ASC", ARRAY_N);
+					}
 					echo '<span class="stimulusList" id="' . str_replace(' ', '_', $atlas) . '" style="display : none">';
 					echo '<select>';
 					echo '<option value="">' . __('Choose Stimulus', 'verba-alpina') . '</option>';
@@ -69,6 +69,7 @@ $can_write = current_user_can('va_typification_tool_write');
 				}
 			?>
 			<br />
+			<br />
 			
 			<input type="checkbox" id="AllorNot" checked="checked" /> Nur Belege ohne morph.-lex. Typisierung anzeigen
 			<input type="checkbox" id="AllorNotConcept" /> Nur Belege ohne Konzeptzuweisung anzeigen
@@ -77,22 +78,28 @@ $can_write = current_user_can('va_typification_tool_write');
 			<br />
 			
 			<div style="min-height: 20px" class="tokenInfo">
+				<span style="color: red; font-size: 90%;">(Wenn "Strg" gedrückt ist, können mehrere Belege ausgewählt werden, wenn "Shift" gedrückt ist, werden alle orthographisch identischen Belege ausgewählt.)</span>
+				<br />
+				<br />
 				Belege
 					<select id="tokenAuswahlLex" multiple="multiple" style="width: 400pt">
 					</select>
-					<?php echo va_get_info_symbol('Noch nicht typisierte Belege sind fett markiert. Belege ohne Konzeptzuweisung werden kursiv dargestellt.');?>
+					<?php echo va_get_info_symbol('Noch nicht typisierte Belege sind fett markiert. Belege ohne Konzeptzuweisung werden kursiv dargestellt. Belege, die mit irrelevanten Konzepten verknüpft sind, werden grau hinterlegt.');?>
+					<input type="button" id="emptySelection" value="Auswahl leeren" class="button button-primary" style="margin-left: 50px;" />
 			</div>
 			<img src="<?php echo VA_PLUGIN_URL . '/images/Loading.gif' ?>" style="display: none" id="tokensLoading" />
 			
 			<br />
 			<br />
 			
-			<table id="recordSummary" class="widefat fixed tokenInfo">
+			<table id="recordSummary" class="widefat fixed striped tokenInfo">
 				<tr>
 					<th>Beleg</th>
 					<th>Informanten</th>
+					<th>Bemerkungen</th>
 					<th>Konzept(e)</th>
 					<th>VA-Typ</th>
+					<th></th>
 				</tr>
 			</table>
 			
@@ -121,7 +128,7 @@ $can_write = current_user_can('va_typification_tool_write');
 			
 			<select id="konzeptAuswahl" class="chosenSelect">
 				<?php
-				$conceptsVA = $db->get_results("SELECT Id_Konzept, IF(Name_D != '', Name_D, Beschreibung_D) as Name FROM Konzepte WHERE Relevanz ORDER BY Name ASC", ARRAY_A);
+				$conceptsVA = $db->get_results("SELECT Id_Konzept, IF(Name_D != '', Name_D, Beschreibung_D) as Name FROM Konzepte WHERE NOT Grammatikalisch ORDER BY Name ASC", ARRAY_A);
 		
 				foreach ($conceptsVA as $vac) {
 					echo '<option value="' . $vac['Id_Konzept'] . '">' . $vac['Name'] . '</option>';

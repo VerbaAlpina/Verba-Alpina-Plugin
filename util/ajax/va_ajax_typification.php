@@ -2,7 +2,12 @@
 function va_ajax_typification (&$db){
 	switch ($_POST['query']){
 		case 'getTokenList':
-			echo json_encode($db->get_results($db->prepare('CALL getRecords(%d, %d, %d);', $_POST['id'], $_POST['all'], $_POST['allC'])));
+			if (!is_numeric($_POST['id'])){
+				echo json_encode($db->get_results($db->prepare('CALL getRecords(%d, %d, %d, %s);', 90322, $_POST['all'], $_POST['allC'], $_POST['id'])));
+			}
+			else {
+				echo json_encode($db->get_results($db->prepare('CALL getRecords(%d, %d, %d, %s);', $_POST['id'], $_POST['all'], $_POST['allC'], '')));
+			}
 			break;
 			
 		case 'removeTypification':
@@ -23,9 +28,12 @@ function va_ajax_typification (&$db){
 		case 'removeConcept':
 			if(!current_user_can('va_typification_tool_write'))
 				break;
-			
+				
 			$description = json_decode(stripslashes($_POST['description']));
 			$tids = getTokenIds($db, $description);
+			if (empty($tids))
+				error_log(json_encode($_POST)); //TODO remove if bug is fixed
+			
 			$placeholder_list = keyPlaceholderList($tids);
 			array_push($tids, $_POST['concept']);
 			if($description->kind === 'G' || $description->kind === 'K'){
@@ -43,7 +51,11 @@ function va_ajax_typification (&$db){
 			
 			$descriptions = json_decode(stripslashes($_POST['descriptionList']));
 			foreach ($descriptions as $description){
+				
 				$tids = getTokenIds($db, $description);
+				if (empty($tids))
+					error_log(json_encode($_POST)); //TODO remove if bug is fixed
+
 				if($description->kind === 'G' || $description->kind === 'K'){
 					$db->query("DELETE FROM VTBL_Tokengruppe_morph_Typ WHERE Quelle = 'VA' AND Id_Tokengruppe IN (" . implode(',', $tids) . ')');
 					$db->query($db->prepare("
@@ -125,9 +137,9 @@ function va_ajax_typification (&$db){
 			//Connect base types
 			$db->delete('VTBL_morph_Basistyp', array('Id_morph_Typ' => $mtype_id));
 			if(!empty($_POST['btypes'])){
-				foreach ($_POST['btypes'] as $btype){
+				foreach ($_POST['btypes'] as $index => $btype){
 					$db->insert('VTBL_morph_Basistyp', array('Id_morph_Typ' => $mtype_id, 'Id_Basistyp' => $btype, 'Quelle' => 'VA', 
-						'Angelegt_Von' => wp_get_current_user()->user_login));
+						'Angelegt_Von' => wp_get_current_user()->user_login, 'Unsicher' => $_POST['unsures'][$index]));
 				}
 			}
 			
@@ -159,9 +171,14 @@ function va_ajax_typification (&$db){
 			$typ_info = $db->get_row($db->prepare("SELECT * FROM morph_Typen WHERE Id_morph_Typ = %d", $_POST['id']));
 			$parts = $db->get_col($db->prepare("SELECT Id_Bestandteil FROM VTBL_morph_Typ_Bestandteile WHERE Id_morph_Typ = %d AND Id_Bestandteil != %d", $_POST['id'], $_POST['id']));
 			$refs = $db->get_col($db->prepare("SELECT Id_Lemma FROM VTBL_morph_Typ_Lemma WHERE Id_morph_Typ = %d", $_POST['id']));
-			$btypes = $db->get_col($db->prepare("SELECT Id_Basistyp FROM VTBL_morph_Basistyp WHERE Id_morph_Typ = %d", $_POST['id']));
+			$btypes = $db->get_results($db->prepare("SELECT Id_Basistyp, Unsicher FROM VTBL_morph_Basistyp WHERE Id_morph_Typ = %d", $_POST['id']), ARRAY_N);
 			echo json_encode(array('type' => $typ_info, 'parts' => $parts, 'refs' => $refs, 'btypes' => $btypes));
 		break;
+		
+		case 'checkFileExists':
+			$file = get_home_path() . 'dokumente/scans/' . str_replace('%23', '#', $_POST['file']);
+			echo file_exists($file)? '1' : '0';
+			break;
 	}
 }
 
@@ -173,45 +190,56 @@ function getTokenIds (&$db, $description){
 			$sql = $db->prepare("
 				SELECT tk.Id_Token 
 				FROM 
-					(SELECT Id_Token, Token, Genus, Id_Stimulus, GROUP_CONCAT(Id_Konzept ORDER BY Id_Konzept) AS Konzepte
+					(SELECT Id_Token, Token, Genus, Id_Stimulus, GROUP_CONCAT(Id_Konzept ORDER BY Id_Konzept) AS Konzepte, Id_Tokengruppe, Bemerkung
 						FROM Tokens
 						LEFT JOIN VTBL_Token_Konzept USING (Id_Token)
 						LEFT JOIN Konzepte USING (Id_Konzept)
-						WHERE (Relevanz IS NULL OR Relevanz)
+						WHERE (Grammatikalisch IS NULL OR Not Grammatikalisch)
 						GROUP BY Id_Token) AS tk
 					LEFT JOIN VTBL_Token_morph_Typ vt ON (tk.Id_Token = vt.Id_Token AND vt.Quelle = 'VA')
+					LEFT JOIN V_Tokengruppen vtg USING (Id_Tokengruppe)
 					WHERE
-						Token = %s 
-						AND Genus = %s 
-						AND Id_Stimulus = %d
-					", $description->token, $description->gender, $description->id_stimulus);
+						Token collate utf8_bin = %s
+						AND tk.Genus = %s 
+						AND tk.Id_Stimulus = %d
+						AND tk.Bemerkung = %s
+					", $description->token, $description->gender, $description->id_stimulus, $description->remarks);
+			
+			if($description->group != ''){
+				$sql .= $db->prepare(' AND vtg.Tokengruppe = %s', $description->group);
+			}
+			else {
+				$sql .= $db->prepare(' AND vtg.Tokengruppe IS NULL', $description->group);
+			}
+			
 			break;
 		case 'G':
 			$sql = $db->prepare("
 				SELECT tk.Id_Tokengruppe 
 				FROM 
-					(SELECT Id_Tokengruppe, Tokengruppe, Genus, Id_Stimulus, GROUP_CONCAT(Id_Konzept ORDER BY Id_Konzept) as Konzepte
+					(SELECT Id_Tokengruppe, Tokengruppe, Genus, Id_Stimulus, GROUP_CONCAT(Id_Konzept ORDER BY Id_Konzept) as Konzepte, Bemerkung
 						FROM V_Tokengruppen t 
 						LEFT JOIN VTBL_Tokengruppe_Konzept USING (Id_Tokengruppe)
 						LEFT JOIN Konzepte USING (Id_Konzept)
-						WHERE (Relevanz IS NULL OR Relevanz)
+						WHERE (Grammatikalisch IS NULL OR Not Grammatikalisch)
 						GROUP BY Id_Tokengruppe) AS tk
 					LEFT JOIN VTBL_Tokengruppe_morph_Typ vt ON (tk.Id_Tokengruppe = vt.Id_Tokengruppe AND vt.Quelle = 'VA')
 				WHERE
-					Tokengruppe = %s 
+					Tokengruppe collate utf8_bin = %s
 					AND Genus = %s 
 					AND Id_Stimulus = %d
-				", $description->token, $description->gender, $description->id_stimulus);
+					AND Bemerkung = %s
+				", $description->token, $description->gender, $description->id_stimulus, $description->remarks);
 			break;
 		case 'P':
 			$sql = $db->prepare("
 				SELECT tk.Id_Token 
 				FROM 
-					(SELECT Id_Token, Token, Genus, Id_Stimulus, GROUP_CONCAT(Id_Konzept ORDER BY Id_Konzept) AS Konzepte
+					(SELECT Id_Token, Token, Genus, Id_Stimulus, GROUP_CONCAT(Id_Konzept ORDER BY Id_Konzept) AS Konzepte, Bemerkung
 						FROM Tokens
 						LEFT JOIN VTBL_Token_Konzept USING (Id_Token)
 						LEFT JOIN Konzepte USING (Id_Konzept)
-						WHERE (Relevanz IS NULL OR Relevanz)
+						WHERE (Grammatikalisch IS NULL OR Not Grammatikalisch)
 						GROUP BY Id_Token) AS tk
 					LEFT JOIN VTBL_Token_morph_Typ vt ON (tk.Id_Token = vt.Id_Token AND vt.Quelle = 'VA')
 				WHERE 
@@ -225,17 +253,18 @@ function getTokenIds (&$db, $description){
 							AND Id_phon_Typ = %d) 
 					AND Genus = %s 
 					AND Id_Stimulus = %d
-				", $description->source, $description->id_type, $description->gender, $description->id_stimulus);
+					AND Bemerkung = %s
+				", $description->source, $description->id_type, $description->gender, $description->id_stimulus, $description->remarks);
 			break;
 		case 'M':
 			$sql = $db->prepare("
 				SELECT tk.Id_Token 
 				FROM 
-					(SELECT Id_Token, Token, Genus, Id_Stimulus, GROUP_CONCAT(Id_Konzept ORDER BY Id_Konzept) AS Konzepte
+					(SELECT Id_Token, Token, Genus, Id_Stimulus, GROUP_CONCAT(Id_Konzept ORDER BY Id_Konzept) AS Konzepte, Bemerkung
 						FROM Tokens
 						LEFT JOIN VTBL_Token_Konzept USING (Id_Token)
 						LEFT JOIN Konzepte USING (Id_Konzept)
-						WHERE (Relevanz IS NULL OR Relevanz)
+						WHERE (Grammatikalisch IS NULL OR Not Grammatikalisch)
 						GROUP BY Id_Token) AS tk
 					LEFT JOIN VTBL_Token_morph_Typ vt ON (tk.Id_Token = vt.Id_Token AND vt.Quelle = 'VA')
 				WHERE 
@@ -249,17 +278,18 @@ function getTokenIds (&$db, $description){
 							AND Id_morph_Typ = %d) 
 					AND Genus = %s 
 					AND Id_Stimulus = %d
-				", $description->source, $description->id_type, $description->gender, $description->id_stimulus);
+					AND Bemerkung = %s
+				", $description->source, $description->id_type, $description->gender, $description->id_stimulus, $description->remarks);
 			break;
 		case 'K':
 			$sql = $db->prepare("
 				SELECT tk.Id_Tokengruppe 
 				FROM 
-					(SELECT Id_Tokengruppe, Tokengruppe, Genus, Id_Stimulus, GROUP_CONCAT(Id_Konzept ORDER BY Id_Konzept) as Konzepte
+					(SELECT Id_Tokengruppe, Tokengruppe, Genus, Id_Stimulus, GROUP_CONCAT(Id_Konzept ORDER BY Id_Konzept) as Konzepte, Bemerkung
 						FROM V_Tokengruppen t 
 						LEFT JOIN VTBL_Tokengruppe_Konzept USING (Id_Tokengruppe)
 						LEFT JOIN Konzepte USING (Id_Konzept)
-						WHERE (Relevanz IS NULL OR Relevanz)
+						WHERE (Grammatikalisch IS NULL OR Not Grammatikalisch)
 						GROUP BY Id_Tokengruppe) AS tk
 					LEFT JOIN VTBL_Tokengruppe_morph_Typ vt ON (tk.Id_Tokengruppe = vt.Id_Tokengruppe AND vt.Quelle = 'VA')
 				WHERE
@@ -273,7 +303,8 @@ function getTokenIds (&$db, $description){
 							AND vq.Id_morph_Typ = %d) 
 					AND Genus = %s 
 					AND Id_Stimulus = %d
-				", $description->source, $description->id_type, $description->gender, $description->id_stimulus);
+					AND Bemerkung = %s
+				", $description->source, $description->id_type, $description->gender, $description->id_stimulus, $description->remarks);
 			break;
 	}
 	
@@ -290,6 +321,7 @@ function getTokenIds (&$db, $description){
 	else {
 		$app .= ' AND vt.Id_morph_Typ IS NULL';
 	}
+	
 	$sql .= $app;
 
 	return $db->get_col($sql, 0);

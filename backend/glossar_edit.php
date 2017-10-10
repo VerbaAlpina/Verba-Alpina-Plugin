@@ -3,14 +3,6 @@
  //Globale Variablen
  define('DEFAULT_SELECT', '--- Auswahl ---');
 
-//PHP Datenbank-Operationen
-
-function getEntries () {
-	global $va_xxx;
-	return $va_xxx->get_results("select Id_Eintrag, Terminus_D from glossar", ARRAY_A);
-}
-
-
 //Glossar
 
 function glossar (){
@@ -36,6 +28,10 @@ function glossar (){
 	if(!$selectionReady){
 		$selectionReady = 0; //For no selection
 	}
+	$selectionInternal = $va_xxx->get_var($va_xxx->prepare("SELECT Intern FROM Glossar WHERE Id_Eintrag = %d", $curr_entry));
+	if(!$selectionInternal){
+		$selectionInternal = 0; //For no selection
+	}
 	
 	?>
 	
@@ -48,17 +44,16 @@ function glossar (){
 	
 	jQuery(document).ready(function (){
 
-		jQuery("select:not(.im_enum_select)").chosen({"allow_single_deselect" : true});		
+		jQuery("select:not(.im_enum_select)").chosen({"allow_single_deselect" : true});
 		
 		History.Adapter.bind(window,'statechange',function(){
 			changeEntry(History.getState()["data"]["entry"]);
 		});
 		
-		jQuery("#entryL").val("<?php echo $curr_entry;?>").trigger("chosen:updated");
-		
 		jQuery("#tagList").val([<?php echo implode(',', $selectionTags) ?>]).trigger("chosen:updated");
 		jQuery("#authorList").val([<?php echo implode(',', va_surround($selectionAuthors, '"')) ?>]).trigger("chosen:updated");
 		jQuery("#ready").prop("checked", <?php echo $selectionReady;?>);
+		jQuery("#internal").prop("checked", <?php echo $selectionInternal;?>);
 		
 		jQuery("#tagList").change(function (){
 			aenderungD = true;
@@ -67,6 +62,9 @@ function glossar (){
 			aenderungD = true;
 		});
 		jQuery("#ready").change(function (){
+			aenderungD = true;
+		});
+		jQuery("#internal").change(function (){
 			aenderungD = true;
 		});
 		jQuery("#translatorList").change(function (){
@@ -84,6 +82,15 @@ function glossar (){
 				locked();
 			}
 		});
+	
+		jQuery("#entryFilter").change(function (){
+			jQuery("#entryL").val(0).trigger("chosen:updated");
+			entryLChanged();
+			updateSelect();
+		});
+		updateSelect(function (){
+			jQuery("#entryL").val("<?php echo $curr_entry;?>").trigger("chosen:updated");
+		});
 	});
 	
 	
@@ -99,6 +106,19 @@ function glossar (){
 	
 	//jQuery(window).resize(adjustToScreen);
 	
+	function updateSelect (callback){
+		jQuery.post(ajaxurl, {
+			"action" : "va",
+			"namespace" : "edit_glossary",
+			"query" : "updateList",
+			"filter" : jQuery("#entryFilter").val()
+			}, function (response) {
+				jQuery("#entryL").html(response).trigger("chosen:updated");
+				if(callback)
+					callback();
+		});
+	}
+	
 	function changeEntry (id){
 		if(id == undefined)
 			id = 0;
@@ -110,6 +130,7 @@ function glossar (){
 		jQuery("#tagList").val([]).trigger("chosen:updated");
 		jQuery("#authorList").val([]).trigger("chosen:updated");
 		jQuery("#ready").prop("checked", false);
+		jQuery("#internal").prop("checked", false);
 		
 		lockG(currEntry, false, function (response){
 			if(response == "success"){
@@ -144,6 +165,7 @@ function glossar (){
 								jQuery("#authorList").val(t.autoren).trigger("chosen:updated");
 								jQuery("#tagList").val(t.tags).trigger("chosen:updated");
 								jQuery("#ready").prop("checked", t.Fertig * 1);
+								jQuery("#internal").prop("checked", t.Intern * 1);
 								jQuery("#translatorList").val(t.uebersetzer).trigger("chosen:updated");
 							});
 						}
@@ -172,8 +194,10 @@ function glossar (){
 	}
 
 	function updateEntryD (){
-		if(currEntry == 0)
+		if(currEntry == 0){
+			alert("Kein Eintrag gewählt!");
 			return;
+		}
 		
 		var data = {'action' : 'va',
 					'namespace' : 'edit_glossary',
@@ -182,7 +206,8 @@ function glossar (){
 					'content' : jQuery("#description").val(),
 					'tags' : jQuery("#tagList").val(),
 					'authors' : jQuery("#authorList").val(),
-					'ready' : jQuery("#ready").prop("checked")? "1" : "0"
+					'ready' : jQuery("#ready").prop("checked")? "1" : "0",
+					'internal' : jQuery("#internal").prop("checked")? "1" : "0"
 		};
 		
 		var l = jQuery("#translationL").val();
@@ -194,7 +219,7 @@ function glossar (){
 		}
 		
 		jQuery.post(ajaxurl, data, function (response) {
-			if (response == '1') {
+			if (response === '1') {
 				aenderungD = false;
 				aenderungUe = false;
 				alert('Eintrag geschrieben!');
@@ -317,7 +342,9 @@ function glossar (){
 		}
 	}
 	
-	function entryLChanged (entry){
+	function entryLChanged (){
+		var entry = jQuery("#entryL").val();
+		
 		if((aenderungD || aenderungUe) && !confirm("Die Änderungen am aktuellen Eintrag wurden noch nicht gespeichert! Trotzdem wechseln?")){
 			jQuery("#entryL").val(currEntry);
 			jQuery("#entryL").trigger("chosen:updated");
@@ -363,14 +390,8 @@ function glossar (){
 	<table>
 		<tr>
 			<td>
-			<select name="entry" id="entryL" onChange="entryLChanged(this.value);">
-				<option value="0"><?php echo DEFAULT_SELECT; ?></option>
-			<?php
-				$entries = getEntries();
-				foreach ($entries as $e){
-					echo "<option value='{$e['Id_Eintrag']}'>{$e['Terminus_D']}</option>\n";
-				}
-			?>
+			<select name="entry" id="entryL" onChange="entryLChanged();">
+				<option>------------------------------------------------------</option>
 			</select>
 		</td>
 			<td>
@@ -379,6 +400,32 @@ function glossar (){
 			
 			<td>
 				<input type="button" class="button button-primary" value="Neuen Eintrag anlegen" onClick="newEntryD()" />
+			</td>
+			<td>
+				<span style="margin-left: 10px">Filter:</span>
+				<select id="entryFilter">
+					<option value="NONE">
+						keiner
+					</option>
+					<option value="MISSING_F">
+						fehlende Übersetzungen F
+					</option>
+					<option value="MISSING_I">
+						fehlende Übersetzungen I
+					</option>
+					<option value="MISSING_S">
+						fehlende Übersetzungen S
+					</option>
+					<option value="MISSING_R">
+						fehlende Übersetzungen R
+					</option>
+					<option value="MISSING_L">
+						fehlende Übersetzungen L
+					</option>
+					<option value="MISSING_E">
+						fehlende Übersetzungen E
+					</option>
+				</select>
 			</td>
 		</tr>
 	</table>
@@ -395,7 +442,7 @@ function glossar (){
 	Autoren:
 	<select id="authorList" multiple="multiple" style="width: 300pt">
 		<?php 
-		$authors = $va_xxx->get_results("SELECT Kuerzel, Vorname, Name FROM Personen LEFT JOIN Stellen USING(Kuerzel) WHERE Art is null or Art != 'prak'", ARRAY_A);
+		$authors = $va_xxx->get_results("SELECT DISTINCT Kuerzel, Vorname, Name FROM Personen LEFT JOIN Stellen USING(Kuerzel) WHERE Art is null or Art != 'prak'", ARRAY_A);
 		foreach ($authors as $author){
 			echo "<option value='{$author['Kuerzel']}'>" . $author['Vorname'] . ' ' . $author['Name'] . '</option>';
 		}
@@ -413,6 +460,8 @@ function glossar (){
 	</select>
 	
 	<input type="checkbox" id="ready" /> Fertig
+	
+	<input type="checkbox" id="internal" /> Intern
 	
 	<br />
 	<br />
