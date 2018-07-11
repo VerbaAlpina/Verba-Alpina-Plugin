@@ -38,12 +38,6 @@ function overview_page (){
 					echo $ajaxurl . '?' . http_build_query($ajax_params);
 					?>">Atlanten/Konzepte</a>
 				</li>
-				<li>
-					<a href="<?php 
-					$ajax_params['query'] = 'base_concepts';
-					echo $ajaxurl . '?' . http_build_query($ajax_params);
-					?>">Basiskonzepte Fläche</a>
-				</li>
 			</ul>
 		</div>
 	</article>

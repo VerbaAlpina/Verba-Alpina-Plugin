@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 
 add_action('wp_ajax_test_token_data_bsa', 'test_token_bsa');
@@ -16,8 +16,12 @@ function test_codepage_original2 (){
 	$va_xxx->query('SET NAMES utf8mb4');*/
 	
 	foreach ($transl as $t){
-		$hex = preg_replace('/x([0-9a-fA-F]*)/u', '&#x$1;', $t[1]);
-		$uni = mb_convert_encoding($hex,'UTF-8', 'HTML-ENTITIES');
+		$uni = '';
+		$hex = preg_replace('/x([0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]+)/u', '&#x$1;', $t[1]);
+		
+		if (strpos($t[0], 'u1') === false){
+			$uni = mb_convert_encoding($hex,'UTF-8', 'HTML-ENTITIES');
+		}
 		
 		$va_xxx->query("UPDATE Codepage_Original SET Original = '" . addslashes($uni) . "', Hex_Original = '" . addslashes($hex) . "' WHERE Beta = '" . addslashes($t[0]) . "'");
 		echo $t[0] . ' -> ' . $hex . " | " . $uni . "\n";
@@ -29,7 +33,7 @@ function test_codepage_original2 (){
 function test_codepage_original (){
 	global $va_xxx;
 	
-	$tokens = $va_xxx->get_results("SELECT Beta FROM Codepage_Original WHERE Original regexp '^$'", ARRAY_N);
+	$tokens = $va_xxx->get_results("SELECT Beta FROM Codepage_Original WHERE Original regexp '^$' AND Hex_Original regexp '^$'", ARRAY_N);
 	
 	echo json_encode($tokens);
 	
@@ -112,11 +116,19 @@ function test_token_original (){
 		$quelle = $token[0];
 		$result = '';
 		
+		$has_span = false;
+		
 		foreach ($token[1] as $index => $character) {
 			
-			$original = $va_xxx->get_results("SELECT Original from Codepage_Original WHERE Beta = '" . addslashes($character) . "'", ARRAY_N);
-			if($original[0][0]){
-				$result .= $original[0][0];
+			$original = $va_xxx->get_var("SELECT IF(Original REGEXP '^$', Hex_Original, Original) from Codepage_Original WHERE Beta = '" . addslashes($character) . "'");
+			if($original){
+				if(strpos($original, "<span style='position: absolute;") !== false){
+					$result .= '<span style="position: relative">' . $original . '</span>';
+					$has_span = true;
+				}
+				else {
+					$result .= $original;
+				}
 			}
 			else {
 				echo "Eintrag \"$character\" fehlt!\n";
@@ -125,11 +137,14 @@ function test_token_original (){
 			
 		}
 		if($complete){
+			
+			if ($has_span){
+				$result = '<span style="position : relative">' . $result . '</span>'; //Add this to make the absolute spans work
+			}
+			
 			echo implode('', $token[1]) . ' -> ' . $result . "\n";
 			$va_xxx->query("UPDATE Tokens SET Original = '" . addslashes($result) . "', Trennzeichen_Original = (SELECT Original FROM Codepage_Original WHERE Beta = Trennzeichen)
 			WHERE EXISTS (SELECT * FROM Stimuli WHERE Stimuli.Id_Stimulus = Tokens.Id_Stimulus AND Erhebung = '$quelle') AND Token = '" . addslashes(implode('', $token[1])) . "'");
-			//error_log("UPDATE Tokens SET Original = '" . addslashes($result) . "', Trennzeichen_Original = (SELECT Original FROM Codepage_Original WHERE Beta = Trennzeichen)
-			//WHERE EXISTS (SELECT * FROM Stimuli WHERE Stimuli.Id_Stimulus = Tokens.Id_Stimulus AND Erhebung = '$quelle') AND Token = '" . addslashes(implode('', $token[1])) . "'");
 		}
 	}
 	
@@ -176,6 +191,10 @@ function test_token_bsa (){
 	die;
 }
 
+function test_wiki (){
+	va_create_wiki_link_list();
+}
+
 function test (){
 
 ?>
@@ -183,9 +202,9 @@ function test (){
 <script type="text/javascript">
 	var parser, parser2, parserBSA;
 	jQuery(function() {
-		parser = PEG.buildParser(jQuery("#grammar").val());
-		parserBSA = PEG.buildParser(jQuery("#grammarBSA").val())
-		parser2 = PEG.buildParser(jQuery("#grammar2").val());
+		parser = peg.generate(jQuery("#grammar").val());
+		parserBSA = peg.generate(jQuery("#grammarBSA").val())
+		parser2 = peg.generate(jQuery("#grammar2").val());
 	});
 
 	function tokensPruefen() {
@@ -392,5 +411,72 @@ function communityMulti (){
 	}
 	$result .= "</Document>\n</kml>";
 	return $result;
+}
+
+function va_create_wiki_link_list (){
+	global $va_xxx;
+	
+	$communities = $va_xxx->get_results("
+		SELECT Orte.Id_Ort, Name, Wert 
+		FROM Orte JOIN Orte_Tags USING (Id_Ort) LEFT JOIN Orte_Urls ou ON ou.Id_Ort = Orte.Id_Ort and Typ = 'WIKI_D' 
+		WHERE Id_Kategorie = 62 AND Alpenkonvention AND Tag = 'LAND' and Beschreibung != 'Water body' AND Url IS NULL 
+		limit 100", ARRAY_A);
+	
+	echo '<table>';
+	
+	foreach ($communities as $community){
+		echo '<tr>';
+		echo '<td>' . $community['Name'] . '</td>';
+		echo '<td>' . $community['Wert'] . '</td>';
+		
+		$comm_name = str_replace(' ', '_', $community['Name']);
+		$link = 'https://de.wikipedia.org/wiki/' . $comm_name;
+
+		$headers = get_headers($link);
+		if($headers[0] == 'HTTP/1.1 200 OK'){
+			echo va_test_save_url($community['Id_Ort'], $link);
+		}
+		else {
+			// Try other cases for each word:
+			$parts = explode('_', $comm_name);
+			$count = count($parts);
+			$num_combinations = pow(2, $count);
+			$found = false;
+			for ($i = 0; $i < $num_combinations; $i++){
+				$b = sprintf("%0"  .$count . "b", $i);
+				$newNames = [];
+				for ($j = 0; $j < $count; $j++){
+					if($b[$j] == 1){
+						$newNames[] = ucfirst($parts[$j]);
+					}
+					else {
+						$newNames[] = lcfirst($parts[$j]);
+					}
+				}
+				$new_link = 'https://de.wikipedia.org/wiki/' . implode($newNames, '_');
+				$headers = get_headers($new_link);
+				
+				if($headers[0] == 'HTTP/1.1 200 OK'){
+					echo va_test_save_url($community['Id_Ort'], $new_link);
+					$found = true;
+					break;
+				}	
+			}
+			
+			if(!$found)
+				echo '<td style="color: red">' . $link . '</td>';
+		}
+		
+		echo '</tr>';
+	}
+	
+	echo '</table>';
+}
+
+function va_test_save_url ($id, $url){
+	global $va_xxx;
+	
+	$va_xxx->insert('Orte_Urls', array('Id_Ort' => $id, 'Typ' => 'WIKI_D', 'Url' => $url));
+	return '<td>' . $url. '</td>';
 }
 ?>

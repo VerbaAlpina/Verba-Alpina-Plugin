@@ -75,8 +75,8 @@ function va_ajax_handler (){
 					
 				case 'saveComment':
 					if(
-					va_save_comment($db, $_POST['id'], $_POST['content'], $_POST['authors'], $_POST['internal'], $_POST['ready']) &&
-					(!isset($_POST['lang']) || va_save_comment_translation($db, $_POST['id'], $_POST['lang'], $_POST['translation'], $_POST['translators'])))
+					va_save_comment($db, $_POST['id'], stripslashes($_POST['content']), $_POST['authors'], $_POST['internal'], $_POST['ready']) &&
+					(!isset($_POST['lang']) || va_save_comment_translation($db, $_POST['id'], $_POST['lang'], stripslashes($_POST['translation']), $_POST['translators'], $_POST['correctors'])))
 						echo 'success';
 					break;
 					
@@ -178,6 +178,87 @@ function va_ajax_handler (){
 			}
 			break;
 			
+		//IPA conversion
+		case 'ipa':
+			if(!$intern)
+				break;
+
+			switch ($_REQUEST['query']){
+				case 'get_tokens':
+					$tokens = $va_xxx->get_col($va_xxx->prepare("
+						SELECT distinct Token 
+						FROM Tokens JOIN Stimuli USING (ID_Stimulus) LEFT JOIN VTBL_Token_Konzept USING (Id_Token) 
+						WHERE Erhebung = %s" . ($_POST['all'] === 'true'? '' : " AND IPA = ''") . " AND Token != '' AND (Id_Konzept is null or Id_Konzept != 779)", $_POST['source']), 0);
+					
+					echo json_encode($tokens);
+					break;
+					
+				case 'compute':
+					$tokens = json_decode(stripslashes($_POST['data']));
+					$missing_chars = array();
+					$quelle = $_POST['source'];
+					$transformations = '';
+					$errors = '';
+					
+					$akzente = $va_xxx->get_results("SELECT Beta, IPA FROM Codepage_IPA WHERE Art = 'Akzent' AND Erhebung = '$quelle'", ARRAY_N);
+					$vokale = $va_xxx->get_var("SELECT group_concat(DISTINCT SUBSTR(Beta, 1, 1) SEPARATOR '') FROM Codepage_IPA WHERE Art = 'Vokal' AND Erhebung = '$quelle'", 0, 0);
+					$numComplete = 0;
+					
+					foreach ($tokens as $token){
+						$complete = true;
+						$result = '';
+						$akzentExplizit = false;
+						$indexLastVowel = false;
+						
+						foreach ($token as $index => $character) {
+							foreach ($akzente as $akzent) {
+								$ak_qu = preg_quote($akzent[0], '/');
+								$character = preg_replace_callback('/([' . $vokale . '][^' . $ak_qu . 'a-zA-Z]*)' . $ak_qu . '/', function ($matches) use (&$result, $akzent, &$akzentExplizit){
+									$result .= $akzent[1];
+									$akzentExplizit = true;
+									return $matches[1];
+								}, $character);
+							}
+							
+							$ipa = $va_xxx->get_var("SELECT IPA from Codepage_IPA WHERE Erhebung = '" . ($quelle == 'ALD-I'? 'ALD-II': $quelle) . "' AND Beta = '" . addcslashes($character, "\'") . "' AND IPA != ''");
+							if($ipa){
+								$result .= $ipa;
+								
+								if(strpos($vokale, $character[0]) !== false){
+									$indexLastVowel = mb_strlen($result) - mb_strlen($ipa);
+								}
+							}
+							else {
+								if(!in_array($character, $missing_chars)){
+									$missing_chars[] = $character;
+									$errors .= "Eintrag \"$character\" fehlt fuer \"" . ($quelle == 'ALD-I'? 'ALD-II': $quelle) . "\"!\n";
+								}
+								$complete = false;
+							}
+						}
+						
+						//Akzent auf letzer Silbe, falls nicht gesetzt
+						$addAccent = !$akzentExplizit && $indexLastVowel !== false && ($quelle === 'ALP' || $quelle === 'ALJA' || $quelle === 'ALL');
+						
+						if($addAccent){
+							$result = mb_substr($result, 0, $indexLastVowel) . $akzente[0][1] . mb_substr($result, $indexLastVowel);
+						}
+						
+						
+						if($complete){
+							$transformations .= implode('', $token) . ' -> ' . $result . ($addAccent? ' (Akzent hinzugefügt)' : '') . "\n";
+							$va_xxx->query("UPDATE Tokens SET IPA = '" . addslashes($result) . "', Trennzeichen_IPA = (SELECT IPA FROM Codepage_IPA WHERE Art = 'Trennzeichen' AND Beta = Trennzeichen AND Erhebung = '$quelle')
+						 WHERE EXISTS (SELECT * FROM Stimuli WHERE Stimuli.Id_Stimulus = Tokens.Id_Stimulus AND Erhebung = '$quelle') AND Token = '" . addslashes(implode('', $token)) . "'");
+							$numComplete++;
+						}
+					}
+					
+					echo json_encode(array($transformations, $errors, $numComplete));
+					break;
+			}
+			
+			break;
+			
 		//Util tools
 		case 'util':
 			//TODO maybe better user control
@@ -186,13 +267,7 @@ function va_ajax_handler (){
 			
 			switch ($_REQUEST['query']){
 				case 'addLock':
-					$db->query($db->prepare("DELETE FROM Locks where (Wert = %s AND Tabelle = %s AND Gesperrt_von = %s) or hour(timediff(Zeit,now())) > 0", $_REQUEST['value'], $_REQUEST['table'], wp_get_current_user()->user_login));
-					if($db->insert('Locks', array('Tabelle' => $_REQUEST['table'], 'Gesperrt_von' => wp_get_current_user()->user_login, 'Wert' => $_REQUEST['value']))){
-						echo 'success';
-					}
-					else {
-						echo 'locked';
-					}
+					echo va_check_lock($db, $_POST);
 				break;
 					
 				case 'removeLock':
@@ -204,7 +279,77 @@ function va_ajax_handler (){
 					$db->query($db->prepare("DELETE FROM Locks where (Tabelle = %s AND Gesperrt_von = %s) or hour(timediff(Zeit,now())) > 0", $_REQUEST['table'], wp_get_current_user()->user_login));
 					echo 'success';
 				break;
+				
+				case 'markTodo':
+				    $db->update('Todos', ['Fertig' => $_POST['marked'] == '1'? current_time('mysql'): null], ['Id_Todo' => $_POST['id']]);
+				    echo 'success';
+			   break;
+			   
+				case 'addTodo':
+				    $text = stripslashes($_POST['text']);
+				    $insert_array = ['Todo' => $text, 'Kuerzel' => $_POST['owner'], 'Kontext' => $_POST['context']];
+				    if($_POST['parent'] != -1){
+				        $insert_array['Ueber'] = $_POST['parent'];
+				    }
+				    $db->insert('Todos', $insert_array);
+				    
+				    $options = [
+				        'Id_Todo' => $db->insert_id,
+				        'Todo' => $text,
+				        'Ueber' =>  $_POST['parent'] == -1? null: $_POST['parent'],
+				        'Fertig' => null,
+				        'Blockiert' => false,
+				    	'Kontext' => $_POST['context']
+				    ];
+				    
+				    $res = ['row' => va_get_todo_row($options)];
+				    
+				    if ($_POST['parent'] == -1){
+				        $res['option'] = va_get_todo_parent_option($options);
+				        $res['context'] = $_POST['context'];
+				    }
+				    
+				    echo json_encode($res);
+			     break;
+			     
+				 case 'get_print_overlays':
+				     $db->select('va_xxx');
+				    echo json_encode($db->get_col('SELECT AsText(Polygone_Vereinfacht.Geodaten) FROM Orte JOIN Polygone_Vereinfacht USING (Id_Ort) WHERE Id_Kategorie = 63 AND Epsilon = 0.003'));
+				 break;
+				 
+				 case 'checkTokens':
+				 	va_check_tokens_call($db);
+				 	break;
+				 	
+				 case 'check_tokenizer':
+				 	va_tokenization_test_ajax($db);
+				 	break;
 			}
+		break;
+		
+		case 'record_input':
+			if(!$intern)
+				break;
+			
+			switch ($_REQUEST['query']){
+				case 'save':
+					echo va_update_record(
+						$_POST['id_stimulus'], 
+						$_POST['id_informant'], 
+						$_POST['id_aeusserung'], 
+						stripslashes($_POST['value']), 
+						stripslashes($_POST['notes']), 
+						$_POST['id_konzept'], 
+						$_POST['classification'],
+						substr($_POST['lang'], 0, 1),
+						(isset($_POST['returnType'])? $_POST['returnType'] : NULL)
+					);
+					break;
+			}
+			break;
+			
+		case 'get_codepage':
+			echo va_get_codepage_data($_POST['atlas']);
 		break;
 		
 		case 'admin_table':
@@ -312,5 +457,18 @@ function va_ajax_handler (){
  */
 function keyPlaceholderList ($arr){
 	return '(' . implode(',', array_fill(0, count($arr), '%d')) . ')';
+}
+
+function va_check_lock (&$db, $data){
+    ob_start();
+    $db->query($db->prepare("DELETE FROM Locks where (Wert = %s AND Tabelle = %s AND Gesperrt_von = %s) or hour(timediff(Zeit,now())) > 0", $data['value'], $data['table'], wp_get_current_user()->user_login));
+    if($db->insert('Locks', array('Tabelle' => $data['table'], 'Gesperrt_von' => wp_get_current_user()->user_login, 'Wert' => $data['value']))){
+        $res = 'success';
+    }
+    else {
+        $res = 'locked';
+    }
+    ob_end_clean();
+    return $res;
 }
 ?>

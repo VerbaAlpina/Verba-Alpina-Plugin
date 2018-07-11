@@ -24,10 +24,89 @@ function va_get_glossary_link ($id = null){
 		global $vadb;
 		$res = $vadb->get_var('SELECT Terminus_' . $lang . ' FROM Glossar WHERE Id_Eintrag = ' . $id);
 		
-		$link = add_query_arg('letter', $res[0], $link) . '#' . $id;
+		$link = add_query_arg('letter', remove_accents($res[0]), $link) . '#' . $id;
 	}
 	
 	return $link;
+}
+
+function va_get_glossary_doi_link ($version = false, $id = null){
+	$glossarPage = get_page_by_title('METHODOLOGIE');
+	
+	if($glossarPage != null){
+		$link = va_get_doi_base_link();
+		$params = ['page_id=' . $glossarPage->ID];
+		$fragment = false;
+		
+		if($version !== false){
+			$params[] = 'db=' . $version;
+		}
+	}
+	else {
+		return '';
+	}
+	
+	if($id){
+		global $lang;
+		global $vadb;
+		$res = $vadb->get_var('SELECT Terminus_' . $lang . ' FROM Glossar WHERE Id_Eintrag = ' . $id);
+		
+		$params[] = 'letter=' . remove_accents($res[0]);
+		$fragment = $id;
+	}
+	
+	$append = '?' . implode('&', $params) . ($fragment !== false? '#' . $fragment: '');
+	return $link . '?urlappend=' . urlencode($append);
+}
+
+function va_get_comments_doi_link ($version = false, $id = null){
+	$commentsPage = get_page_by_title('KOMMENTARE');
+	
+	if($commentsPage != null){
+		$link = va_get_doi_base_link();
+		$params = ['page_id=' . $commentsPage->ID];
+		$fragment = false;
+		
+		if($version !== false){
+			$params[] = 'db=' . $version;
+		}
+	}
+	else {
+		return '';
+	}
+	
+	if($id){
+		$fragment = $id;
+	}
+	
+	$append = '?' . implode('&', $params) . ($fragment !== false? '#' . $fragment: '');
+	return $link . '?urlappend=' . urlencode($append);
+}
+
+
+function va_get_doi_base_link (){
+	return 'http://dx.doi.org/10.5282/verba-alpina';
+}
+
+function va_get_glossary_link_and_title ($id = null){
+
+	$glossarPage = get_page_by_title('METHODOLOGIE');
+	if($glossarPage != null){
+		$link = get_page_link($glossarPage);
+	}
+	else {
+		return '';
+	}
+	
+	if($id){
+		global $lang;
+		global $vadb;
+		$res = $vadb->get_var('SELECT Terminus_' . $lang . ' FROM Glossar WHERE Id_Eintrag = ' . $id);
+		
+		$link = add_query_arg('letter', $res[0], $link) . '#' . $id;
+	}
+	
+	return [$link, $res];
 }
 
 function va_get_map_link ($element = null){
@@ -63,17 +142,17 @@ function va_format_bibliography ($author, $title, $year, $loc, $link, $band, $in
 		$res =  $author;
 		if($year != '')
 			$res .= ' (' . $year . ')';
-		$res .= ($author == ''? '': ': ') . $title;
+		$res .= (($author == '' && $year == '')? '': ': ') . $title;
 		if($loc != '')
 			$res .= ', ' . $loc;
 		if($in != '')
 			$res .= ', in ' . $in;
 		if($band != '')
 			$res .= ', vol. ' . $band;
-		if($seiten != '')
-			$res .= ', ' . $seiten;
 		if($verlag != '')
 			$res .= ', ' . $verlag;
+		if($seiten != '')
+			$res .= ', ' . $seiten;
 		if($link != '')
 			if($link_abgesetzt)
 				$res .= "\n<br /><br />\n<a href='$link'>Link</a>";
@@ -95,11 +174,11 @@ function va_format_base_type ($str, $uncertain = '0'){
 }
 //TODO use icons from plugin everywhere and delete icons folder in va
 function va_get_glossary_help ($id, &$Ue){
-	return '<a href="' . va_get_glossary_link($id) . '" target="_blank"><i class="helpsymbol fa fa-question-circle-o" style="vertical-align: middle;" title="' . $Ue['HILFE'] . '" ></i></a>';
+	return '<a href="' . va_get_glossary_link($id) . '" target="_blank"><i class="helpsymbol far fa-question-circle" style="vertical-align: middle;" title="' . $Ue['HILFE'] . '" ></i></a>';
 }
 
 function va_get_mouseover_help ($text, &$Ue, &$db, $lang, $id_glossary = NULL){
-	$res = '<i class="helpsymbol fa fa-question-circle-o va_mo_help" style="vertical-align: middle;"></i>';
+	$res = '<i class="helpsymbol far fa-question-circle va_mo_help" style="vertical-align: middle;"></i>';
 	$res .= '<div style="display : none;">' . nl2br($text); 
 	if($id_glossary != NULL){
 		$entry_name = $db->get_var('SELECT Terminus_' . $lang . ' FROM Glossar WHERE Id_Eintrag = ' . $id_glossary);
@@ -161,12 +240,11 @@ function token_ops (){
 	
 	if($_POST['stage'] == 'getTokens'){
 		switch ($_POST['type']){
-			case 'ipa':
-				$tokens = $va_xxx->get_col("SELECT distinct Token FROM Tokens JOIN Stimuli USING (ID_Stimulus) WHERE Erhebung = '" . $_POST['source'] . "'" . ($_POST['all'] === 'true'? '' : " AND IPA = ''") . " AND Token != '' AND NOT EXISTS (SELECT * FROM Sonderzeichen WHERE Zeichen = Token)", 0);
-				break;
-				
 			case 'original':
-				$tokens = $va_xxx->get_results("SELECT distinct Token, Erhebung FROM Tokens JOIN Stimuli USING (ID_Stimulus) WHERE Erhebung != 'ALD-II' AND Erhebung != 'ALD-I' AND Erhebung != 'ALTR' AND Erhebung != 'Clapie' AND Erhebung != 'APV' AND Erhebung != 'BSA' AND Erhebung != 'WBOE' AND Original = '' AND Token != ''", ARRAY_N);
+				$tokens = $va_xxx->get_results("
+					SELECT distinct Token, Erhebung FROM Tokens LEFT JOIN VTBL_Token_Konzept USING (Id_Token) LEFT JOIN Konzepte USING (Id_Konzept) JOIN Stimuli USING (ID_Stimulus) 
+					WHERE Erhebung NOT IN ('ALD-II', 'ALD-I', 'ALTR', 'Clapie', 'APV', 'BSA', 'WBOE', 'CROWD') 
+						AND Original = '' AND Token != '' AND (Id_Konzept is null or Id_Konzept != 779)", ARRAY_N);
 				break;
 			
 			case 'bsa':
@@ -178,78 +256,6 @@ function token_ops (){
 		}
 		echo json_encode($tokens);
 	}
-	
-	if($_POST['stage'] == 'compute'){
-		global $va_xxx;
-		switch ($_POST['type']){
-			case 'ipa':
-				$tokens = json_decode(stripslashes($_POST['data']));
-				$missing_chars = array();
-				$quelle = $_POST['source'];
-				$transformations = '';
-				$errors = '';
-				
-				$akzente = $va_xxx->get_results("SELECT Beta, IPA FROM Codepage_IPA WHERE Art = 'Akzent' AND Erhebung = '$quelle'", ARRAY_N);
-				$vokale = $va_xxx->get_var("SELECT group_concat(DISTINCT SUBSTR(Beta, 1, 1) SEPARATOR '') FROM Codepage_IPA WHERE Art = 'Vokal' AND Erhebung = '$quelle'", 0, 0);
-				$numComplete = 0;
-				
-				foreach ($tokens as $token){
-					$complete = true;		
-					$result = '';
-					$akzentExplizit = false;
-					$indexLastVowel = false;			
-			
-					foreach ($token as $index => $character) {
-						foreach ($akzente as $akzent) {
-							$ak_qu = preg_quote($akzent[0], '/');
-							$character = preg_replace_callback('/([' . $vokale . '][^' . $ak_qu . 'a-zA-Z]*)' . $ak_qu . '/', function ($matches) use (&$result, $akzent, &$akzentExplizit){
-								$result .= $akzent[1];
-								$akzentExplizit = true;
-								return $matches[1];
-							}, $character);
-						}
-						
-						
-						$ipa = $va_xxx->get_results("SELECT IPA from Codepage_IPA WHERE Erhebung = '" . $quelle . "' AND Beta = '" . addcslashes($character, "\'") . "' AND IPA != ''", ARRAY_N);
-						if($ipa[0][0]){
-							$result .= $ipa[0][0];
-							
-							if(strpos($vokale, $character[0]) !== false){
-								$indexLastVowel = mb_strlen($result) - mb_strlen($ipa[0][0]);
-							}
-						}
-						else {
-							if(!in_array($character, $missing_chars)){
-								$missing_chars[] = $character;
-								$errors .= "Eintrag \"$character\" fehlt fuer \"$quelle\"!\n";
-							}
-							$complete = false;
-						}
-						
-						
-						
-					}
-					
-					//Akzent auf letzer Silbe, falls nicht gesetzt
-					$addAccent = !$akzentExplizit && $indexLastVowel !== false && ($quelle === 'ALP' || $quelle === 'ALJA' || $quelle === 'ALL');
-					
-					if($addAccent){
-						$result = mb_substr($result, 0, $indexLastVowel) . $akzente[0][1] . mb_substr($result, $indexLastVowel);
-					}
-					
-					
-					if($complete){
-						$transformations .= implode('', $token) . ' -> ' . $result . ($addAccent? ' (Akzent hinzugefÃ¼gt)' : '') . "\n";
-						$va_xxx->query("UPDATE Tokens SET IPA = '" . addslashes($result) . "', Trennzeichen_IPA = (SELECT IPA FROM Codepage_IPA WHERE Art = 'Trennzeichen' AND Beta = Trennzeichen AND Erhebung = '$quelle')
-						 WHERE EXISTS (SELECT * FROM Stimuli WHERE Stimuli.Id_Stimulus = Tokens.Id_Stimulus AND Erhebung = '$quelle') AND Token = '" . addslashes(implode('', $token)) . "'");
-						$numComplete++;
-					}
-				}
-				echo json_encode(array($transformations, $errors, $numComplete));
-			break;
-		}
-	}
-	
 	die;
 }
  function va_sub_translate ($str, &$Ue){
@@ -268,20 +274,47 @@ function token_ops (){
  	return $term;
  }
  
- function va_create_glossary_citation ($id, &$Ue){
+function va_create_glossary_citation ($id, &$Ue){
  	global $vadb;
  	global $lang;
  	global $va_current_db_name;
  	
  	$authors = $vadb->get_col("SELECT CONCAT(Name, ', ', SUBSTR(Vorname, 1, 1), '.') FROM VTBL_Eintrag_Autor JOIN Personen USING (Kuerzel) WHERE Aufgabe = 'auct' AND Id_Eintrag = $id ORDER BY Name ASC, Vorname ASC");
 	$title = $vadb->get_var("SELECT Terminus_$lang FROM Glossar WHERE Id_Eintrag = $id");
- 	$link = va_get_glossary_link();
- 	$link = add_query_arg('db', substr($va_current_db_name, 3), $link);
- 	$link = add_query_arg('letter', remove_accents(substr($title, 0, 1)), $link);
- 	$link .= '#' . $id;
+	$link = va_get_glossary_doi_link(substr($va_current_db_name, 3, 3), $id);
 	
  	return	implode(' / ', $authors) . ': s.v. “' . $title . '”, in: VA-' . substr(get_locale(), 0, 2) . ' ' .
- 			substr($va_current_db_name, 3, 2) . '/' . substr($va_current_db_name, 5) . ', ' . $Ue['METHODOLOGIE'] . ', ' . $link;
+ 	 	substr($va_current_db_name, 3, 2) . '/' . substr($va_current_db_name, 5) . ', ' . $Ue['METHODOLOGIE'] . ', ' . $link;
+ }
+ 
+function va_create_glossary_bibtex ($id, &$Ue, $html = false){
+	global $vadb;
+	global $lang;
+	global $va_current_db_name;
+	
+	$authors = $vadb->get_results("SELECT Name, Vorname FROM VTBL_Eintrag_Autor JOIN Personen USING (Kuerzel) WHERE Aufgabe = 'auct' AND Id_Eintrag = $id ORDER BY Name ASC, Vorname ASC", ARRAY_A);
+	$title = $vadb->get_var("SELECT Terminus_$lang FROM Glossar WHERE Id_Eintrag = $id");
+	$year = '20' . substr($va_current_db_name, 3, 2);
+	$shortcode = implode('', array_map(function ($e) {return strtolower(remove_accents($e['Name']));}, $authors)) 
+		. $year 
+		. str_replace(' ', '', substr(strtolower(remove_accents($title)), 0, 15));
+	$link = va_get_glossary_doi_link(substr($va_current_db_name, 3, 3), $id);
+	
+	$tab = $html? '&nbsp;&nbsp;&nbsp;': "\t";
+	$newline = $html? '<br />' : "\n";
+ 	
+	$res = '@incollection{' . $shortcode . ',' . $newline .
+	$tab . 'author={' . implode(' and ', array_map(function ($e) {return $e['Name'] . ', ' . $e['Vorname'];}, $authors)) . '},' . $newline .
+	$tab . 'year={' . $year . '},' . $newline .
+	$tab . 'title={' . $title. '},' . $newline .
+	$tab . 'publisher={VerbaAlpina-' . substr(get_locale(), 0, 2) . ' ' . va_format_version_number(substr($va_current_db_name, 3)) . '},' . $newline .
+	$tab . 'booktitle={'. $Ue['METHODOLOGIE']. '},' . $newline .
+	$tab . 'url={' . $link. '}' . $newline . '}';
+	
+	if($html)
+		$res = htmlentities($res);
+	
+	return $res;
  }
  
 function va_remove_special_chars ($str){
@@ -312,9 +345,7 @@ function va_create_comment_citation ($id, &$Ue){
  	}
  	$title = va_sub_translate($vadb->get_var("SELECT getEntryName('$id', '$lang')"), $Ue);
 
- 	$link = va_get_comments_link();
- 	$link = add_query_arg('db', substr($va_current_db_name, 3), $link);
- 	$link .= '#' . $id;
+ 	$link = va_get_comments_doi_link(substr($va_current_db_name, 3, 3), $id);
  
  	return	implode(' / ', $authors) . ': s.v. “' . $title . '”, in: VA-' . substr(get_locale(), 0, 2) . ' ' .
  			substr($va_current_db_name, 3, 2) . '/' . substr($va_current_db_name, 5) . ', Lexicon alpinum, ' . $link;
@@ -333,4 +364,316 @@ function va_create_comment_citation ($id, &$Ue){
 
  	return $num_curr > $num_newer;
  }
+ 
+ function va_build_grammar_for_original (){
+ 	global $va_xxx;
+ 	
+ 	$base_chars = $va_xxx->get_results("SELECT Beta FROM Transkriptionsregeln WHERE Typ = 'Basiszeichen'", ARRAY_N);
+ 	$diacritics = $va_xxx->get_results("SELECT Beta FROM Transkriptionsregeln WHERE Typ = 'Diakritika' ORDER BY LENGTH(Beta) DESC", ARRAY_N);
+ 	$special_chars = $va_xxx->get_results("SELECT Beta FROM Transkriptionsregeln WHERE Typ = 'Spezielle Zeichen'", ARRAY_N);
+ 	$spaces = $va_xxx->get_results("SELECT Beta FROM Transkriptionsregeln WHERE Typ = 'Leerzeichen'", ARRAY_N);
+ 	
+ 	$result = "{var diacriticsUsed = {};}\n"; 
+ 	$result .= "start = Belegliste\n";
+ 	$result .= "Belegliste = b : Beleg p : (' '?  Trennzeichen ' '? Beleg)* {var res = b; for (var i = 0; i < p.length; i++){ if(p[i][0]){res.push(p[i][0]);} res.push(p[i][1]); if(p[i][2]){ res.push(p[i][2]);}res = res.concat(p[i][3]);}	return res;}\n";
+ 	$result .= "Beleg = t : Token p : (Leerzeichen Token)* {var res = t; for (var i = 0; i < p.length; i++) {res.push(p[i][0]); res = res.concat(p[i][1]);} return res;}\n";
+ 	$result .= "Token = z: Zeichen+ / m : Maskiert+\n";
+ 	$result .= 'Maskiert = "\\\\\\\\" c: [^a-zA-Z] {return "\\\\\\\\" + c;}' . "\n";
+ 	$result .= "Zeichen = b : Basiszeichen d : Diakritikum* {var res = b + d.join(''); diacriticsUsed = {}; return res;}";
+ 	$result .= ' / "[" l: (Basiszeichen Diakritikum*)+ "]" d: Diakritikum {var res = "["; for (var i = 0; i < l.length; i++) { res += l[i][0] + l[i][1].join(""); } return res + "]" + d;}';
+ 	$result .= " / Sonderzeichen\n";
+ 	$result .= "Basiszeichen = 'aa' / 'ee' / 'ii' / 'oo' / 'uu'";
+ 	if (count($base_chars) > 0)
+ 		$result .= ' / ' . implode(' / ', array_map(function ($e){return '"' . $e[0] . '"';}, $base_chars));
+ 	$result .= " / [a-z]\n";
+ 	$result .= "Diakritikum = " . implode(' / ', array_map('va_beta_to_grammar', $diacritics)) . "\n";
+ 	$result .= "Sonderzeichen = " . implode(' / ', array_map('va_beta_to_grammar', $special_chars)) . "\n";
+ 	$result .= "Leerzeichen = " . implode(' / ', array_map(function ($e){return '"' . $e[0] . '"';}, $spaces)) . "\n";
+ 	$result .= "Trennzeichen = ',' / ';'";
+ 	 	
+ 	return $result;
+ }
+ 
+ function va_beta_to_grammar ($row){
+ 	$beta = addslashes($row[0]);
+ 	$rule = $row[1];
+ 	
+ 	$beta = preg_replace_callback('/<([bdxsn])([1-9])?(\*)?>/', function ($matches){
+ 		switch ($matches[1]){
+ 			case 'b':
+ 				return '" ' . $matches[1] . $matches[2]  . ' : Basiszeichen' . $matches[3] . ' "';
+ 			case 'd':
+ 				return '" ' . $matches[1] . $matches[2] . ' : Diakritikum' . $matches[3] . ' "';
+ 			case 'x':
+ 				return '" ' . $matches[1] . $matches[2] . ' : Sonderzeichen' . $matches[3] . ' "';
+ 			case 's':
+ 				return '" ' . $matches[1] . $matches[2] . ' : Leerzeichen' . $matches[3] . ' "';
+ 			case 'n':
+ 				return '" ' . $matches[1] . $matches[2] . ' : [0-9]' . $matches[3] . ' "';
+ 		}
+ 	}, $beta);
+ 	
+ 	
+ 	$beta = '"' . $beta . '"';
+ 	
+ 	$beta = str_replace('"" ', '', $beta);
+ 	
+ 	if($rule != '')
+ 		$beta .= ' {' . $rule . '}';
+ 	else
+ 		$beta .= ' {if (diacriticsUsed["' . addslashes($row[0]). '"]) error("Diacritic used twice"); diacriticsUsed["' . addslashes($row[0]). '"] = true; return text();}';
+ 	
+ 	return $beta;
+ }
+ 
+ function va_only_latin_letters($str){
+ 	return preg_replace('/[^a-zA-Z]/', '', remove_accents($str));
+ }
+ 
+ function va_two_dim_to_assoc($two_dim){
+ 	$assoc = [];
+ 	foreach ($two_dim as $val){
+ 		$assoc[$val[0]] = $val[1];
+ 	}
+ 	return $assoc;
+ }
+ 
+ function va_echo_new_concept_fields ($name, $extra_fields = NULL){
+	$fields = array(
+			new IM_Field_Information('Name_D', 'V', false),
+			new IM_Field_Information('Beschreibung_D', 'V', true),
+			new IM_Field_Information('Id_Kategorie AS Kategorie', 'F{CONCAT(Hauptkategorie, "/", Kategorie)}', true),
+			new IM_Field_Information('Taxonomie', 'V', false),
+			new IM_Field_Information('QID', 'N', false, false, NULL, false, true),
+			new IM_Field_Information('Kommentar_Intern', 'V', false),
+			new IM_Field_Information('Relevanz', 'B', false, true, true),
+			new IM_Field_Information('Pseudo', 'B', false, true),
+			new IM_Field_Information('Grammatikalisch', 'B', false, true),
+			new IM_Field_Information('VA_Phase', 'E', false)
+	);
+	
+	if($extra_fields){
+		foreach ($extra_fields as $extra){
+			$fields[] = $extra;
+		}
+	}
+	
+	echo im_table_entry_box ($name, new IM_Row_Information('Konzepte', $fields, 'Angelegt_Von'));
+}
+
+function va_add_interval ($intervals, $new_interval){
+	
+	if(empty($intervals)){
+		return [$new_interval];
+	}
+	
+	$len = count($intervals);
+	
+	//New interval at the beginning
+	if ($new_interval[1] < $intervals[0][0]){
+		array_unshift($intervals, $new_interval);
+		return $intervals;
+	}
+	
+	//New interval at the end
+	if ($new_interval[0] > $intervals[$len - 1][1]){
+		$intervals[] = $new_interval;
+		return $intervals;
+	}
+	
+	$startInterval = NULL;
+	//Find starting interval
+	foreach ($intervals as $index => $interval){
+		if($new_interval[0] >= $interval[0] && $new_interval[0] <= $interval[1]){
+			$startInterval = [$index, true];
+			break;
+		}
+		
+		if($new_interval[0] < $interval[0]){
+			$startInterval = [$index, false];
+			break;
+		}
+	}
+	
+	//Find ending interval
+	$endInterval = NULL;
+	foreach ($intervals as $index => $interval){
+		if($new_interval[1] >= $interval[0] && $new_interval[1] <= $interval[1]){
+			$endInterval =  [$index, true];
+			break;
+		}
+		
+		if ($index == $len - 1 || $intervals[$index + 1][0] > $new_interval[1]){
+			$endInterval = [$index, false];
+			break;
+		}
+	}
+	
+	if(!$startInterval[1] && !$endInterval[1]){
+		array_splice($intervals, max($endInterval[0], $startInterval[0]), $endInterval[0] - $startInterval[0] + 1, [$new_interval]);
+	}
+	else if ($startInterval[1]){
+		if($endInterval[1]){
+			array_splice($intervals, $startInterval[0], $endInterval[0] - $startInterval[0] + 1, [[$intervals[$startInterval[0]][0], $intervals[$endInterval[0]][1]]]);
+		}
+		else {
+			array_splice($intervals, $startInterval[0], $endInterval[0] - $startInterval[0] + 1, [[$intervals[$startInterval[0]][0], $new_interval[1]]]);
+		}
+	}
+	else {
+		array_splice($intervals, $startInterval[0], $endInterval[0] - $startInterval[0] + 1, [[$new_interval[0], $intervals[$endInterval[0]][1]]]);
+	}
+	return $intervals;
+	
+}
+
+function va_add_marking_spans ($text, $intervals, $span_attributes = 'style="background: yellow"'){
+	if(count($intervals) == 0){
+		return htmlentities($text);
+	}
+	
+	$offset = 0;
+	$marked_text = $text;
+
+	foreach ($intervals as $index => $interval){
+		$pre = '<span ' . $span_attributes . '>';
+		$post = '</span>';
+		$marked = substr($marked_text, $interval[0] + $offset, $interval[1] - $interval[0]);
+		$middle = htmlentities($marked);
+		
+		$start = substr($marked_text, 0, $interval[0] + $offset);
+		$end = substr($marked_text, $interval[1] + $offset);
+		
+		if ($index == count($intervals) - 1){
+			$end = htmlentities($end);
+		}
+		
+		if ($index == 0){
+			$startEnt = htmlentities($start);
+			$offset += strlen($startEnt) - strlen($start);
+			$start = $startEnt;
+		}
+		
+		$marked_text =	$start . $pre . $middle . $post . $end;
+		$offset += strlen($pre) + strlen($post) + (strlen($middle) - strlen($marked));
+	}
+	
+	return $marked_text;
+}
+
+function va_strip_intervals ($text, $intervals){
+
+	$offset = 0;
+	$stripped_text = $text;
+	foreach ($intervals as $interval){
+		$stripped_text =
+		substr($stripped_text, 0, $interval[0] - $offset) . substr($stripped_text, $interval[1] - $offset);
+		$offset += $interval[1] - $interval[0];
+	}
+
+	return $stripped_text;
+}
+
+function va_reconstruct_record_from_tokens ($tokens){
+	
+	$curr_1 = 0;
+	$curr_2 = 0;
+	$curr_3 = 0;
+	$cur_token = '';
+	$cur_gender = 'xxx';
+	
+	$res = '';
+	
+	foreach ($tokens as $index => $token){
+		if(intval($token['Ebene_1']) === $curr_1 + 1 && intval($token['Ebene_2']) === 1 && intval($token['Ebene_3']) === 1){
+			if($res == ''){
+				$res = $token['Token'];
+			}
+			else {
+				$res .= ';' . $token['Token'];
+			}
+		}
+		else if (intval($token['Ebene_1']) === $curr_1 && intval($token['Ebene_2']) === $curr_2 + 1 && intval($token['Ebene_3']) === 1){
+			if($cur_token != $token['Token'] || $cur_gender == $token['Genus']){ //Double tokens for different genders!
+				$res .= ',' . $token['Token'];
+			}
+		}
+		else if (intval($token['Ebene_1']) === $curr_1 && intval($token['Ebene_2']) === $curr_2 && intval($token['Ebene_3']) === $curr_3 + 1){
+			$space = ' ';
+			if($tokens[$index-1]['Trennzeichen']){
+				$space = $tokens[$index-1]['Trennzeichen'];
+			}
+			
+			$res .= $space . $token['Token'];
+		}
+		else {
+			throw new Exception('Invalid token indexes: [' . $token['Ebene_1'] . ',' . $token['Ebene_2'] . ',' . $token['Ebene_3'] . '] after [' .
+				$curr_1 . ',' . $curr_2 . ',' . $curr_3 . '] for record ' . $token['Id_Aeusserung'] . '!');
+		}
+		
+		$curr_1 = intval($token['Ebene_1']);
+		$curr_2 = intval($token['Ebene_2']);
+		$curr_3 = intval($token['Ebene_3']);
+		$cur_token = $token['Token'];
+		$cur_gender = $token['Genus'];
+	}
+	
+	return $res;
+}
+
+function va_deep_assoc_array_compare ($arr1, $arr2){
+	
+	foreach ($arr2 as $key => $val){
+		if(!array_key_exists($key, $arr1)){
+			return 'Key "' . $key . '" does not exist in array 1!';
+		}
+	}
+	
+	foreach ($arr1 as $key => $val){
+		if(!array_key_exists($key, $arr2)){
+			return 'Key "' . $key . '" does not exist in array 2!';
+		}
+		
+		if(is_array($val)){
+			if(is_array($arr2[$key])){
+				$rec = va_deep_assoc_array_compare($val, $arr2[$key]);
+				if($rec !== true){
+					return 'Key "' . $key . '" sub-array not equal: ' . $rec;
+				}
+			}
+			else {
+				return 'Key "' . $key . '" is array in array 1, but no array in array 2!';
+			}
+		}
+		else {
+			if($val !== $arr2[$key]){
+				return 'Key "' . $key . '" has value "' . $val . '" in array 1 and value "' . $arr2[$key] . '" in array 2!';
+			}
+		}
+	}
+	return true;
+}
+
+function va_array_to_html_string ($arr, $showLevel = 1, $recLevel = 0){
+	if(empty($arr)){
+		return '[]';
+	}
+	
+	$assoc = count(array_filter(array_keys($arr), 'is_string')) > 0;
+	
+	$res = '';
+	$first = true;
+	$vals = [];
+	
+	foreach ($arr as $key => $val){
+		if (is_array($val)){
+			$vals[] = ($assoc? '"' . $key . '" => ': '') . va_array_to_html_string($val, $showLevel, $recLevel + 1);
+		}
+		else {
+			$vals[] = ($assoc? '"' . $key . '" => ': '') . ($val === null? 'NULL' : (is_string($val)? ('"' . htmlentities($val) . '"') : htmlentities($val)));
+		}
+	}
+	
+	return '[' . ($recLevel > $showLevel? '' : '<br />') . implode(($recLevel > $showLevel? ', ': '<br />'), $vals) . ($recLevel > $showLevel? '' : '<br />') . ']' . ($recLevel > 0? '' : '<br />');
+}
 ?>

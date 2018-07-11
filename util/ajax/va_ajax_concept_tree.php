@@ -12,13 +12,21 @@ function va_ajax_concept_tree (&$db){
 			
 		case 'show_tree':
 			$db->query('CALL buildConceptCount()');
-			echo showTree($_POST['main_category'], $_POST['category']);
+			echo va_show_concept_tree($_POST['id_cat']);
 			break;
 			
 		case 'get_concept_info':
 			echo json_encode($db->get_results($db->prepare('
-					SELECT Name_D, Beschreibung_D, Relevanz, Kategorie, Hauptkategorie, Kommentar_Intern 
+					SELECT Name_D, Beschreibung_D, Id_Kategorie, Taxonomie, QID, Kommentar_Intern, Relevanz, Pseudo, Grammatikalisch, VA_Phase 
 					FROM Konzepte WHERE Id_Konzept = %d', $_POST['concept']), ARRAY_N));
+			break;
+			
+		case 'get_sub_categories':
+			echo '<option value="0">--- Kategorie wählen ---</option>';
+			$cats = $db->get_results($db->prepare('SELECT Id_Kategorie, Kategorie FROM Konzepte_Kategorien WHERE Hauptkategorie = %s', $_POST['mcat']), ARRAY_A);
+			foreach ($cats as $cat){
+				echo '<option value="' . $cat['Id_Kategorie'] . '">' . $cat['Kategorie'] . '</option>';
+			}
 			break;
 	}
 }

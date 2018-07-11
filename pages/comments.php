@@ -13,10 +13,10 @@ function comment_list (){
 	
 	
 	<script type="text/javascript">
-	var qtipApi;
+	var qtipApis;
 	
 	jQuery(function () {
-		qtipApi = addBiblioQTips(jQuery(".entry-content"));
+		qtipApis = addBiblioQTips(jQuery(".entry-content"));
 
 		jQuery(".quote").each(function (){
 			jQuery(this).qtip({
@@ -43,7 +43,9 @@ function comment_list (){
 	});
 
 	function changeContent (val){
-		qtipApi.destroy(true);
+		for (let i = 0; i < qtipApis.length; i++){
+			qtipApis[i].destroy(true);
+		}
 		removeMarkers(jQuery(".va-entry"));
 
 		if(val.length > 0){
@@ -53,12 +55,14 @@ function comment_list (){
 		else {
 			jQuery(".va-entry").toggle(true);
 		}
-		qtipApi = addBiblioQTips(jQuery(".entry-content"));
+		qtipApis = addBiblioQTips(jQuery(".entry-content"));
 	}
 		
 
 	function filterContent(searchString){
-		qtipApi.destroy(true);
+		for (let i = 0; i < qtipApis.length; i++){
+			qtipApis[i].destroy(true);
+		}
 		
 		jQuery(".va-title .title-string").each(function (element){
 			var entryDiv = jQuery(this).closest(".va-entry");
@@ -102,7 +106,7 @@ function comment_list (){
 				break;
 		
 			case 'L':
-				$comments[$index]['Title'] = $vadb->get_var($vadb->prepare('SELECT Orth FROM morph_Typen WHERE Id_morph_Typ = %d', $key)) . ' - ' . $Ue['MORPH_TYP'];
+				$comments[$index]['Title'] = '<em>' . $vadb->get_var($vadb->prepare('SELECT Orth FROM morph_Typen WHERE Id_morph_Typ = %d', $key)) . '</em> - ' . $Ue['MORPH_TYP'];
 				break;
 		
 			case 'C':
@@ -152,7 +156,7 @@ function comment_list (){
 		parseSyntax($comment['Comment'], true, $admin || $va_mitarbeiter);
 		echo '<div class="va-content">' . $comment['Comment'];
 		if(va_version_newer_than('va_171')){
-			echo '<div>' . va_add_glossary_authors($auth, $trad);
+			echo '<div>' . va_add_glossary_authors($auth, $trad) . '</div>';
 		}
 		global $va_current_db_name;
 		if(($va_mitarbeiter || $admin) && $va_current_db_name === 'va_xxx'){

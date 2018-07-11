@@ -6,7 +6,12 @@
 		
 		switch ($_POST['query']){
 			case 'get':
-				echo showProtocol($va_xxx->get_row('SELECT * FROM Protokolle WHERE Id_Protokoll = ' . $_POST['id'], ARRAY_A), $_POST['mode'] === 'edit');
+			    $edit = false;
+			    if(isset($_POST['mode']) && $_POST['mode'] === 'edit'){
+			        $edit = true;
+			    }
+			    
+			    echo showProtocol($va_xxx->get_row('SELECT * FROM Protokolle WHERE Id_Protokoll = ' . $_POST['id'], ARRAY_A), $edit);
 				break;
 				
 			case 'search':
@@ -52,18 +57,22 @@
 				else if(substr($_POST['id'], 0, 16) == "protocolAttended"){
 					$person = substr($_POST['id'], 16);
 					$result = $va_xxx->update('VTBL_Protokolle_Teilnehmer', array('Anwesend' => $_POST['value'] === 'true'), array('Id_Protokoll' => $_POST['pid'], 'Person' => $person), array ('%s'));
+					$va_xxx->update('Protokolle', ['Geaendert' => current_time('mysql')], ['Id_Protokoll' => $_POST['pid']]);
 				}
 				else if(substr($_POST['id'], 0, 15) == "protocolComment"){
 					$person = substr($_POST['id'], 15);
 					$result = $va_xxx->update('VTBL_Protokolle_Teilnehmer', array('Kommentar' => $_POST['value']), array('Id_Protokoll' => $_POST['pid'], 'Person' => $person), array ('%s'));
+					$va_xxx->update('Protokolle', ['Geaendert' => current_time('mysql')], ['Id_Protokoll' => $_POST['pid']]);
 				}
 				else if(substr($_POST['id'], 0, 13) == "protocolTitle"){
 					$number = substr($_POST['id'], 13);
 					$result = $va_xxx->query($va_xxx->prepare('INSERT INTO Protokolle_TOPs (Id_Protokoll, Nummer, Titel) VALUES (%d, %d, %s) ON DUPLICATE KEY UPDATE Titel = %s', $_POST['pid'], $number, $_POST['value'], $_POST['value']));
+					$va_xxx->update('Protokolle', ['Geaendert' => current_time('mysql')], ['Id_Protokoll' => $_POST['pid']]);
 				}
 				else if(substr($_POST['id'], 0, 12) == "protocolText"){
 					$number = substr($_POST['id'], 12);
 					$result = $va_xxx->query($va_xxx->prepare('INSERT INTO Protokolle_TOPs (Id_Protokoll, Nummer, Inhalt) VALUES (%d, %d, %s) ON DUPLICATE KEY UPDATE Inhalt = %s', $_POST['pid'], $number, $_POST['value'], $_POST['value']));
+					$va_xxx->update('Protokolle', ['Geaendert' => current_time('mysql')], ['Id_Protokoll' => $_POST['pid']]);
 				}
 				else {
 					$result = false;
@@ -85,6 +94,16 @@
 					echo 'success';
 				}
 				break; 
+				
+			case 'add_top':
+			    $new_top_number = $va_xxx->get_var($va_xxx->prepare('SELECT max(Nummer) FROM Protokolle_TOPs WHERE Id_Protokoll = %d', $_POST['pid'])) + 1;
+			    
+			    $text = stripslashes($_POST['text']);
+			    $title = stripslashes($_POST['title']);
+			    
+			    $va_xxx->insert('Protokolle_TOPs', ['Id_Protokoll' => $_POST['pid'], 'Nummer' => $new_top_number, 'Titel' => $title, 'Inhalt' => $text]);
+			    echo getTop ($new_top_number, $title, $text, $_POST['edit'] == 'true');
+            break;
 		}
 		die;
 	}
@@ -94,43 +113,44 @@
 		$protokolle = $va_xxx->get_results('SELECT * FROM Protokolle ORDER BY DATUM DESC', ARRAY_A);
 
 		if(isset($_GET['mode'])){
-			$edit = $_GET['mode'] === 'edit';
+		    $edit = $_GET['mode'] === 'edit';
 		}
 		
+		$user_key = get_user_meta(get_current_user_id(), 'va_kuerzel', true);
 		?>
 		
 		<script type="text/javascript">
 			var url = "<?php echo get_permalink();?>";
-
+		
 			jQuery(function (){
+
+				jQuery("#protocol_insert_top_confirm_button").on("click", addTopConfirmed);
+
+				jQuery(document).on("va_todos_new", function (event, params){
+					if(params["parent"] == -1){
+						jQuery(".va_todo_parent_input").append(params["option"]);
+					}
+				});
 				
 				bindChangeListeners();
 				jQuery(".dateField").datepicker({"dateFormat": "dd.mm.yy"});
-				
+
 				setInterval(function (){
 					if(jQuery(":focus").is("textarea, input") && jQuery(":focus").hasClass("elementChanged")){
 						jQuery(":focus").change();
-					};
-				}, 5000);				
-							
-				History.Adapter.bind(window,'statechange',function(){
-					if(History.getState()["data"]["id"]){
-						var mode = History.getState()["data"]["mode"];
-						jQuery.post(ajax_object.ajaxurl, {
-							"action" : "va_protocols",
-							"query" : "get",
-							"id" : History.getState()["data"]["id"],
-							"mode" : mode
-						}, function (response){
-							jQuery("#protocolArea").html(response);
-							jQuery("#modeList").val(mode);
-							jQuery(".dateField").datepicker({"dateFormat": "dd.mm.yy"});
-							bindChangeListeners();
-							addBiblioQTips(jQuery("#protocolTextArea"));
-						});
 					}
-        			else if (History.getState()["data"]["search"]){
-        				jQuery.post(ajax_object.ajaxurl, {
+
+					if(jQuery("#modeList").val() == "read" && checkTime()){
+						updateProtocol(jQuery("#protocolList").val(), false);
+					}
+				}, 5000);
+
+				History.Adapter.bind(window,'statechange', function (){
+					if(History.getState()["data"]["id"]){
+						updateProtocol(History.getState()["data"]["id"], History.getState()["data"]["mode"] == "edit");
+					}
+					else if (History.getState()["data"]["search"]){
+	    				jQuery.post(ajax_object.ajaxurl, {
 							"action" : "va_protocols",
 							"query" : "search",
 							"string" : History.getState()["data"]["search"]
@@ -138,8 +158,8 @@
 						function (response){
 							jQuery("#protocolArea").html(response);
 						});
-        			}
-    			});
+	    			}
+				});
 				
 				<?php
 				if(isset($_GET['protocol']))
@@ -152,27 +172,98 @@
 				?>
 				
 				jQuery("#protocolList").change(function (){
-					var date = jQuery.datepicker.parseDate('yy-mm-dd', jQuery(this).find(":selected").text().substring(0, 10));
-					date.setHours(23, 59, 59);
-					var mode = date > new Date()? "edit" : "read";
-					selectProtocol(this.value, mode);
+					selectProtocol(this.value);
 				});
 				
 				jQuery("#searchBox").keypress(function (event){
 					if(event.which == 13) { //Enter
-						History.pushState({"search" : this.value}, "", ((url.indexOf("?") === -1)? "?search=" : "&search=") + encodeURIComponent(this.value));
+						History.pushState({"search" : this.value}, "", url + ((url.indexOf("?") === -1)? "?search=" : "&search=") + encodeURIComponent(this.value));
 					}
 				});
 
+				<?php 
+				if(isset($_GET['protocol']) && isset($edit) && $edit && va_check_lock($va_xxx, ['table' => 'Protokolle', 'value' => $_GET['protocol']]) != 'success'){
+				    ?>
+				    alert("Protokoll wird gerade bearbeitet!");
+				    <?php
+				    unset($edit);
+				}
+				?>
+
+				<?php 
+				if ($user_key == 'FZ'){
+				    ?>
+				    todoButtons();
+				    <?php   
+				}
+				?>
+
+				jQuery("#modeList").val("<?php echo (isset($edit) && $edit)? 'edit': 'read';?>");
+
 				addBiblioQTips(jQuery("#protocolTextArea"));
+
+				window.onbeforeunload = function (){
+					removeLock ("Protokolle", null, null, "va_xxx");
+				};
 			});
+
+			function checkTime (){
+				var now = new Date();
+				var date = jQuery.datepicker.parseDate("dd.mm.yy", jQuery("#protocol_date_td").text().trim());
+				var endStr = jQuery("#protocol_end_td").text().trim();
+				endStr = endStr.substring(0, endStr.indexOf(" "));
+				var end;
+				if(endStr == "0:00"){
+					end = [23, 59];
+				}
+				else {
+					end =  endStr.split(":");
+				}
+				date.setHours(end[0], end[1], 0);
+				
+				if (now > date)
+					return false;
+				
+				var startStr = jQuery("#protocol_start_td").text().trim();
+				var start = startStr.substring(0, startStr.indexOf(" ")).split(":");
+				date.setHours(start[0], start[1], 0);
+
+				return now > date;
+			}
+
+			function updateProtocol (id, edit){
+				var data = {
+					"action" : "va_protocols",
+					"query" : "get",
+					"id" : id
+				};
+				if(edit){
+					data["mode"] = "edit";
+				}						
+				
+				jQuery.post(ajax_object.ajaxurl, data, function (response){
+					try {
+						jQuery("#protocolArea").html(response);
+						jQuery("#modeList").val(data["mode"]? data["mode"]: "read");
+						jQuery(".dateField").datepicker({"dateFormat": "dd.mm.yy"});
+						bindChangeListeners();
+						addBiblioQTips(jQuery("#protocolTextArea"));
+					}
+					catch (e){
+						alert(response);
+					}
+				});
+    			
+			}
 			
 			function bindChangeListeners (){
-				jQuery(".protocolEditField").unbind("input");
-				jQuery(".protocolEditField").bind("input", function (){
-					jQuery(this).addClass("elementChanged");
+				jQuery(".protocolEditField").off("input");
+				jQuery(".protocolEditField").on("input", function (){
+					if (jQuery(this).is("input, textarea") && !jQuery(this).is(".hasDatepicker")){
+						jQuery(this).addClass("elementChanged");
+					}
 				});
-				jQuery(".protocolEditField").unbind("change");
+				jQuery(".protocolEditField").off("change");
 				jQuery(".protocolEditField").on("change", changed);
 			}
 			
@@ -220,45 +311,72 @@
 			}
 			
 			function unColor(object){
+				console.log(object);
 				if(object.type == "checkbox"){
-					jQuery(object).next().removeClass("changesSent")
+					jQuery(object).next().removeClass("changesSent");
 				}
 				else {
-					jQuery(object).removeClass("changesSent")
+					jQuery(object).removeClass("changesSent");
 				}
 			}
 			
-			function selectProtocol (id, mode){
+			function selectProtocol (id){
 				jQuery("#protocolList").val(id);
-				History.pushState({"id" : id, "mode" : mode}, "", getUrl(id, mode));
+				History.pushState({"id" : id}, "", getUrl(id));
 			}
 
 			function getUrl(id, mode){
+				var res;
 				if (url.indexOf("?") === -1){
-					return url + "?protocol=" + id + "&mode=" + mode;
+					res = url + "?protocol=" + id;
 				}
 				else {
-					return url + "&protocol=" + id + "&mode=" + mode;
+					res = url + "&protocol=" + id;
 				}
+
+				if(mode){
+					res += "&mode=" + mode;
+				}
+
+				return res;
+			}
+
+			function addTop (edit){
+				jQuery("#protocol_top_title_input").val("");
+				jQuery("#protocol_top_text_input").val("");
+				jQuery("#protocol_top_mode").val(edit? "1": "0");
+				
+				jQuery("#protocolNewTopDiv").dialog({
+					"width" : 600,
+					"height" : 400,
+					"title" : "TOP hinzufügen"
+				});
 			}
 			
-			function addTop (){
-				var title = prompt("Titel:");
-				var number;
-				if(jQuery("#protocolTextArea div").length == 0){
-					number = 1;
-				}
-				else {
-					number = jQuery("#protocolTextArea div:last-child h4 input").prop("id").substring(13) * 1 + 1;
-				}
-				var div = jQuery("<div  id='protocolTOP" + number + "' tabindex='-1' />");
-				div.append("<h4>" + number + ") <input type='text' class='protocolEditField' size='62' maxlength='500' value='"+ title + "' id='protocolTitle" + number + "' />&nbsp;<a href='javaScript:deleteTop(" + number + ");'>Löschen</a></h4>");
-				div.append("<textarea id='protocolText" + number + "' class='protocolEditField' cols='75' rows='10'></textarea>");
-				div.find("input:first").addClass("elementChanged");
-				jQuery("#protocolTextArea").append(div);
-				bindChangeListeners();
-				jQuery("#protocolTitle" + number).trigger("change");
-				div.focus();
+			function addTopConfirmed (){
+				jQuery("#protocolNewTopDiv").dialog("close");
+				
+				var title = jQuery("#protocol_top_title_input").val();
+				var text = jQuery("#protocol_top_text_input").val();
+
+				var edit = jQuery("#protocol_top_mode").val() == "1";
+				
+				jQuery.post(ajax_object.ajaxurl, {
+					"action" : "va_protocols",
+					"query" : "add_top",
+					"title" : title,
+					"text" : text,
+					"pid" : jQuery("#protocolNumber").text().trim(),
+					"edit" : edit
+				}, function (response){
+					var div = jQuery(response);
+					jQuery("#protocolTextArea").append(div);					
+					div.focus();
+					
+					if(edit){
+						bindChangeListeners();
+					}
+				});
 			}
 			
 			function newProtocol (){
@@ -271,7 +389,7 @@
 						value: data[0],
 						text: data[1] + " (" + data[0] + ")"
 					}));
-					selectProtocol(data[0], "edit");
+					selectProtocol(data[0]);
 				});
 			}
 			
@@ -293,7 +411,21 @@
 			
 			function changeMode (val){
 				var pid = jQuery("#protocolNumber").text().trim();
-				History.pushState({"id" : pid, "mode" : val}, "", getUrl(pid, val));
+				if(val == "edit"){
+					addLock ("Protokolle", pid , function (response){
+						if(response == "success"){
+							History.pushState({"id" : pid, "mode" : val}, "", getUrl(pid, val));
+						}
+						else {
+							alert("Protokoll wird gerade bearbeitet!");
+							jQuery("#modeList").val("read");
+						}
+					}, "va_xxx");
+				}
+				else {
+					removeLock ("Protokolle", pid, null, "va_xxx");
+					History.pushState({"id" : pid, "mode" : val}, "", getUrl(pid, val));
+				}
 			}
 			
 		</script>
@@ -342,9 +474,7 @@
 					foreach ($protokolle as $protokoll){
 						if($protokoll['Id_Protokoll'] === $_GET['protocol']){
 							if(!isset($edit)){
-								$endOfDay = new DateTime($protokoll['Datum']);
-								$endOfDay->setTime(23,59,59);
-								$edit = new DateTime() < $endOfDay;
+								$edit = false;
 							}
 							showProtocol($protokoll, $edit);
 							break;
@@ -357,9 +487,7 @@
 				}
 				else {
 					if(!isset($edit)){
-						$endOfDay = new DateTime($protokolle[0]['Datum']);
-						$endOfDay->setTime(23,59,59);
-						$edit = new DateTime() < $endOfDay;
+						$edit = false;
 					}
 					showProtocol($protokolle[0], $edit);
 				}
@@ -367,11 +495,36 @@
 			</div>
 		</div>
 		
-		<script type="text/javascript">
-			jQuery("#modeList").val("<?php echo (isset($edit) && $edit)? 'edit': 'read';?>");
-		</script>
+		<div style="display: none" id="protocolNewTopDiv">
+			Titel:<input style="width: 400px; margin-left: 5px;" type="text" id="protocol_top_title_input" />
+			<br />
+			<br />
+			Inhalt:
+			<br />
+			<textarea style="margin-top: 15px; width: 100%; height: 200px;" id="protocol_top_text_input"></textarea>
+			<br />
+			<br />
+			<input type="button" value="Hinzufügen" id="protocol_insert_top_confirm_button" />
+			<input type="hidden" id="protocol_top_mode" />
+		</div>
 		
 		<?php
+		
+		if($user_key == 'FZ'){
+            ?>
+            <div style="position: fixed; top: 200px; right: 100px">
+            	<?php echo va_get_todo_button('FZ');?>
+            </div>
+            <?php
+		}
+		    
+	}
+	
+	function va_new_tops_possible (&$protocol){
+	    $startTime = new DateTime($protocol['Datum']);
+	    $timeArray = explode(':', $protocol['Beginn']);
+	    $startTime->setTime($timeArray[0], $timeArray[1], $timeArray[2]);
+	    return new DateTime() < $startTime;
 	}
 	
 	function showProtocol ($row, $editMode){
@@ -381,6 +534,8 @@
 		if(!current_user_can('va_transcripts_write')){
 			$editMode = false;
 		}
+		
+		$newTopsPossible = va_new_tops_possible($row);
 		
 		?>
 		
@@ -397,7 +552,7 @@
 				<td>
 					Datum
 				</td>
-				<td>
+				<td id="protocol_date_td">
 					<?php 
 					if($editMode){
 						echo inputField(10, 10, 'protocolDate', date('d.m.Y', strtotime($row['Datum'])), 'dateField');
@@ -413,7 +568,7 @@
 				<td>
 					Beginn
 				</td>
-				<td>
+				<td id="protocol_start_td">
 					<?php 
 					if($editMode){
 						echo inputField(2, 2, 'protocolHoursStart', date('G', strtotime($row['Beginn']))) . ' : ' . inputField(2, 2, 'protocolMinutesStart', date('i', strtotime($row['Beginn'])));
@@ -429,7 +584,7 @@
 				<td>
 					Ende
 				</td>
-				<td>
+				<td id="protocol_end_td">
 					<?php 
 					if($editMode){
 						echo inputField(2, 2, 'protocolHoursEnd', date('G', strtotime($row['Ende']))) . ' : ' . inputField(2, 2, 'protocolMinutesEnd', date('i', strtotime($row['Ende'])));
@@ -496,7 +651,7 @@
 		<?php 
 		$tops = $va_xxx->get_results("SELECT * FROM Protokolle_TOPs WHERE Id_Protokoll = '" . $row['Id_Protokoll']. "' ORDER BY Nummer ASC", ARRAY_A);
 		
-		if(!$editMode) {
+		if(!$editMode && !$newTopsPossible) {
 		?>
 		<h3>
 			Tagesordnung
@@ -520,8 +675,8 @@
 		<h3>
 			Protokoll
 			<?php 
-			if($editMode){
-				echo '&nbsp;<a href="javaScript:addTop();">(TOP hinzufügen)</a>';
+			if($editMode || $newTopsPossible){
+				echo '&nbsp;<a href="javaScript:addTop(' . ($editMode? 'true': 'false') . ');">(TOP hinzufügen)</a>';
 			}
 			?>
 		</h3>
@@ -539,14 +694,14 @@
 			<?php
 			
 			if($editMode){
-				echo '<a href="javaScript:addTop();">(TOP hinzufügen)</a>';
+				echo '<a href="javaScript:addTop(true);">(TOP hinzufügen)</a>';
 			}
 	}
 
 	function getTop ($number, $title, $content, $editMode){
-		$result = '<div id="protocolTOP' . $number . '">';
+		$result = '<div id="protocolTOP' . $number . '" data-number="' . $number . '">';
 		$result .= '<a name="' . $number . '"></a>';
-		$result .= '<h4>' . $number . ') ';
+		$result .= '<h4 style="font-weight: bold; font-size: 120%;">' . $number . ') ';
 		if($editMode){
 			$result .= inputField(62, 500, 'protocolTitle' . $number, $title);
 			$result .= '&nbsp;<a href="javaScript:deleteTop(' . $number . ');">Löschen</a>';
@@ -576,26 +731,31 @@
 	function showSearchPage ($protocols, $searchWords){
 		
 		echo '<h2>Suchergebnisse</h2>';		
-		$searchWordList = explode(' ', $searchWords);
+		$searchWordList = explode(' ', trim($searchWords));
 		$firstWord =  array_shift($searchWordList);
+		
+		$wordStart = $searchWords[strlen($searchWords) - 1] != ' '; 
 			
 		foreach ($protocols as $protocol){
 			$protocolLink = get_page_link(get_page_by_title('Protokolle'));
 			
 			echo '<h3><a href="' . add_query_arg('protocol', $protocol['Id_Protokoll'], $protocolLink) . '"> Protokoll ' . $protocol['Id_Protokoll'] . ' (' . $protocol['Datum'] . ')</a></h3>';
 
-			$indexSearchWord = mb_stripos($protocol['Titel'], $firstWord);
+			$title = remove_accents($protocol['Titel']);
+			$indexSearchWord = findSeachWordInText($title, $firstWord, $wordStart);
+			
 			if($indexSearchWord !== false){
-				echo '[...] ' . mb_substr($protocol['Titel'], 0, $indexSearchWord) 
+				echo '[...] ' . mb_substr($title, 0, $indexSearchWord) 
 					. '<font color="red">' . $firstWord . '</font>' 
-					. mb_substr($protocol['Titel'], $indexSearchWord + strlen($firstWord)) . ' [...]';
+					. mb_substr($title, $indexSearchWord + strlen($firstWord)) . ' [...]';
 			}
 			else {
-				$indexSearchWord = mb_stripos($protocol['Inhalt'], $firstWord);
+				$text = remove_accents($protocol['Inhalt']);
+				$indexSearchWord = findSeachWordInText($text, $firstWord, $wordStart);
 				if($indexSearchWord !== false){
-					echo '[...] ' . mb_substr($protocol['Inhalt'], max(0, $indexSearchWord - 50), $indexSearchWord - max(0, $indexSearchWord - 50)) 
+					echo '[...] ' . mb_substr($text, max(0, $indexSearchWord - 50), $indexSearchWord - max(0, $indexSearchWord - 50)) 
 						. '<font color="red">' . $firstWord . '</font>' 
-						. mb_substr($protocol['Inhalt'], $indexSearchWord + strlen($firstWord), min(strlen($protocol['Inhalt']) - $indexSearchWord, 50)) . ' [...]';
+						. mb_substr($text, $indexSearchWord + strlen($firstWord), min(strlen($text) - $indexSearchWord, 50)) . ' [...]';
 				}
 				else {
 					echo '[...]';
@@ -605,6 +765,19 @@
 			echo '<br />';  
 		}
 	}
+	
+	function findSeachWordInText ($text, $searchWord, $wordStart){
+		
+		$indexSearchWord = mb_stripos($text, $searchWord);
+		$indexNextChar = $indexSearchWord + strlen($searchWord) + 1;
+		
+		while(!$wordStart && $indexSearchWord !== false && $indexNextChar< strlen($text) && ctype_alnum(mb_substr($text, $indexNextChar - 1, 1))){
+			$indexSearchWord = mb_stripos($text, $searchWord, $indexNextChar);
+			$indexNextChar = $indexSearchWord + strlen($searchWord) + 1;
+		}
+		
+		return $indexSearchWord;
+	}
 
 	function ktop ($k){
 		global $va_xxx;
@@ -613,9 +786,14 @@
 	
 	function searchResults ($searchString){
 		global $va_xxx;
+
+		$addAsterix = $searchString[strlen($searchString) - 1] != ' ';
+		
+		$searchString = '+' . preg_replace('/([^ ]) ([^ ])/', '$1\* \+$2', $searchString) . ($addAsterix? '*' : '');
+		
 		return $va_xxx->get_results("
 			SELECT Id_Protokoll, Titel, Inhalt, Datum
 			FROM Protokolle_TOPs JOIN Protokolle USING (Id_Protokoll)
-			WHERE MATCH(Titel, Inhalt) AGAINST ('" . '+' . str_replace(' ', '* +', $searchString) . "*' IN BOOLEAN MODE)" , ARRAY_A);
+			WHERE MATCH(Titel, Inhalt) AGAINST (' . $searchString . ' IN BOOLEAN MODE)" , ARRAY_A);
 	}
 ?>

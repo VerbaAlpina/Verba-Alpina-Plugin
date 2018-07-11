@@ -11,6 +11,8 @@
  * License: ?
  */
 
+//TODO create variant that loads libs from urls to make github code working
+
 define('DIEONDBERROR', true ); //Benötigt wegen Wordpress Multisites
 
 register_activation_hook(__FILE__, 'va_install');
@@ -46,6 +48,9 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 	//Map Plugin Hooks
 	add_action('im_define_main_file_constants', 'va_map_plugin_version');
 	add_action('im_plugin_files_ready', 'va_load_im_config_files');
+	add_filter('im_google_maps_api_key', function ($key){
+		return 'AIzaSyC0ukPhw9Un5_3blrN02dKzUgilYzg_Kek';
+	});
 	add_action('im_translation_list', 'va_map_translations');
 	add_action('init', 'va_includes', 11);
 	
@@ -59,16 +64,15 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 	
 	add_filter('show_admin_bar', 'va_show_admin_bar');
 	
-	add_action('wp_login', 'loginFunc', 10, 2);
 	add_action('login_head', 'add_favicon');
 	add_action('admin_head', 'add_favicon');
-	add_filter('the_content', 'parse_syntax_for_posts');
+	add_filter('the_content', 'parse_syntax_for_posts', 1);
 	
-	add_filter('logout_url', 'stay_on_page');
-	add_filter('login_url', 'stay_on_page');
+	add_filter('logout_url', 'va_logout_url');
+	add_filter('login_url', 'va_login_url');
 	add_filter('get_pages', 'va_filter_pages');
 	
-	add_filter('page_link', 'va_add_query_vars');
+	add_filter('page_link', 'va_add_query_vars', 10, 2);
 	add_filter('mlp_linked_element_link', function ($url){
 		//This is needed to avoid a bug in wordpress' add_query_arg
 		//Compare with https://core.trac.wordpress.org/ticket/36397
@@ -76,6 +80,8 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 	}, 11);
 	
 	add_filter( 'acf_the_content', 'va_add_footnotes_support');
+	
+	add_action( 'wp_footer', 'va_enqueue_scripts_footer');
 	
 	function va_map_translations ($list){
 		global $Ue;
@@ -89,15 +95,19 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 	}
 	
 	function va_load_im_config_files (){
-		global $vadb;
-		
+
 		//Map plugin
 		IM_Initializer::$instance->map_function = 'create_va_map';
 		IM_Initializer::$instance->load_function = 'load_va_data';
 		IM_Initializer::$instance->edit_function = 'edit_va_data';
+		IM_Initializer::$instance->search_location_function = 'search_va_locations';
+		IM_Initializer::$instance->get_location_function = 'get_va_location';
+		IM_Initializer::$instance->global_search_function= 'va_ling_search';
 		
-		add_filter('im_comment', function ($text, $id){
+		add_filter('im_comment', function ($text, $id, $lang){
 			global $Ue;
+			global $vadb;
+			
 			parseSyntax($text, true);
 			
 			global $va_current_db_name;
@@ -107,12 +117,27 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 				if($citation)
 					$text .= '<span class="quote" title="' . $citation . '" style="font-size: 75%; cursor : pointer; color : grey;">(' . $Ue['ZITIEREN'] . ')</span>';
 			}
+			
+			if(va_version_newer_than('va_171')){
+				$auth = $vadb->get_col($vadb->prepare("
+				SELECT CONCAT(Vorname, ' ', Name)
+				FROM VTBL_Kommentar_Autor JOIN Personen USING (Kuerzel)
+				WHERE Id_Kommentar = %s AND Aufgabe = 'auct'", $id));
+				
+				$trad = $vadb->get_col($vadb->prepare("
+				SELECT CONCAT(Vorname, ' ', Name)
+				FROM VTBL_Kommentar_Autor JOIN Personen USING (Kuerzel)
+				WHERE Id_Kommentar = %s AND Aufgabe = 'trad' AND Sprache = %s", $id, substr($lang, 0, 1)));
+				
+				$text .= '<div>' . va_add_glossary_authors($auth, $trad) . '</div>';
+			}
+			
 			return $text;
-		}, 10, 2);
+		}, 10, 3);
 	}
 	
 	function va_map_plugin_version (){
-		if(!isDevTester()){
+		if(!isDevTester() && (!is_admin() || (isset($_POST['action']) && $_POST['action'] == 'im_a'))){
 			define('IM_MAIN_PHP_FILE', dirname(__FILE__) . '/im_config/live/im_live.phar');
 			define('IM_MAIN_JS_FILE', plugin_dir_url(__FILE__) . 'im_config/live/im_live.js');
 			define('IM_MAIN_CSS_FILE', plugin_dir_url(__FILE__) . 'im_config/live/im_live.css');
@@ -121,175 +146,6 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 	
 	function va_show_admin_bar ($bool){
 		return false;
-	}
-
-	function va_menu_bar ($wp_admin_bar){
-		if(!is_admin()){
-			global $Ue;
-			
-			$nodes = $wp_admin_bar->get_nodes();
-			$old_nodes = array();
-			
-			foreach ($nodes as $node){
-				if($node->id == 'edit' || $node->id == 'top-secondary' || $node->id == 'my-account' || $node->id == 'user-actions' || $node->parent == 'user-actions'){
-					$old_nodes[] = $node;
-				}
-				$wp_admin_bar->remove_node($node->id);
-			}
-			
- 			$wp_admin_bar->add_node(array(
- 					'id' => 'va_logo',
- 					'title' => '<img style="height: 28px; margin-top: 2px;" src="' . get_stylesheet_directory_uri() . '/images/va_logo_klein.svg" />',
- 					'href' => home_url()
- 			));
-			
-			$wp_admin_bar->add_node(array(
-					'id' => 'va_logo_lmu',
- 					'title' => '<img style="height: 20px; margin-top: 6px;" src="' . get_stylesheet_directory_uri() . '/images/LMU-Logo.svg" />',
- 					'href' => 'https://www.uni-muenchen.de/index.html'
- 			));
-			
- 			$wp_admin_bar->add_node(array(
-					'id' => 'va_logo_dfg',
- 					'title' => '<img style="height: 20px; margin-top: 6px;" src="' . get_stylesheet_directory_uri() . '/images/dfg_logo_blau_4c.svg" />',
- 					'href' => 'http://gepris.dfg.de/gepris/projekt/253900505',
- 					'parent' => 'top-secondary'
- 			));
-			
-			foreach ($old_nodes as $onode){
-				$wp_admin_bar->add_node($onode);
-			}
-			
-			if(!is_user_logged_in()){
-				$wp_admin_bar->add_node(array(
-					'id' => 'va_login',
-					'title' => __('Log in'),
-					'href' => wp_login_url(),
-					'parent' => 'top-secondary'
-				));
-			}
-			if(function_exists('mlp_get_available_languages')){
-				$langs = mlp_get_available_languages_titles();
-				$links = mlp_get_interlinked_permalinks();
-				
-				$nodes = array();
-				foreach ($langs as $key => $clang){
-					$link = $links[$key]['permalink'];
-					if($link){
-						$nodes[$clang] = array(
-							'id' => 'va_lang_' . $links[$key]['lang'],
-							'title' => '<img style="margin-right: 0.4em; height: 1em;" src="' . $links[$key]['flag']  . '" />' . $clang,
-							'parent' => 'va_lang',
-							'href' => $link
-						);
-					}
-				}
-				
-				$wp_admin_bar->add_node(array(
-						'id' => 'va_lang',
-						'title' => '<span style="font-weight: bold">' . $Ue['SPRACHE'] . ': </span>' . $langs[get_current_blog_id()]
-				));
-				
-				ksort($nodes);
-				
-				foreach ($nodes as $node){
-					$wp_admin_bar->add_node($node);
-				}
-
-			}
-			
-			$version_pages = array('KARTE', 'METHODOLOGIE', 'KOMMENTARE');
-			
-			global $post;
-			if($post && in_array($post->post_title, $version_pages)){
-				global $va_current_db_name;
-					
-				$versions = array();
-					
-				$xxx_name = '<span style="">XXX  (' . $Ue['ARBEITSVERSION'] . ')</span>';
-				if($va_current_db_name == 'va_xxx'){
-					$selected_name = $xxx_name;
-				}
-				else {
-					$versions[] = array(
-							'id' => 'va_version_xxx',
-							'title' => $xxx_name,
-							'parent' => 'va_version',
-							'href' => is_user_logged_in()? remove_query_arg('db') : add_query_arg('db', 'xxx')
-					);
-				}
-					
-				global $va_xxx;
-				$versionen = $va_xxx->get_col('SELECT Nummer from Versionen WHERE Website ORDER BY Nummer DESC');
-	
-				$first = true;
-				foreach ($versionen as $version){
-					$html = va_format_version_number($version);
-					if($first){
-						$html .= ' (' . $Ue['ZITIERVERSION'] . ')';
-						$first = false;
-					}
-					
-					$link = !is_user_logged_in() && $first? remove_query_arg('db') : add_query_arg('db', $version);
-			
-					if(substr($va_current_db_name, 3) === $version){
-						$selected_name = $html;
-					}
-					else {
-						$versions [] = array(
-								'id' => 'va_version_' . $version,
-								'title' => $html,
-								'parent' => 'va_version',
-								'href' => $link
-						);
-					}
-				}
-					
-				$wp_admin_bar->add_node(array(
-						'id' => 'va_version',
-						'title' => '<span style="font-weight: bold">' . $Ue['DATENBANK_VERSION'] . ':</span> ' . $selected_name
-				));
-					
-				foreach ($versions as $version){
-					$wp_admin_bar->add_node($version);
-				}
-			}
-			
-			global $va_mitarbeiter;
-			global $admin;
-			
-			$list = array();
-			
-			if (current_user_can('va_see_progress_page')){
-				$list[] = 'Fortschritt';
-			}
-			
-			if (current_user_can('va_transcripts_read')){
-				$list[] = 'Protokolle';
-			}
-			
-			if ($admin || $va_mitarbeiter){
-				$list[] = 'Datenbank-Dokumentation';
-				$list[] = 'CSGRAPH';
-			}
-			
-			if(empty($list))
-				return;
-			
-			$wp_admin_bar->add_node(array(
-					'id' => 'va_intern',
-					'title' => '<span style="font-weight: bold">Interne Seiten</span>'
-			));
-				
-			foreach ($list as $entry){
-				$wp_admin_bar->add_node(array(
-						'id' => 'va_intern_' . $entry,
-						'title' => $entry,
-						'parent' => 'va_intern',
-						'href' => get_page_link(get_page_by_title($entry))
-				));
-			}
-		}
 	}
 	
 	function va_add_footnotes_support ($content){
@@ -300,10 +156,43 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 		return $content;
 	}
 	
-	function va_add_query_vars ($url){
+	function va_add_query_vars ($url, $post){
+		if(!$post)
+			return;
+		
+		$post_title = get_post($post)->post_title;
+		
+		if(is_multisite() && $post_title == 'KARTE'){
+		    $new_blog_id = get_current_blog_id();
+		    
+		    $req = $_SERVER['REQUEST_URI'];
+		    if ($req[1] == '?'){
+		        $path = '/';
+		    }
+		    else {
+		        $path = substr($req, 0, 4);
+		    }
+		    
+		    $current_blog_id = get_blog_id_from_url($_SERVER['HTTP_HOST'], $path);
+		    
+		    if($new_blog_id != $current_blog_id){ //Keep url params for different language links but not for menu link
+    			$url_params_map = ['tk', 'ak', 'comm', 'simple_polygons'];
+    			foreach ($url_params_map as $par){
+    				if(isset($_GET[$par])){
+    					$url = add_query_arg($par, $_GET[$par], $url);
+    				}
+    			}
+		    }
+		}
+		
 		if(isset($_GET['db'])){
 			$url = add_query_arg('db', $_GET['db'], $url);
 		}
+		else {
+			global $va_current_db_name;
+			$url = add_query_arg('db', substr($va_current_db_name, 3), $url);
+		}
+		
 		return $url;
 	}
 	
@@ -344,8 +233,20 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 		return $pages;
 	}
 	
-	function stay_on_page ($logout_url){
-		return add_query_arg('redirect_to', urlencode(( is_ssl() ? 'https://' : 'http://' ) . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI']), $logout_url);
+	function va_logout_url ($url){
+		if(isset($_GET['db']) && $_GET['db'] == 'xxx'){
+			global $va_xxx;
+			$rurl = urlencode(( is_ssl() ? 'https://' : 'http://' ) . $_SERVER['HTTP_HOST'] . add_query_arg('db', $va_xxx->get_var('SELECT MAX(Nummer) FROM Versionen'), $_SERVER['REQUEST_URI']));
+		}
+		else {
+			$rurl = urlencode(( is_ssl() ? 'https://' : 'http://' ) . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI']);
+		}
+		
+		return add_query_arg('redirect_to', $rurl, $url);
+	}
+	
+	function va_login_url ($url){
+		return add_query_arg('redirect_to', urlencode(( is_ssl() ? 'https://' : 'http://' ) . $_SERVER['HTTP_HOST'] . add_query_arg('db', 'xxx', $_SERVER['REQUEST_URI'])), $url);
 	}
 	
 	function add_favicon() {
@@ -381,12 +282,14 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 		global $admin;
 		global $va_mitarbeiter;
 		global $va_current_db_name;
+		global $va_next_db_name;
 		global $Ue;
 		
 		wp_enqueue_script('toolsSkript', plugins_url('/util/tools.js', __FILE__), array('jquery'), false, true);
 		wp_enqueue_style('va_style', plugins_url('/css/styles.css', __FILE__));
 		IM_Initializer::$instance->enqueue_font_awesome();
 		va_enqueue_bootstrap();
+		wp_enqueue_script('cookieConsent', VA_PLUGIN_URL . '/lib/cookieconsent.min.js');
 		
 		$ajax_url = admin_url( 'admin-ajax.php');
 		if(isset($_GET['dev'])){
@@ -396,12 +299,13 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 		$ajax_url = add_query_arg('db', substr($va_current_db_name, 3), $ajax_url);
 		
 		$ajax_object = array( 
-				'ajaxurl' => $ajax_url, 
-				'site_url' => get_site_url(1), 
-				'db' => substr($va_current_db_name, 3),
-				'va_staff' => $admin || $va_mitarbeiter,
-				'dev' => isDevTester()? '1': '0',
-				'user' => wp_get_current_user()->user_login
+			'ajaxurl' => $ajax_url, 
+			'site_url' => get_site_url(1), 
+			'db' => substr($va_current_db_name, 3),
+			'va_staff' => $admin || $va_mitarbeiter,
+			'dev' => isDevTester()? '1': '0',
+			'user' => wp_get_current_user()->user_login,
+	        'next_version' => $va_next_db_name
 		);
 		
 		if(isset($post)){
@@ -415,7 +319,7 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 		if(isset($post)){
 			if($post->post_title == 'KARTE' || $post->post_title == 'Karte-Test'){ //Interaktive Karte
 				if(isDevTester())
-					wp_enqueue_style('va_map_style', plugins_url('/im_config/map.css', __FILE__));
+					wp_enqueue_style('va_map_style', plugins_url('/im_config/va_map.css', __FILE__));
 					wp_enqueue_style ('jsTreeStyle', VA_PLUGIN_URL . '/lib/jstree/dist/themes/default/style.min.css');
 					wp_enqueue_script('jsTreeScript', VA_PLUGIN_URL . '/lib/jstree/dist/jstree.min.js', array('jquery'));
 			}
@@ -424,6 +328,7 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 			}
 			else if($post->post_title == 'Protokolle'){
 				wp_enqueue_script('jquery-ui-datepicker');
+				wp_enqueue_script('jquery-ui-dialog');
 				wp_enqueue_script('history.js', VA_PLUGIN_URL . '/lib/history.js/scripts/bundled/html5/jquery.history.js');
 				wp_enqueue_style('jquery_ui', plugins_url('plugin_interactive-map/lib/css/jquery-ui.min.css'));
 			}
@@ -436,6 +341,24 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 			else if($post->post_title == 'Datenbank-Dokumentation'){
 				va_enqueue_tabs();
 			}
+			else if ($post->post_title == 'Todos'){
+			    wp_enqueue_script('jquery-ui-dialog');
+			    wp_enqueue_style('im_jquery-ui-style');
+			}
+			else if ($post->post_title == 'DizMT Eingabe'){
+				IM_Initializer::$instance->enqueue_select2_library();
+			}
+			else if ($post->post_type == 'fragebogen'){
+				IM_Initializer::$instance->enqueue_select2_library();
+			}
+		}	
+	}
+	
+	function va_enqueue_scripts_footer (){
+		global $record_input_shortcode;
+		if($record_input_shortcode){
+			IM_Initializer::$instance->enqueue_gui_elements();
+			wp_localize_script('toolsSkript', 'ajaxurl', admin_url('admin-ajax.php'));
 		}
 	}
 	
@@ -466,10 +389,18 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 			wp_enqueue_script('lex_typifiy_script', plugins_url('/backend/typification/lex.js', __FILE__));
 			wp_enqueue_script('typifiy_script', plugins_url('/backend/typification/util.js', __FILE__));
 		}
+		else if ($hook === 'verba-alpina_page_base_types'){
+			IM_Initializer::$instance->enqueue_chosen_library();
+			IM_Initializer::$instance->enqueue_gui_elements();
+			wp_enqueue_script('typifiy_script', plugins_url('/backend/typification/util.js', __FILE__));
+		}
 		else if ($hook === 'verba-alpina_page_konzeptbaum'){
 			IM_Initializer::$instance->enqueue_gui_elements();
 			wp_enqueue_style ('jsTreeStyle', VA_PLUGIN_URL . '/lib/jstree/dist/themes/default/style.min.css');
 			wp_enqueue_script('jsTreeScript', VA_PLUGIN_URL . '/lib/jstree/dist/jstree.min.js', array('jquery'));
+			global $va_xxx;
+			$parents = $va_xxx->get_results('SELECT Id_Kategorie, Id_Ueberkategorie FROM Konzepte_Kategorien WHERE Id_Ueberkategorie IS NOT NULL', ARRAY_N);
+			wp_localize_script('jsTreeScript', 'PARENTS', va_two_dim_to_assoc($parents));
 		}
 		else if ($hook === 'verba-alpina_page_transkription'){
 			if(isDevTester()){//TODO remove
@@ -494,6 +425,12 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 			IM_Initializer::$instance->enqueue_select2_library();
 			IM_Initializer::$instance->enqueue_chosen_library();
 			IM_Initializer::$instance->enqueue_gui_elements();
+		}
+		else if ($hook === 'verba-alpina_page_test'){
+			enqueuePEG();
+		}
+		else if ($hook === 'tools_page_va_tools_emails'){
+			wp_enqueue_script('tablesorter.js', VA_PLUGIN_URL . '/lib/jquery.tablesorter.min.js');
 		}
 	}
 	
@@ -530,7 +467,7 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 		
 		if($type == 'page'){
 			global $Ue;
-			return isset($Ue[$title]) && $Ue[$title] != ''? $Ue[$title] : $title;
+			return isset($Ue[$title]) && $Ue[$title] != ''? ucfirst($Ue[$title]) : $title;
 		}
 		
 		if($type == 'ethnotext'){
@@ -595,7 +532,7 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 		
 		$dbuser = $login_data[0];
 		$dbpassw = $login_data[1];
-		$dbhost = 'gwi-sql.gwi.uni-muenchen.de:3311';
+		$dbhost = $login_data[2];
 		
 		global $va_xxx;
 		//Va_xxx data base, used for all queries that have to be placed in the current working version
@@ -603,15 +540,24 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 		$va_xxx->show_errors();
 		
 		global $va_current_db_name;
+		global $va_next_db_name;
+		
+		$max_version = $va_xxx->get_var('SELECT MAX(Nummer) FROM Versionen');
+		$va_next_db_name = va_increase_version($max_version);
 		
 		if(is_user_logged_in()){
 			$va_current_db_name = 'va_xxx';
 		}
 		else {
-			$va_current_db_name = 'va_' . $va_xxx->get_var('SELECT MAX(Nummer) FROM Versionen');
+			$va_current_db_name = 'va_' . $max_version;
 		}
 		if(isset($_GET['db'])){
 			$va_current_db_name = 'va_' . $_GET['db'];
+		}
+		
+		if(isset($_GET['page_id']) && !isset($_GET['db'])){
+			header('Location: ' . add_query_arg('db', substr($va_current_db_name, 3), get_permalink()));
+			exit;
 		}
 		
 		global $vadb;
@@ -641,6 +587,8 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 			global $va_playground;
 			$va_playground = new wpdb($va_xxx->dbuser, $va_xxx->dbpassword, 'va_playground', $va_xxx->dbhost);
 			$va_playground->show_errors();
+			
+			add_shortcode('todos', function ($attr){return va_todo_page($attr['person']);}); //pages/todos.php
 		}
 		
 		
@@ -657,7 +605,9 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 		add_shortcode('internePub', function ($attr) {return intPub ();}); //publikationen.php
 		add_shortcode('kommentare', 'comment_list'); //pages/comments.php
 		add_shortcode('echo', 'va_echo_page');//publikation.php
+		add_shortcode('showCodepages', 'va_codepage_page');//codepage.php
 		add_shortcode('csgraph', 'va_graph_page');//cs_graph.php
+		add_shortcode('livegraph', 'va_live_graph_page'); //live_graph.php
 		add_shortcode('showBib', 'show_bib_page');//pages/bib.php
 		add_shortcode('showConceptIllustrations', 'show_concept_images'); //pages/concept_images.php
 		
@@ -673,6 +623,16 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 		
 		if($va_mitarbeiter || $admin){
 			add_shortcode('overview_app', 'overview_app_page');
+			add_shortcode('recordInput', function ($attr){
+				if(!isset($attr['stimulus']) || !isset($attr['informant']))
+					return 'Stimulus or informant missing!';
+
+					return va_record_input_for_concept(
+							$attr['stimulus'], 
+							$attr['informant'], 
+							(isset($attr['classification'])? $attr['classification']: null),
+							isset($attr['shownotes']) && $attr['shownotes'] == 'true');
+			});
 		}
 		
 		//Includes
@@ -694,6 +654,7 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 		include_once('pages/personen.php');
 		
 		include_once('pages/glossar.php');
+		include_once('pages/codepage.php');
 		include_once('pages/comments.php');
 		include_once('backend/translate.php');
 		include_once('pages/publikationen.php');
@@ -704,6 +665,7 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 		
 		if(isDevTester()){
 			include_once('backend/transcription/transcription.php');
+			include_once('backend/auto/tokenization.php');
 		}
 		else {
 			include_once('transkription/main.php');
@@ -711,6 +673,7 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 		
 		include_once('backend/typification/lex.php');
 		include_once('backend/typification/util.php');
+		include_once('backend/typification/base.php');
 		
 		include_once('backend/auto/tokenize.php');
 		include_once('backend/auto/kml.php');
@@ -727,22 +690,29 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 		
 		include_once('pages/admin_table.php');
 		include_once('pages/cs_graph.php');
+		include_once('pages/live_graph.php');
 		
 		if($va_mitarbeiter || $admin){
 			include_once('pages/app_overview.php');
 			include_once('backend/cs_emails.php');
 			include_once('backend/auto/import_bsa.php');
+			include_once('pages/record_input.php');
 		}
 		
 		if(isDevTester()){
-			include_once('im_config/map.php');
+		    include_once('pages/todos.php');
+		    
+			include_once('im_config/va_map.php');
 			include_once('im_config/db.php'); //TODO get dev-tester running for AJAX calls!!!
 			
 			include_once('backend/glossar_errors.php');
+			include_once('backend/check_tokens.php');
 			include_once('test.php');
 			include_once('backend/auto/clapie.php');
 			include_once('backend/auto/tagung_to_kit.php');
 		}
+		
+		include_once('acf_groups/questionnaire.php');
 	}
 	
 		
@@ -766,6 +736,7 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 		add_submenu_page('glossar', 'Übersetzung Oberfläche', 'Übersetzung Oberfläche', 'verba_alpina', 'transl', 'va_translation_page'); 
 		add_submenu_page('glossar', 'Konzeptbaum', 'Konzeptbaum', 'va_concept_tree_read', 'konzeptbaum', 'konzeptbaum'); 
 		add_submenu_page('glossar', __('Typification', 'verba-alpina'), __('Typification', 'verba-alpina'), 'va_typification_tool_read', 'typification', 'lex_typification');
+		add_submenu_page('glossar', 'Basistypen bearbeiten', 'Basistypen bearbeiten', 'va_typification_tool_read', 'base_types', 'va_edit_base_type_page');
 		
 		add_menu_page('Tools','Tools', 'verba_alpina', 'va_tools', function (){echo '';});
 		add_submenu_page('va_tools', 'Tools', 'SQL -> KML', 'verba_alpina', 'va_tools_kml', 'kml_transform');
@@ -778,6 +749,8 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 			add_submenu_page('va_tools', 'Tools','Bibliographie', 'verba_alpina', 'va_tools_bib', 'itg_create_menu_page');
 			add_submenu_page('va_tools', 'Tools', 'Tokenisierung', 'verba_alpina', 'va_tools_tok', 'tok_page');
 			add_submenu_page('va_tools', 'Tools', 'Tagung -> KIT', 'verba_alpina', 'va_tools_kit', 'va_kit_transform');
+			add_submenu_page('va_tools', 'Tools', 'Tokenisierung verifizieren', 'verba_alpina', 'va_tools_check_tokens', 'va_check_tokens');
+			add_submenu_page('va_tools', 'Tools', 'Tokenisierer testen', 'verba_alpina', 'va_tools_check_tokenizer', 'va_check_tokenizer');
 		}
 		
 		add_menu_page(__('Data base', 'verba-alpina'), __('Data base', 'verba-alpina'), 'data-base', 'dba', 'dba');
@@ -823,12 +796,6 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 				window.location = "<?php echo get_admin_url() . "post.php?post=$id&action=edit"; ?>";
 			</script>
 		<?php
-	}
-	
-	function loginFunc ($user_login, $user){
-		$roles = $user->roles;
-		$admin = in_array("administrator", $roles);
-		$va_mitarbeiter = in_array('projektmitarbeiter', $roles);
 	}
 	
 	function dba (){
@@ -1062,6 +1029,19 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 			));
 			echo 'CS Graph<br />';
 		}
+
+		$page = get_page_by_title('LIVEGRAPH');
+		if($page == null){
+			wp_insert_post(array (
+					'post_title' => 'LIVEGRAPH',
+					'post_content' => '[livegraph]',
+					'post_status' => 'publish',
+					'post_type' => 'page',
+					'page_template' => 'template_empty.php',
+					'post_autor' => get_current_user_id()
+			));
+			echo 'Live Graph<br />';
+		}
 		
 		$page = get_page_by_title('CONCEPT_IMAGES');
 		if($page == null){
@@ -1074,6 +1054,19 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 					'post_autor' => get_current_user_id()
 			));
 			echo 'CONCEPT_IMAGES<br />';
+		}
+		
+		$page = get_page_by_title('CODEPAGE');
+		if($page == null){
+			wp_insert_post(array (
+					'post_title' => 'CODEPAGE',
+					'post_content' => '[showCodepages]',
+					'post_status' => 'publish',
+					'post_type' => 'page',
+					'page_template' => 'template_empty.php',
+					'post_autor' => get_current_user_id()
+			));
+			echo 'CODEPAGE<br />';
 		}
 		
 		$page = get_page_by_title('Home');
@@ -1089,5 +1082,45 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 			echo 'Home<br />';
 		}
 	}
+}
+
+function va_increase_version ($old){
+    if (substr($old, -1) == '2'){
+        return (intval(substr($old, 0, -1)) + 1) . '1';
+    }
+    else {
+        return substr($old, 0, -1) . '2';
+    }
+}
+
+function va_produce_external_map_link ($atlas, $map, $num, $informant){
+	$attributes = ' style="text-decoration: underline;" target="_BLANK" ';
+	
+	if($atlas == 'AIS'){
+		if($num == '1'){
+			$link = 'http://www3.pd.istc.cnr.it/navigais-web/?map=' . $map . '&point=' . $informant;
+		}
+		else {
+			$link = 'http://www3.pd.istc.cnr.it/navigais-web/?map=' . $map;
+		}
+		return 'G. Tisato - NavigAIS - <a' . $attributes . 'href="' . $link . '">' . $link . '</a>';
+	}
+	
+	if($atlas == 'ALF'){
+		if(is_numeric($map)){
+			$number = str_pad($map, 4, '0', STR_PAD_LEFT);
+		}
+		else if (in_array(substr($map, -1), ['A', 'B'])){
+			$number = str_pad(substr($map, 0, -1), 4, '0', STR_PAD_LEFT) . substr($map, -1);
+		}
+		else {
+			return null; //No maps for supplements
+		}
+		$link = 'http://cartodialect.imag.fr/cartoDialect/seadragon.jsp;jsessionid=2E5E1A6B90A34C3F4ACD855287419057?carte=CarteALF' . $number . '&width=4852&height=5912';
+		
+		return '<a' . $attributes . 'href="' . $link . '">Link</a>';
+	}
+	
+	return null;
 }
 ?>

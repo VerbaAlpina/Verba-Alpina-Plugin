@@ -113,7 +113,7 @@
 			if(pos != -1){
 				id_stimulus = value.substring(0, pos);
 				karte = value.substring(pos + 1);
-				parent.frames[0].location.href = url + 'scans/' + karte.replace('#', '%23');
+				parent.frames[0].location.href = url + 'scans/' + karte.substring(0, karte.indexOf("#")) + "/" + karte.replace('#', '%23');
 				if(karte.substring(0,3) == "SLA"){
 					parent.frames[1].location.href = url + 'transkription/TranskriptionsregelnSLA.pdf';
 				}

@@ -225,8 +225,8 @@ $hilfeProblem = "Dieser Button überspringt den aktuellen Informanten und markie
 	 	'new_values_info' => new IM_Row_Information('Konzepte', array(
 	 			new IM_Field_Information('Name_D', 'V', false),
 	 			new IM_Field_Information('Beschreibung_D', 'V', true),
-	 			new IM_Field_Information('Kategorie', 'E', true),
-	 			new IM_Field_Information('Hauptkategorie', 'E', true)
+	 	        new IM_Field_Information('Taxonomie', 'V', false),
+	 			new IM_Field_Information('Id_Kategorie AS Kategorie', 'F{CONCAT(Hauptkategorie, "/", Kategorie)}', true)
 	 	), 'Angelegt_Von')
 	 )) .
 	 "
@@ -276,7 +276,7 @@ function getKartenliste ($atlas){
 			WHERE Erhebung = '$atlas'
 			ORDER BY special_cast(karte)";
 	
-	$scans = listdir($scan_dir, $atlas . '#');
+	$scans = listdir($scan_dir . $atlas . '/', $atlas . '#');
 	
 	$result= $va_xxx->get_results($sql, ARRAY_A);
 	foreach($result as $row) {

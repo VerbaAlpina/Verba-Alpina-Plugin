@@ -8,6 +8,20 @@ function va_graph_page (){
 	
 	$data = $va_xxx->get_results("
 			SELECT 
+				Day, 
+				Date, 
+				SUM(COUNT_Sonstige) AS COUNT_Sonstige, 
+				SUM(COUNT_SI) AS COUNT_SI, 
+				SUM(COUNT_IT) AS COUNT_IT, 
+				SUM(COUNT_FR) AS COUNT_FR, 
+				SUM(COUNT_DE) AS COUNT_DE, 
+				SUM(COUNT_CH) AS COUNT_CH, 
+				SUM(Count_AT) AS COUNT_AT, 
+				SUM(Gesamt) AS Gesamt, 
+				SUM(Personen) AS Personen, 
+				GROUP_CONCAT(Name, ':', Wert, ':', Gesamt) AS Gemeinden
+			FROM
+			(SELECT 
 				DATE_FORMAT(Erfasst_Am, '%a %b %d %Y') AS Day, 
 				Date(Erfasst_Am) AS Date, 
 				sum(IF(Wert NOT IN ('svn','aut','deu','fra','ita','che'), 1, 0)) as COUNT_Sonstige,
@@ -18,20 +32,24 @@ function va_graph_page (){
 				sum(IF(Wert = 'che', 1, 0)) as COUNT_CH,
 				sum(IF(Wert = 'aut', 1, 0)) as COUNT_AT,
 				count(*) as Gesamt,
-				count(DISTINCT Id_Informant) as Personen
+				count(DISTINCT Id_Informant) as Personen,
+				Name,
+				Wert,
+				count(*) AS COUNT_Comm
 			FROM Aeusserungen JOIN Informanten USING (Id_Informant) JOIN Orte ON Id_Ort = Id_Gemeinde JOIN Orte_Tags USING (Id_Ort)
 			WHERE Id_Stimulus = 90322 AND Tag = 'LAND' AND Erfasst_Am > '$start_date'
-			GROUP BY DATE(Erfasst_Am)
-			ORDER BY DATE(Erfasst_Am) ASC", ARRAY_A);
+			GROUP BY DATE(Erfasst_Am), Id_Gemeinde) c
+			GROUP BY Date
+			ORDER BY Date ASC", ARRAY_A);
 	
 	$num_days = $va_xxx->get_var("SELECT datediff(NOW(), '$start_date')");
 	
-	$reports = $va_xxx->get_results('SELECT Datum, Bericht FROM Berichte',ARRAY_A);
+	$reports = $va_xxx->get_results("SELECT Datum, Bericht FROM Berichte WHERE Datum >  '$start_date' ORDER BY Datum", ARRAY_A);
 	
 	wp_localize_script('toolsSkript', 'CS_DATA', $data);
 	wp_localize_script('toolsSkript', 'REPORTS', $reports);
 ?>
-<div style="overflow: auto" id="graphdiv">
+<div style="overflow-x: auto; overflow-y: hidden;" id="graphdiv">
 <svg id="graph" style="width: <?php echo $num_days * $bar_width;?>px; height: 700px;"></svg>
 </div>
 
@@ -39,8 +57,9 @@ function va_graph_page (){
 
 <script type="text/javascript">
 
-jQuery(function (){
+var colorMapping = {"Sonstige" : "black", "svn": "red", "ita" : "purple", "fra": "lightblue", "deu" : "green", "che" : "gold", "aut" : "darkblue"}
 
+jQuery(function (){
 	jQuery("#graphdiv").scrollLeft(<?php echo $num_days * $bar_width;?>);
 
 	jQuery("#page").css("max-width", "95%");
@@ -134,6 +153,7 @@ jQuery(function (){
 	  .selectAll("rect")
 	  .data(function(d) { return d; })
 	  .enter().append("rect")
+	  	.attr("data-comm", function(d) { return commWindow(d.data["Gemeinden"]); })
 	    .attr("x", function(d) { return x(d.data["Day"]); })
 	    .attr("y", function(d) { return isNaN(d[1])? 0 : y(d[1]); })
 	    .attr("width", x.bandwidth())
@@ -166,21 +186,38 @@ jQuery(function (){
 	    .attr("width", function (d){return d["Report"] == null? 0 : 1;})
 	    .attr("height", 300);
 		
+	var texts = 
 	g.append("g")
 	  .attr("transform", "translate(0, " + (height - 305) + ")")
 	  .selectAll("g")
 	  .data(CS_DATA_NEW)
 	  .enter().append("g")
-	    .attr("transform", function(d) {return "translate(" + x(d["Day"]) + ",0)"; })
-		.append("text")
-			.attr("y", 0)
-			.attr("x", 0)
-			.text(function (d){return d["Report"];})
-			.attr("transform", "rotate(45)")
-			.attr("font-family", "sans-serif")
-			.attr("font-size", 12)
-			.attr("text-anchor", "end");
-	
+	    .attr("transform", function(d) {return "translate(" + x(d["Day"]) + ",0)"; });
+
+	texts.append("rect");
+	    
+	texts.append("text")
+		.attr("y", 0)
+		.attr("x", 0)
+		.text(function (d){return d["Report"];})
+		.attr("transform", "rotate(45)")
+		.attr("font-family", "sans-serif")
+		.attr("font-size", 12)
+		.attr("text-anchor", "end");
+
+	var i = 0;
+	texts.selectAll("text").each (function (d){
+		CS_DATA_NEW[i++].bb = this.getBBox();
+	});
+
+	texts.selectAll("rect")
+		.attr("x", function(d) {return d.bb.x;})
+		.attr("y", function(d) {return d.bb.y;})
+		.attr("width", function(d) {return d.bb.width;})
+		.attr("height", function(d) {return d.bb.height;})
+		.style("fill", "white")
+		.attr("transform", "rotate(45)");
+
 
 	//Legende
 	var legend = g.append("g")
@@ -225,9 +262,51 @@ jQuery(function (){
     	.text("Anzahl unterschiedlicher Nutzer")
     	.attr("x", 40)
     	.attr("y", (countries.length + 1) * 19 - 30)
-    	.attr("dy", "0.32em")
+    	.attr("dy", "0.32em");
 
+    jQuery("rect").qtip({
+		"content" : {
+			"attr" : "data-comm",
+			title: {
+				button: true // Close button
+			}
+		},
+		"show": {
+			event: "mousedown",
+			solo: true
+		},
+		"events": {
+			render:	function(event, api) {
+				api.elements.target.bind('click', function() {
+					api.set('hide.event', false);
+				});
+			}
+		},
+		"position" : {
+	        target: 'mouse',
+	        adjust: { mouse: false }
+	    }
+    });
 });
+
+function commWindow (str){
+	if(!str)
+		return "";
+	
+	var comms = str.split(",").map(x => x.split(":"));
+	var sum = 0;
+	
+	var result = "<div><table style='border: 1px solid black; border-collapse: separate;'>";
+	for (var i = 0; i < comms.length; i++){
+		var col = colorMapping[comms[i][1]];
+		result += "<tr style='background: " + col + "; padding: 3px; color: " + (col == "gold"? "black": "white") + ";'><td style='padding: 3px;'>" + comms[i][0] + "</td><td style='padding: 3px;'>" + comms[i][2] + "</td></tr>";
+		sum += (comms[i][2] * 1);
+	}
+
+	result += "<tr><td style='border-top: 1px solid black; padding: 3px;'></td><td style='border-top: 1px solid black; padding: 3px;'>" + sum + "</td></tr>";
+		
+	return result + "</table></div>";
+}
 </script>
 
 <br />

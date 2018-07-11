@@ -1,46 +1,36 @@
 <?php
 function wissPub (){
-	global $va_xxx;
+	global $vadb;
 	global $Ue;
 	
-	$pub_thesis = $va_xxx->get_results("SELECT Autor, Titel, Jahr, Ort, Band, Enthalten_In, Seiten, Verlag, Download_URL FROM Bibliographie WHERE VA_Publikation = '1' AND Abschlussarbeit ORDER BY Jahr * 1 ASC", ARRAY_A);
-	$pub_rest = $va_xxx->get_results("SELECT Autor, Titel, Jahr, Ort, Band, Enthalten_In, Seiten, Verlag, Download_URL FROM Bibliographie WHERE VA_Publikation = '1' AND NOT Abschlussarbeit ORDER BY Jahr * 1 ASC", ARRAY_A);
+	$pub_thesis = $vadb->get_results("SELECT Autor, Titel, Jahr, Ort, Band, Enthalten_In, Seiten, Verlag, Download_URL FROM Bibliographie WHERE VA_Publikation = '1' AND Abschlussarbeit ORDER BY Jahr * 1 DESC", ARRAY_A);
+	$pub_rest = $vadb->get_results("SELECT Autor, Titel, Jahr, Ort, Band, Enthalten_In, Seiten, Verlag, Download_URL FROM Bibliographie WHERE VA_Publikation = '1' AND NOT Abschlussarbeit ORDER BY Jahr * 1 DESC", ARRAY_A);
 	?>
 	
 	<div class="entry-content">
-		<h2>
-			<?php echo $Ue['ABSCHLUSSARBEITEN']; ?>
-		</h2>
 		
 		<br />
-		
-		<?php
-		foreach ($pub_thesis as $p){
-			echo '<li>';
-			echo va_format_bibliography($p['Autor'], $p['Titel'], $p['Jahr'], $p['Ort'], $p['Download_URL'], $p['Band'], $p['Enthalten_In'], $p['Seiten'], $p['Verlag'], false);
-			echo '</li>';
-			echo '<br />';
-		}
-		?>
-		
-		
-		<h2>
-			<?php echo $Ue['WEITERE_PUB']; ?>
-		</h2>	
-	
 		<br />
-	
+		
 		<ul>
 		<?php
 		
 			foreach ($pub_rest as $p){
 				echo '<li>';
-				echo va_format_bibliography($p['Autor'], $p['Titel'], $p['Jahr'], $p['Ort'], $p['Download_URL'], $p['Band'], $p['Enthalten_In'], $p['Seiten'], $p['Verlag'], false);
+				
+				$link = $p['Download_URL'];
+				$parts = parse_url($link);
+				if($parts['host'] == $_SERVER['HTTP_HOST']){
+					global $va_current_db_name;
+					$link = add_query_arg('db', substr($va_current_db_name, 3), $link);	
+				}
+				
+				echo va_format_bibliography($p['Autor'], $p['Titel'], $p['Jahr'], $p['Ort'], $link, $p['Band'], $p['Enthalten_In'], $p['Seiten'], $p['Verlag'], false);
 				echo '</li>';
 				echo '<br />';
 			}
 			
-			if(is_multisite())
+			/*if(is_multisite())
 				switch_to_blog(1);
 			
 			$va_posts = get_posts(array('category_name' => 'VA_Beitrag'));
@@ -57,9 +47,24 @@ function wissPub (){
 			}
 			
 			if(is_multisite())
-				restore_current_blog();
+				restore_current_blog();*/
 		?>
 		</ul>
+		
+		<h2>
+			<?php if(count($pub_thesis) > 0) echo $Ue['ABSCHLUSSARBEITEN']; ?>
+		</h2>
+		
+		<br />
+		
+		<?php
+		foreach ($pub_thesis as $p){
+			echo '<li>';
+			echo va_format_bibliography($p['Autor'], $p['Titel'], $p['Jahr'], $p['Ort'], $p['Download_URL'], $p['Band'], $p['Enthalten_In'], $p['Seiten'], $p['Verlag'], false);
+			echo '</li>';
+			echo '<br />';
+		}
+		?>
 	</div>
 	<?php
 }
@@ -147,9 +152,9 @@ function infoMat (){
 		
 		<div style="margin-bottom: 10px;">
 
-			<div class="entry-small_head_indent" ><a href="https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/verbaalpina_pressetext_deutsch.pdf"><?php echo $Ue['PRESSTEXT_DE'];?></a></div>
-				<div class="entry-small_head_indent" ><a href="https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/verbaalpina_pressetext_italienisch.pdf"><?php echo $Ue['PRESSTEXT_ITA'];?></a></div>
-					<div class="entry-small_head_indent" ><a href="https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/verbaalpina_pressetext_franzoesisch.pdf"><?php echo $Ue['PRESSTEXT_FR'];?></a></div>
+			<div class="entry-small_head_indent" ><a href="https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/VerbaAlpina_Pressetext_deutsch_VA2.pdf"><?php echo $Ue['PRESSTEXT_DE'];?></a></div>
+				<div class="entry-small_head_indent" ><a href="https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/VerbaAlpina_Pressetext_italienisch_VA2.pdf"><?php echo $Ue['PRESSTEXT_ITA'];?></a></div>
+					<div class="entry-small_head_indent" ><a href="https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/VerbaAlpina_Pressetext_franzoesisch_VA2.pdf"><?php echo $Ue['PRESSTEXT_FR'];?></a></div>
 
 	    </div>				
 

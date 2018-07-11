@@ -12,28 +12,6 @@ function va_ajax_overview (&$db){
 		case 'atlases':
 			va_overview_build_atlases_concepts();
 			break;
-			
-		case 'base_concepts':
-			va_overview_build_base_concepts();
-			break;
-	}
-}
-
-function va_overview_build_base_concepts (){
-	global $va_xxx;
-	$results = $va_xxx->get_results(
-			"SELECT IF(Name_D != '', Name_D, Beschreibung_D) as Konzept, Kategorie
-						FROM Konzepte
-						WHERE Basiskonzept
-						ORDER BY Kategorie ASC, Konzept ASC
-						", ARRAY_A);
-	$curr_cat = 'new';
-	foreach ($results as $result){
-		if($result['Kategorie'] != $curr_cat){
-			$curr_cat = $result['Kategorie'];
-			echo '<h1>' . $curr_cat . '</h1>';
-		}
-		echo $result['Konzept'] .'<br />';
 	}
 }
 

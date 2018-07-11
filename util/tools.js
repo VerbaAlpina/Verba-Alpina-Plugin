@@ -116,15 +116,33 @@ function lengthNull (a){
 *
 * @param {jQuery} parent
 * 
-* @returns {undefined}
+* @returns {Array<Object>}
 */
 function addBiblioQTips(parent){
-	var elements = parent.find(".bibl");
+	return addBibLikeQTips(parent, ["bibl", "vaabr", "sabr"], ["blue", "light", "light"], ["", "ABR_", undefined]);
+}
+
+function addBibLikeQTips (parent, classNames, colors, prefixes){
+	var elements = parent.find(classNames.map(x => "." + x).join(","));
+	var result = [];
 	elements.each(/** @this{Element} */ function (){
+		var index;
+		for (index = 0; index < classNames.length; index++){
+			if(jQuery(this).hasClass(classNames[index]))
+				break;
+		}
 		try {
 			jQuery(this).qtip({
 				content: {
-					text: jQuery('#' + jQuery(this).attr("data-bibl")).clone(),
+					text: function (){
+						var element = jQuery('#' + prefixes[index] + jQuery(this).attr("data-" + classNames[index]));
+						if(element.length > 0){
+							return element.clone().removeAttr("id");
+						}
+						else {
+							return jQuery(this).attr("title");
+						}
+					},
 					title: {
 						button: true // Close button
 					}
@@ -134,7 +152,7 @@ function addBiblioQTips(parent){
 					solo: true
 				},
 				style: {
-					classes : 'qtip-blue'
+					classes : 'qtip-' + colors[index]
 				},
 				events: {
 					render:
@@ -157,24 +175,32 @@ function addBiblioQTips(parent){
 					}
 				}
 			});
+			
+			result.push(jQuery(this).qtip("api"));
 		}
 		catch (e){
 			console.log(e);
 		}
 	});
-	
-	return elements.qtip("api");
+
+	return result;
 }
 
 function addCopyButtonSupport () {
 	new Clipboard('.copyButton', {
 	    text: function(trigger) {
-	        return trigger.getAttribute('data-content');
+	    	var regex = /<br\s*[\/]?>/gi;
+	        return jQuery(trigger).data('content').replace(regex, "\n").replace(/&nbsp;/g, " ");
 	    }
 	});
 }
 
-
+/**
+ * 
+ * @param {string|Array<string>} newParam
+ * @param {string|Array<string>} value
+ * @returns
+ */
 function reloadPageWithParam(newParam, value){
 	var queryStr = location.search.substring(1);
 	var pex = /([^&=]+)=([^&]*)/g;
@@ -183,10 +209,23 @@ function reloadPageWithParam(newParam, value){
 	while (m = pex.exec(queryStr)){
 		params[decodeURIComponent(m[1])] = decodeURIComponent(m[2]);
 	}
-	if(value == undefined)
-		delete params[newParam];
-	else
-		params[newParam] = value;
+	
+	var newParams = {};
+	if (Array.isArray(newParam)){
+		for (var i = 0; i < newParam.length; i++){
+			newParams[newParam[i]] = value[i];
+		}
+	}
+	else {
+		newParams[newParam] = value;
+	}
+	
+	for (var key in newParams){
+		if(newParams[key] == undefined)
+			delete params[key];
+		else
+			params[key] = newParams[key];
+	}
 	
 	location.search = jQuery.param(params);
 }
@@ -200,7 +239,7 @@ function addLock (table, value, callback, dbname){
 		"value" : value,
 		"dbname" : dbname
 	};
-	jQuery.post(ajaxurl, data, callback);
+	jQuery.post(ajax_object.ajaxurl, data, callback);
 }
 
 function removeLock (table, value, callback, dbname){
@@ -223,7 +262,7 @@ function removeLock (table, value, callback, dbname){
 			"dbname" : dbname
 		};
 	}
-	jQuery.post(ajaxurl, data, callback);
+	jQuery.post(ajax_object.ajaxurl, data, callback);
 }
 
 /**
@@ -331,7 +370,7 @@ function removeDiacritics (str) {
 
 function removeDiacriticsPlusSpecial (str){
 	var result = removeDiacritics(str);
-	return result.replace(/[^a-zA-Z0-9]/g, "");
+	return result.replace(/[^a-zA-Z0-9 ]/g, "");
 }
 
 function arraysEqual(a, b) {
@@ -423,4 +462,53 @@ function escapeHtml (string) {
   return String(string).replace(/[&<>"'`=\/]/g, function (s) {
     return entityMap[s];
   });
+}
+
+function todoButtons (){
+	jQuery("input.va_add_todo_button").click(function (){
+		jQuery(".va_todo_popup").dialog({
+			"width": 800,
+			"height" : 200,
+			"title" : "Todo hinzufügen"
+		}).find("select").val("-1").prop("disabled", false);
+		jQuery(".va_todo_popup").find("input[type=text]").val("");
+	});
+	
+	jQuery(".va_todo_popup #va_submit_todo_button").click(function (){
+		var dialog = jQuery(this).closest("div.va_todo_popup");
+		var parentVal = dialog.find(".va_todo_parent_input").val();
+		var textVal = dialog.find(".va_todo_text_input").val();
+		var context = dialog.find(".va_todo_context_input option:selected").text();
+		jQuery.post(ajax_object.ajaxurl, {
+			"action" : "va",
+			"namespace" : "util",
+			"query" : "addTodo",
+			"text" : textVal,
+			"parent" : parentVal,
+			"context" : context,
+			"owner" : dialog.find(".va_todo_owner_input").val()
+		}, function (response){
+			try {
+				data = JSON.parse(response);
+				
+				dialog.dialog("close");
+				jQuery(document).trigger("va_todos_new", {"row" : data["row"], "option" : data["option"], "parent" : parentVal, "context" : context});
+			}
+			catch (e){
+				alert(response + "\n\n" + e);
+			}
+		});
+	});
+
+	jQuery(".va_todo_popup .va_todo_parent_input").change(function (){
+		var cselect = jQuery(this).closest("div.va_todo_popup").find(".va_todo_context_input")
+		if(jQuery(this).val() == -1){
+			cselect.val("-1");
+			cselect.prop("disabled", false);
+		}
+		else {
+			cselect.val(jQuery(this).find("option:selected").data("context-simple"));
+			cselect.prop("disabled", true);
+		}
+	});
 }

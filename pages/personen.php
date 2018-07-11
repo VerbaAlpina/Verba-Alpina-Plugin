@@ -5,6 +5,12 @@ function va_show_team () {
 
 ?>
 
+<script type="text/javascript">
+	jQuery(function (){
+		addBiblioQTips(jQuery(".entry-content"));
+	});
+</script>
+
 <div class="entry-content">
 	<div class="table-responsive">
 		<table style="width:100%; "  class="easy-table easy-table-default tablesorter  ">
@@ -19,18 +25,20 @@ function va_show_team () {
 			<tbody>
 <?php
 	$personen = $va_xxx->get_results("
-		SELECT Name, Vorname, Telefon, EMail, Link, Art, Fachgebiet 
+		SELECT Name, Vorname, Telefon, EMail, Link, Art, Fachgebiet, Kuerzel 
 		FROM Personen JOIN Stellen USING (Kuerzel)
 		WHERE Startdatum < NOW() AND (Enddatum IS NULL OR Enddatum > NOW()) 
 		ORDER BY Name ASC", ARRAY_A);
 	foreach ($personen as $person){
+
 		?>
+
 				<tr>
 					<td>
 						<?php 	if($person['Link'] == '')
-									echo $person['Name'] . ', ' . $person['Vorname'];
+									echo $person['Name'] . ', ' . $person['Vorname']." (".$person['Kuerzel'].")";
 								else
-									echo "<a href='" . va_translate_url($person['Link']) . "'>{$person['Name']}, {$person['Vorname']}</a>";
+									echo "<a href='" . va_translate_url($person['Link']) . "'>".$person['Name'] . ', ' .$person['Vorname']." (".$person['Kuerzel'].")</a>";
 						?>
 					</td>
 					<td><?php echo ucfirst(va_translate($person['Art'], $Ue)) . ($person['Fachgebiet']? ' (' . va_translate($person['Fachgebiet'], $Ue) . ')' : ''); ?></td>
@@ -76,7 +84,7 @@ function va_show_team () {
 								}, $sub_list);
 								$task = $sub_list[0] . ($sub_list[1]? ' (' . $sub_list[1] . ')': '');
 							}
-							echo implode(', ', $task_list);
+							echo va_add_abrv(implode(', ', $task_list));
 							?>
 						</td>
 					</tr>
@@ -151,9 +159,25 @@ function va_show_team () {
 }
 
 function partnerAnzeigen () {
+
 	global $va_xxx;
 	global $Ue;
+
+	$media_path = get_home_url() . '/wp-content/uploads/';
 ?>
+
+
+<script type="text/javascript">
+	jQuery(function (){
+
+		 jQuery(".clickable-row").click(function() {
+		 	var link = jQuery(this).data("href");
+		 	if(link!="")window.location = jQuery(this).data("href");
+		 });
+
+	});
+</script>
+
 
 <div class="entry-content">
 	<h3><?php echo $Ue['KOOPERATIONSPARTNER'];?></h3>
@@ -162,12 +186,25 @@ function partnerAnzeigen () {
 		<table style="width:100%; "  class="easy-table easy-table-default ">
 			<tbody>
 <?php
-	$partner = $va_xxx->get_results("SELECT Name, Link FROM Kooperationspartner WHERE Status='fix' ORDER BY Name ASC", ARRAY_N);
+	$partner = $va_xxx->get_results("SELECT Name, Link,Logo FROM Kooperationspartner WHERE Status='fix' ORDER BY Name ASC", ARRAY_N);
 	foreach ($partner as $pp){
+
+		if($pp[1]!="")echo '<tr class="clickable-row" data-href="'.$pp[1].'">';
+		else echo '<tr>';
 		?>
-				<tr>
-					<td> <?php echo $pp[0] ?></td>
-					<td><?php echo ($pp[1] == ''? '': "<a href='$pp[1]' target='_blank'>Link</a>");?></td>
+					<td style="vertical-align:middle"> <?php
+					 $path =  $media_path.$pp[2];
+					 $arr = explode('uploads',  $path);
+					 $path_test = $arr[1];
+
+					 if($path_test != "/")
+						 {
+						 	echo '<img style="width: 85px; vertical-align: middle;" src="'.$path.'">';
+						 } 
+					 ?>
+					 	
+					 </td>
+					<td style="vertical-align:middle"> <?php echo $pp[0] ?></td>
 				</tr>
 		<?php
 	}

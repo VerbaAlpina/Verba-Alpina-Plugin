@@ -24,7 +24,7 @@ function va_ajax_transcription (&$db){
 					WHERE Erhebung = '{$_POST['atlas']}'
 					ORDER BY special_cast(karte)";
 			
-			$scans = va_transcription_list_scan_dir($_POST['atlas'] . '#');
+			$scans = va_transcription_list_scan_dir($_POST['atlas']);
 			
 			$result= $db->get_results($sql, ARRAY_A);
 			foreach($result as $row) {
@@ -44,20 +44,20 @@ function va_ajax_transcription (&$db){
 		break;
 		
 		case 'get_new_row':
-			echo va_transcription_get_table_row($_POST['index']);
+			echo va_transcription_get_table_row($db, $_POST['index']);
 		break;
 	}
 }
 
 function va_transcription_list_scan_dir($atlas) {
 
-	$scan_dir = get_home_path() . 'dokumente/scans/';
 	$atlas = remove_accents($atlas);
+	$scan_dir = get_home_path() . 'dokumente/scans/' . $atlas . '/';
 	
 	if ($handle = opendir($scan_dir)) {
 		while (false !== ($file = readdir($handle))) {
 
-			if ($file != "." && $file != ".." && mb_strpos($file, $atlas) === 0) {
+			if ($file != "." && $file != ".." && mb_strpos($file, $atlas . '#') === 0) {
 				$pos_hash = mb_strpos($file, '#');
 				$pos_dot = mb_strpos($file, '.pdf');
 				$map = mb_substr($file, $pos_hash + 1, $pos_dot - $pos_hash - 1); 
@@ -79,6 +79,7 @@ function va_transcription_list_scan_dir($atlas) {
 					$listing[$map] = $file;
 				}
 			}
+			
 		}
 		closedir($handle);
 	}
@@ -99,7 +100,7 @@ function va_transcription_update_informant (&$db, $id_stimulus, $mode, $region){
 	}
 	
 	$sql = $db->prepare("
-	SELECT s.Erhebung, s.Karte, s.Nummer, s.Stimulus, i.Nummer as Informant_nummer, i.ortsname, s.Id_Stimulus, i.Id_Informant, a.Aeusserung, a.Id_Aeusserung, a.Klassifizierung, a.Ausdruck, a.Flexionsform, a.Erfasst_Von
+	SELECT s.Erhebung, s.Karte, s.Nummer, s.Stimulus, i.Nummer as Informant_nummer, i.ortsname, s.Id_Stimulus, i.Id_Informant, a.Aeusserung, a.Id_Aeusserung, a.Klassifizierung, a.Erfasst_Von
 	FROM `stimuli` s 
 		join informanten i using (Erhebung) 
 		left join aeusserungen a using (Id_Stimulus, Id_Informant)  
@@ -145,7 +146,7 @@ function va_transcription_update_informant (&$db, $id_stimulus, $mode, $region){
 			
 			$results[$index]['readonly'] = $mode == 'correct' && wp_get_current_user()->user_login !== $row['Erfasst_Von'] && $row['Erfasst_Von'] != '';
 			ob_start();
-			va_transcription_get_table_row($index, $mode == 'correct'? $row['Erfasst_Von'] : '', $results[$index]['readonly']);
+			va_transcription_get_table_row($db, $index, $mode == 'correct'? $row['Erfasst_Von'] : '', $results[$index]['readonly']);
 			$results[$index]['html'] = ob_get_clean();
 		}
 		
@@ -183,7 +184,7 @@ function va_transcription_delete_locks (&$db){
 	$db->query($sql);
 }
 
-function va_transcription_get_table_row ($index, $author = '', $readonly = false){
+function va_transcription_get_table_row (&$db, $index, $author = '', $readonly = false){
 
 	?>
 <tr id="inputRow<?php echo $index; ?>">
@@ -206,18 +207,71 @@ function va_transcription_get_table_row ($index, $author = '', $readonly = false
 		</select>
 	</td>
 
-	<td>
-		<select class="expression">
-			<option value="nominal"><?php _e('nominal', 'verba-alpina');?></option>
-			<option value="verbal"><?php _e('verbal', 'verba-alpina');?></option>
+	<!--<td>
+		<select class="statement_pos">
+			<?php 
+			$options = $enum_list = im_get_enum_values_list('Aeusserungen', 'POS', 'va_xxx');
+			foreach ($options as $option){
+				echo "<option value='$option'>$option</option>";
+			}
+			?>
 		</select>
 	</td>
 	
 	<td>
-		<span class="inflexionSpan" style="padding-left: 3px;">
-			<input type="checkbox" class="inflexion" /><?php _e('Inflexion form', 'verba-alpina'); ?>
-		</span>
+		<select class="statement_gender">
+			<?php 
+			$options = $enum_list = im_get_enum_values_list('Aeusserungen', 'Genus', 'va_xxx');
+			foreach ($options as $option){
+				echo "<option value='$option'>$option</option>";
+			}
+			?>
+		</select>
 	</td>
+	
+	<td>
+		<select class="statement_person">
+			<?php 
+			$options = $enum_list = im_get_enum_values_list('Aeusserungen', 'Person', 'va_xxx');
+			foreach ($options as $option){
+				echo "<option value='$option'>$option</option>";
+			}
+			?>
+		</select>
+	</td>
+	
+	<td>
+		<select class="statement_tense">
+			<?php 
+			$options = $enum_list = im_get_enum_values_list('Aeusserungen', 'Tempus', 'va_xxx');
+			foreach ($options as $option){
+				echo "<option value='$option'>$option</option>";
+			}
+			?>
+		</select>
+	</td>
+	
+	<td>
+		<select class="statement_mode">
+			<?php 
+			$options = $enum_list = im_get_enum_values_list('Aeusserungen', 'Modus', 'va_xxx');
+			foreach ($options as $option){
+				echo "<option value='$option'>$option</option>";
+			}
+			?>
+		</select>
+	</td>
+	
+	<td>
+		<select class="statement_number">
+			<?php 
+			$options = $enum_list = im_get_enum_values_list('Aeusserungen', 'Numerus', 'va_xxx');
+			foreach ($options as $option){
+				echo "<option value='$option'>$option</option>";
+			}
+			?>
+		</select>
+	</td>-->
 	
 	<td>
 		<select class="conceptList" data-placeholder="<?php _e('Choose Concept(s)', 'verba-alpina'); ?>" multiple style="width: 95%"></select>
@@ -243,8 +297,7 @@ function va_transcription_get_table_row ($index, $author = '', $readonly = false
 			?>
 		</span>
 	</td>
-</tr>
-<?php
+</tr><?php
 
 }
 ?>

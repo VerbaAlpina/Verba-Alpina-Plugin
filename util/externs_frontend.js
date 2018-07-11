@@ -6,7 +6,7 @@
 
 //Compare with https://core.trac.wordpress.org/ticket/25280
 /**
-* @type {{ajaxurl : string, db : string, site_url : string, va_staff : string, dev : string}}
+* @type {{ajaxurl : string, db : string, site_url : string, va_staff : string, dev : string, next_version: string}}
 */
 var ajax_object;
 
@@ -26,3 +26,11 @@ jQuery.prototype.dialog = function (params) {};
 * @returns {undefined}
 */
 function addMouseOverHelp (parent){};
+
+/**
+ * @param {string|Array<string>} newParam
+ * @param {string|Array<string>} value
+ * 
+ * @return {undefined}
+*/
+function reloadPageWithParam(newParam, value){};

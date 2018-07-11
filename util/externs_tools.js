@@ -2,9 +2,20 @@
 *
 * @param {jQuery} parent
 * 
-* @returns {undefined}
+* @returns {Array<Object>}
 */
 function addBiblioQTips(parent){};
+
+/**
+*
+* @param {jQuery} parent
+* @param {Array<string>} classNames
+* @param {Array<string>} colors
+* @param {Array<string>} prefixes
+* 
+* @returns {Array<Object>}
+*/
+function addBibLikeQTips (parent, classNames, colors, prefixes){};
 
 /**
 *
