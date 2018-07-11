@@ -103,7 +103,6 @@ function ConceptFilterComponent (){
  * @return {{json: Object<string, ?>, count: number}}
  */
 function createSubTreeJSON (id_concept){
-
 	var /** Array */ conceptArray = Concepts[id_concept];
 	var /** number */ count = 0;
 	

@@ -70,6 +70,9 @@ function glossar (){
 		jQuery("#translatorList").change(function (){
 			aenderungUe = true;
 		});
+		jQuery("#correctorTList").change(function (){
+			aenderungUe = true;
+		});
 		
 		jQuery("#translationL").val("<?php echo DEFAULT_SELECT; ?>");
 		jQuery("#translationL").trigger("chosen:updated");
@@ -127,6 +130,7 @@ function glossar (){
 		jQuery("#tr_description").val("");
 		jQuery("#tr_terminus").val("");
 		jQuery("#translatorList").val([]).trigger("chosen:updated");
+		jQuery("#correctorTList").val([]).trigger("chosen:updated");
 		jQuery("#tagList").val([]).trigger("chosen:updated");
 		jQuery("#authorList").val([]).trigger("chosen:updated");
 		jQuery("#ready").prop("checked", false);
@@ -167,6 +171,7 @@ function glossar (){
 								jQuery("#ready").prop("checked", t.Fertig * 1);
 								jQuery("#internal").prop("checked", t.Intern * 1);
 								jQuery("#translatorList").val(t.uebersetzer).trigger("chosen:updated");
+								jQuery("#correctorTList").val(t.korrekturleser).trigger("chosen:updated");
 							});
 						}
 					}
@@ -216,6 +221,7 @@ function glossar (){
 			data['terminus'] = document.getElementById("tr_terminus").value;
 			data['erlaeuterung'] = document.getElementById("tr_description").value;
 			data['translators'] = jQuery("#translatorList").val();
+			data['correctors'] = jQuery("#correctorTList").val();
 		}
 		
 		jQuery.post(ajaxurl, data, function (response) {
@@ -335,6 +341,7 @@ function glossar (){
 					tr_d.val(t.description);
 					tr_t.val(t.terminus);
 					jQuery("#translatorList").val(t.uebersetzer);
+					jQuery("#correctorTList").val(t.korrekturleser);
 					showTranslation();
 					aenderungUe = false;
 				});
@@ -365,6 +372,8 @@ function glossar (){
 		jQuery("#it").hide();
 		jQuery("#translatorList").val([]).chosen("destroy").hide();
 		jQuery("#translatorLabel").hide();
+		jQuery("#correctorTList").val([]).chosen("destroy").hide();
+		jQuery("#correctorTLabel").hide();
 	}
 
 	function showTranslation (){
@@ -377,6 +386,13 @@ function glossar (){
 			jQuery("#translatorList").show().chosen();
 		}
 		jQuery("#translatorLabel").show();
+		if(jQuery("#correctorTList_chosen").is(":visible")){
+			jQuery("#correctorTList").trigger("chosen:updated");
+		}
+		else {
+			jQuery("#correctorTList").show().chosen();
+		}
+		jQuery("#correctorTLabel").show();
 	}
 	
 	
@@ -423,7 +439,25 @@ function glossar (){
 						fehlende Übersetzungen L
 					</option>
 					<option value="MISSING_E">
-						fehlende Übersetzungen E
+						Übersetzung nicht korrekturgelesen E
+					</option>
+					<option value="NCORRECT_F">
+						Übersetzung nicht korrekturgelesen F
+					</option>
+					<option value="NCORRECT_I">
+						Übersetzung nicht korrekturgelesen I
+					</option>
+					<option value="NCORRECT_S">
+						Übersetzung nicht korrekturgelesen S
+					</option>
+					<option value="NCORRECT_R">
+						Übersetzung nicht korrekturgelesen R
+					</option>
+					<option value="NCORRECT_L">
+						Übersetzung nicht korrekturgelesen L
+					</option>
+					<option value="NCORRECT_E">
+						Übersetzung nicht korrekturgelesen E
 					</option>
 				</select>
 			</td>
@@ -485,6 +519,15 @@ function glossar (){
 	
 	<span id="translatorLabel">Übersetzer:</span>
 	<select id="translatorList" class="noChosen" multiple="multiple" style="width: 300pt">
+		<?php
+		foreach ($authors as $author){
+			echo "<option value='{$author['Kuerzel']}'>" . $author['Vorname'] . ' ' . $author['Name'] . '</option>';
+		}
+		?>
+	</select>
+		<span id="correctorTLabel">Korrekturleser:</span>
+	
+	<select id="correctorTList" class="noChosen" multiple="multiple" style="width: 300pt">
 		<?php 
 		foreach ($authors as $author){
 			echo "<option value='{$author['Kuerzel']}'>" . $author['Vorname'] . ' ' . $author['Name'] . '</option>';

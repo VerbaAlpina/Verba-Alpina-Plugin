@@ -7,8 +7,8 @@ function ipa_page (){
 										Erhebung,
 										COUNT(DISTINCT Token) AS Gesamt, 
 										COUNT(DISTINCT CASE WHEN IPA = '' AND NOT EXISTS (SELECT * FROM Sonderzeichen WHERE Zeichen = Token) THEN Token END) AS Ohne
-									FROM Stimuli s JOIN Tokens USING (Id_Stimulus)
-									WHERE Token != ''
+									FROM Stimuli s JOIN Tokens USING (Id_Stimulus) JOIN Bibliographie ON Erhebung = Abkuerzung LEFT JOIN VTBL_Token_Konzept USING (Id_Token)
+									WHERE Token != '' AND (Id_Konzept is null or Id_Konzept != 779) AND VA_IPA
 									GROUP BY Erhebung", ARRAY_A);	
 	?>
 	
@@ -23,12 +23,14 @@ function ipa_page (){
 		
 		var parserBeta;
 		var parserBSA;
+		var parserALD;
 
 		jQuery(function (){
 			jQuery("#ipaSelectSource").val("0");
 			jQuery("#IPAonlyMissing").prop("checked", true);
 			parserBeta = peg.generate(jQuery("#grammarBeta").val());
 			parserBSA = peg.generate(jQuery("#grammarBSA").val());
+			parserALD = peg.generate(jQuery("#grammarALD").val());
 			jQuery("#grammarBeta").toggle(false);
 			
 			jQuery("#ipaSelectSource").on("change", function (){
@@ -59,19 +61,21 @@ function ipa_page (){
 			}
 			
 			jQuery.post(ajaxurl, {
-				"action" : "token_ops",
-				"type" : "ipa",
-				"stage" : "getTokens",
+				"action" : "va",
+				"namespace" : "ipa",
+				"query" : "get_tokens",
 				"source" : source,
 				"all" : all
 			}, function(response) {
 				var list = [];
 				tokens = JSON.parse(response);
-				
 				for (var i = 0, j = tokens.length; i < j; i++) {
 					try {
 						if(source == "BSA"){
 							var tokenL = parserBSA.parse(tokens[i]);
+						}
+						else if (source == "ALD-I" || source == "ALD-II"){
+							var tokenL = parserALD.parse(tokens[i]);
 						}
 						else {
 							var tokenL = parserBeta.parse(tokens[i]);
@@ -82,6 +86,7 @@ function ipa_page (){
 						jQuery("#numberHandled").val(jQuery("#numberHandled").val() * 1 + 1);
 					}
 				};
+
 				
 				computeIPAForTokens(list, 0, 50, source);				
 				
@@ -93,9 +98,9 @@ function ipa_page (){
 				var subList = list.slice(index, index + step);
 				
 				jQuery.post(ajaxurl, {
-					"action" : "token_ops",
-					"type" : "ipa",
-					"stage" : "compute",
+					"action" : "va",
+					"namespace" : "ipa",
+					"query" : "compute",
 					"source" : source,
 					"data" : JSON.stringify(subList)
 				}, function(response) {
@@ -175,9 +180,10 @@ function ipa_page (){
 		</table>
 	</div>
 	
-	<div style="display : block">
+	<div style="display : none">
 		<textarea id="grammarBeta"><?php echo file_get_contents(plugin_dir_path(__FILE__) . 'grammatik_transkr.txt'); ?></textarea>
 		<textarea id="grammarBSA"><?php echo file_get_contents(plugin_dir_path(__FILE__) . 'grammatik_bsa.txt'); ?></textarea>
+		<textarea id="grammarALD"><?php echo file_get_contents(plugin_dir_path(__FILE__) . 'grammatik_ald.txt'); ?></textarea>
 	</div>
 	<?php
 }

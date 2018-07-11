@@ -17,8 +17,7 @@ function createCostHtml (){
 			'new_values_info' => new IM_Row_Information('Konzepte', array (
 				new IM_Field_Information('Name_D', 'V', false),
 	 			new IM_Field_Information('Beschreibung_D', 'V', true),
-	 			new IM_Field_Information('Kategorie', 'E', true),
-	 			new IM_Field_Information('Hauptkategorie', 'E', true)
+	 			new IM_Field_Information('Id_Kategorie AS Kategorie', 'F{CONCAT(Hauptkategorie, "/", Kategorie)}', true)
 	 		), 'Angelegt_Von')
 		)
 	);

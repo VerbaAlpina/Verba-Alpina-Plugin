@@ -12,7 +12,7 @@ function DescriptionList (){
 		var description = new TokenDescription (this, ++currentId, ajaxObject["Art"], ajaxObject["Id_Typ"], 
 			ajaxObject["Token"], ajaxObject["IPA"], ajaxObject["Original"], ajaxObject["Id_Stimulus"], ajaxObject["Erhebung"], 
 			ajaxObject["Genus"], ajaxObject["Konzepte"], ajaxObject["Informanten"], ajaxObject["Tokengruppe"], ajaxObject["Bemerkungen"], 
-			ajaxObject["Id_morph_Typ"],	ajaxObject["Typ"], ajaxObject["Relevanz"], ajaxObject["TokenIds"]);
+			ajaxObject["Id_morph_Typ"],	ajaxObject["Typ"], ajaxObject["Relevanz"], ajaxObject["TokenIds"], ajaxObject["Aeusserungen"]);
 		list[currentId] = description;
 		if(ortho[description.name] == undefined){
 			ortho[description.name] = []
@@ -97,7 +97,7 @@ function DescriptionList (){
  * @param {number} id_vatype
  * @param {number} vatype
  */
-function TokenDescription (owner, id, kind, id_type, token, ipa, original, id_stimulus, source, gender, concepts, informants, group, remarks, id_vatype, vatype, relevance, idlist){
+function TokenDescription (owner, id, kind, id_type, token, ipa, original, id_stimulus, source, gender, concepts, informants, group, remarks, id_vatype, vatype, relevance, idlist, aelist){
 	this.id = id;
 	this.kind = kind;
 	this.id_type = id_type;
@@ -125,7 +125,8 @@ function TokenDescription (owner, id, kind, id_type, token, ipa, original, id_st
 	this.group = group;
 	this.remarks = remarks;
 	this.relevant = relevance;
-	this.idlist = idlist;
+	this.idlist = idlist.split(",");
+	this.aelist = aelist.split("###");
 	
 	this.vatype = vatype;
 	this.id_vatype = id_vatype;
@@ -244,8 +245,8 @@ function callbackSaveReference (data){
 	jQuery('#auswahlReferenz').append("<option value='" + data["id"] + "'>" + data["Quelle"] + ": " + data["Subvocem"] + (genderInfo != " ()"? genderInfo: "") + "</option>").trigger("chosen:updated");
 }
 
-function callbackSaveBaseType (data){
-	jQuery('#auswahlBasistyp').append("<option value='" + data["id"] + "'>" + data["Orth"] + "</option>").trigger("chosen:updated");
+function callbackSaveReferenceBType (data){
+	jQuery('#auswahlReferenzBasetype').append("<option value='" + data["id"] + "'>" + data["Quelle"] + ": " + data["Subvocem"] + "</option>").trigger("chosen:updated");
 }
 
 function setMorphTypeData (data){
@@ -266,6 +267,17 @@ function setMorphTypeData (data){
 	for (var i = 0; i < data.btypes.length; i++){
 		addBaseType(data.btypes[i][0], jQuery("#auswahlBasistyp option[value=" + data.btypes[i][0] + "]").text(), data.btypes[i][1] == "1");
 	}
+}
+
+function setBaseTypeData (data){
+	var e = document.forms["eingabeBasistyp"].elements;
+	
+	jQuery(e["Orth"]).val(data.type.Orth);
+	jQuery(e["Sprache"]).val(data.type.Sprache).trigger("chosen:updated");
+	jQuery(e["Alpenwort"]).prop("checked", data.type.Alpenwort == "1");
+	jQuery(e["Kommentar_Intern"]).val(data.type.Kommentar_Intern);
+
+	jQuery("#auswahlReferenzBasetype").val(data.refs).trigger("chosen:updated");
 }
 
 function getMorphTypeData (id){
@@ -297,6 +309,30 @@ function getMorphTypeData (id){
 	return data;
 }
 
+function getBaseTypeData (id){
+	var data = {};
+	
+	data.action = "va";
+	data.namespace = "typification";
+	data.query = "saveBaseType";
+	data.dbname = dbname;
+	
+	data.id = id;
+	
+	data.type = {};
+	
+	var e = document.forms["eingabeBasistyp"].elements;
+	
+	data.type.Orth = e["Orth"].value;
+	data.type.Sprache = e["Sprache"].value;
+	data.type.Alpenwort = e["Alpenwort"]["checked"]? "1":"0";
+	data.type.Kommentar_Intern = e["Kommentar_Intern"].value;
+
+	data.refs = jQuery("#auswahlReferenzBasetype").val();
+	
+	return data;
+}
+
 function openMorphTypeDialog(){
 	jQuery("#saveCaller").val(this.id);
 	var e = document.forms["eingabeMorphTyp"].elements;
@@ -324,4 +360,29 @@ function openMorphTypeDialog(){
 
 function closeMorphDialog (){
 	jQuery("#VATypeOverlay").dialog("close");
+}
+
+function openBaseTypeDialog (closingFunction){
+	
+	jQuery("#VABasetypeOverlay input[name=Orth]").val("");
+	jQuery("#VABasetypeOverlay input[name=Sprache]").val("");
+	jQuery("#VABasetypeOverlay input[name=Alpenwort]").val("").prop("checked", false);
+	jQuery("#VABasetypeOverlay textarea").val("");
+	
+	jQuery('#VABasetypeOverlay').dialog({
+		"minWidth" : 700,
+		"modal": true,
+		"close" : function (){
+			jQuery("#VABasetypeOverlay select").chosen("destroy");
+			
+			if (closingFunction)
+				closingFunction ();
+		}
+	});
+	
+	jQuery("#VABasetypeOverlay select").val([]).chosen({"allow_single_deselect" : true, "width": "400px", "normalize_search_text" : removeDiacriticsPlusSpecial, "search_contains": true});
+}
+
+function closeBaseTypeDialog (){
+	jQuery("#VABasetypeOverlay").dialog("close");
 }

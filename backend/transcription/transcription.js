@@ -3,6 +3,8 @@ var parser;
 
 var dbname = "va_playground"; //TODO remove
 
+var lastInput = null;
+
 jQuery(function (){
 	jQuery("#atlasSelection").val(-1);
 	
@@ -54,6 +56,12 @@ jQuery(function (){
 	jQuery("#mode").change(ajax_info);
 	jQuery("#region").change(ajax_info);
 	
+	jQuery("td.imageTranscriptionRule").click(clickOnRule);
+	
+	jQuery(document).on("focus", ".inputStatement", function (){
+		lastInput = this;
+	});
+	
 	jQuery("#addRow").click(function (){
 		var data = {'action' : 'va',
 				'namespace' : 'transcription',
@@ -68,8 +76,6 @@ jQuery(function (){
 			
 			getField("inputStatement", State.Index).focus();
 			getField("classification", State.Index).val(getField("classification", 0).val());
-			getField("expression", State.Index).val(getField("expression", 0).val());
-			getField("inflexion", State.Index).prop("checked", getField("inflexion", 0).prop("checked"));
 			getField("conceptList", State.Index).val(getField("conceptList", 0).val()).trigger("change");
 			
 			addRowJS(data.index);
@@ -89,6 +95,7 @@ jQuery(function (){
             backspaceIsPressed = false;
         }
     });
+    
     jQuery(window).on('beforeunload', function(){
         if (backspaceIsPressed) {
             backspaceIsPressed = false;
@@ -109,15 +116,32 @@ jQuery(function (){
     
     addNewEnumValueScript ("#newConceptDialog select", selectModes.Select2, "va_playground"); //TODO playground
     
-    jQuery(document).on("keyup paste", ".inputStatement", function (e){
-    	var thisObject = this;
-    	setTimeout(function () { //Timeout is needed since the paste event is fired before the input value has changed
-    		jQuery(thisObject).next().html(convertToOriginal(thisObject.value));
-    	}, 0);
-    });
+    jQuery(document).on("keyup paste", ".inputStatement", updateOriginal);
     
     parser = peg.generate(grammarText);
 });
+
+function updateOriginal (){
+	var thisObject = this;
+	setTimeout(function () { //Timeout is needed since the paste event is fired before the input value has changed
+		jQuery(thisObject).next().html(convertToOriginal(thisObject.value));
+	}, 0);
+}
+
+function clickOnRule (){
+
+	if(!jQuery("#input_fields").hasClass("hidden_c")){
+		var beta = jQuery(this).parent().find("td.betaTranscriptionRule").text();
+		if (jQuery(".inputStatement").length == 1 && !jQuery(".inputStatement").is(":disabled")){
+			jQuery(".inputStatement").val(jQuery(".inputStatement").val() + beta);
+			updateOriginal.call(jQuery(".inputStatement")[0]);
+		}
+		else if (lastInput != null && !jQuery(lastInput).is(":disabled")) {
+			jQuery(lastInput).val(jQuery(lastInput).val() + beta);
+			updateOriginal.call(lastInput);
+		}
+	}
+}
 
 function addUpperQTips (){
 	jQuery(this).qtip({
@@ -138,16 +162,27 @@ function addUpperQTips (){
 }
 
 function convertToOriginal (text){
+	
+	if(!text || text == '<vacat>' || text == '<problem>')
+		return "";
+	
+	text = text.trim();
+	
 	try {
 		var charList = parser.parse(text);
 	}
 	catch (e){
-		return "";
+		return "<span style='color: red'>NICHT GÜLTIG</span>";
 	}
 	result = "";
 	for (var i = 0; i < charList.length; i++){
 		var match = charList[i];
-		var entry = Codepage[match];
+		if(match.startsWith("\\\\")){
+			var entry = match.substring(2);
+		}
+		else {
+			var entry = Codepage[match];
+		}
 		if(entry)
 			result += "<span style='position: relative;'>" + entry + "</span>";
 		else
@@ -215,19 +250,15 @@ function fixTdWidths (){
 	}
 	
 	var classWidth = getField("classification", 0).width() + 5;
-	var exprWidth = getField("expression", 0).width() + 5;
-	var inflWidth = getField("inflexionSpan", 0).width() + 3;
 	var totalWidth = jQuery(window).width() - 36 - 10 - 12 - 16 - 16;
-	var sum = widthNumber + classWidth + exprWidth + inflWidth + authorWidth + deleteWidth;
+	var sum = widthNumber + classWidth + authorWidth + deleteWidth;
 	
 	jQuery("#inputTable tr td:nth-child(1)").css("width", widthNumber);
 	jQuery("#inputTable tr td:nth-child(2)").css("width", (totalWidth - sum) / 2);
 	jQuery("#inputTable tr td:nth-child(3)").css("width", classWidth);
-	jQuery("#inputTable tr td:nth-child(4)").css("width", exprWidth);
-	jQuery("#inputTable tr td:nth-child(5)").css("width", inflWidth);
-	jQuery("#inputTable tr td:nth-child(6)").css("width", (totalWidth - sum) / 2);
-	jQuery("#inputTable tr td:nth-child(7)").css("width", authorWidth);
-	jQuery("#inputTable tr td:nth-child(8)").css("width", deleteWidth);
+	jQuery("#inputTable tr td:nth-child(4)").css("width", (totalWidth - sum) / 2);
+	jQuery("#inputTable tr td:nth-child(5)").css("width", authorWidth);
+	jQuery("#inputTable tr td:nth-child(6)").css("width", deleteWidth);
 }
 
 var State = {
@@ -286,13 +317,7 @@ function mapChanged (value){
 	if(pos != -1){
 		State.Id_Stimulus = value.substring(0, pos);
 		var map = value.substring(pos + 1);
-		changeIFrame("iframeScan", url + 'scans/' + map.replace('#', '%23'));
-		if(map.substring(0,3) == "SLA"){
-			changeIFrame("iframeCodepage", url + "transkription/TranskriptionsregelnSLA.pdf");
-		}
-		else {
-			changeIFrame("iframeCodepage", url + "transkription/Codepage_Allgemein.pdf");
-		}
+		changeIFrame("iframeScan", url + 'scans/' + map.substring(0, map.indexOf("#")) + "/" + map.replace('#', '%23'));
 		selElement.css("background-color", "#80FF80")
 		ajax_info();
 	}
@@ -354,7 +379,7 @@ function getRegion (value){
 	}
 	return value;
 }
-
+var t;
 function updateFields (info){
 	var errorDiv = jQuery("#error");
 	var mode = jQuery("#mode").val();
@@ -370,10 +395,8 @@ function updateFields (info){
 		jQuery("#inputTable").empty();
 		
 		State.Index = obj.length - 1;
-		
 		for (var i = 0; i < obj.length; i++){
-			jQuery("#inputTable").append(obj[i].html);
-			
+			jQuery("#inputTable").append(obj[i].html.replace(/\\/g, ""));
 			var inputField = getField("inputStatement", i);
 			if(mode == 'first'){
 				inputField.val("");
@@ -381,21 +404,15 @@ function updateFields (info){
 			else {
 				inputField.val(obj[i].Aeusserung);
 				getField("classification", i).val(obj[i].Klassifizierung);
-				getField("expression", i).val(obj[i].Ausdruck);
-				getField("inflexion", i).val(obj[i].Flexionsform);
 			}
-			
 			inputField.prop("disabled", obj[i].readonly);
 			getField("classification", i).prop("disabled", obj[i].readonly);
-			getField("expression", i).prop("disabled", obj[i].readonly);
-			getField("inflexion", i).prop("disabled", obj[i].readonly);
 			getField("conceptList", i).prop("disabled", obj[i].readonly).trigger("change");
-			
+
 			addRowJS(i);
 			
 			getField("conceptList", i).val(obj[i].Konzept_Ids).trigger("change");
 		}
-		
 		fixTdWidths();
 		
 		jQuery("#input_fields").removeClass("hidden_c");
@@ -405,8 +422,15 @@ function updateFields (info){
 	catch (s){
 		jQuery("#input_fields").addClass("hidden_c");
 		jQuery("#informant_info").addClass("hidden_c");
-		errorDiv.html(info).removeClass("hidden_coll");
 		State.Id_Informant = 0;
+		
+		if(s instanceof SyntaxError){
+			errorDiv.html(info);
+		}
+		else {
+			errorDiv.text(s);
+		}
+		errorDiv.removeClass("hidden_coll");
 	}	
 }
 

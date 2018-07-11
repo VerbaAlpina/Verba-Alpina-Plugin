@@ -3,9 +3,9 @@
 //TODO add read mode (wordpress capabilities)
 
 function va_transcription () {
-	global $va_xxx;
-	
 	$d_url = home_url('/dokumente/', 'https');
+	
+	$trules_image_path = plugins_url('/images/', __FILE__);
 	
 	$helpProblem = 'Dieser Button überspringt den aktuellen Informanten und markiert ihn speziell als problematisch. Später können die Problemfälle über den Modus Probleme im rechten Auswahlmenü eingetragen werden.';
 	
@@ -14,38 +14,99 @@ function va_transcription () {
 	$helpScans = 'Zu grün markierten Stimuli sind Scans vorhanden, zu rot markierten Stimuli fehlen die entsprechenden Scans.';
 	
 	$folder = VA_PLUGIN_URL . '/backend/transcription/';
-	?>
 	
-	<link rel="stylesheet" type="text/css" href="<?php echo $folder; ?>transcription.css">
+	global $va_xxx;
+	$va_xxx->select('va_playground');//TODO Remove!!
 	
-	<script type="text/javascript" src="<?php echo $folder; ?>transcription.js"></script>
+	$base_chars = $va_xxx->get_results("SELECT * FROM Transkriptionsregeln WHERE Typ = 'Basiszeichen' ORDER BY Beta", ARRAY_A);
+	$diacritics = $va_xxx->get_results("SELECT * FROM Transkriptionsregeln WHERE Typ = 'Diakritika' ORDER BY Gruppe ASC, Beta ASC", ARRAY_A);
+	$special_chars = $va_xxx->get_results("SELECT * FROM Transkriptionsregeln WHERE Typ = 'Spezielle Zeichen'", ARRAY_A);
+	$spaces = $va_xxx->get_results("SELECT * FROM Transkriptionsregeln WHERE Typ = 'Leerzeichen'", ARRAY_A);
+	
+	wp_enqueue_script('va_transcription_script', $folder . 'transcription.js', [], false, true);
+	wp_enqueue_style('va_transcription_style', $folder . 'transcription.css');
+	
+	//Concepts for js
+	$concepts = $va_xxx->get_results("SELECT Id_Konzept AS id, IF(Name_D != '', Name_D, Beschreibung_D) as text FROM Konzepte ORDER BY Text ASC", ARRAY_A);
+	wp_localize_script('va_transcription_script', 'Concepts', $concepts);
+
+	//Original codepage for js:
+	$chars = $va_xxx->get_results("
+        SELECT Beta, IF(Original regexp '^$', Hex_Original, Original) 
+        FROM Codepage_Original 
+        WHERE Original not regexp '^$' OR Hex_Original not regexp '^$'", ARRAY_N);
+    
+    $char_assoc = [];
+    
+    foreach ($chars as $char){
+        $char_assoc[$char[0]] = $char[1];
+    }
+    wp_localize_script('va_transcription_script', 'Codepage', $char_assoc);
+
+    ?>
 	<script type="text/javascript">
 		var url = "<?php echo $d_url;?>";
-		var Codepage = {<?php 
-				$chars = $va_xxx->get_results('SELECT Beta, Original FROM Codepage_Original', ARRAY_N); //TODO change
-				echo implode(',', array_map(function ($e){
-					return '"' . addslashes($e[0]) . '":"' . $e[1] .'"';
-				}, $chars));
-			?>};
-		
-		<?php $va_xxx->select('va_playground');//TODO Remove!! ?>
-		
-		var Concepts = [<?php 
-			$concepts = $va_xxx->get_results("SELECT Id_Konzept, IF(Name_D != '', Name_D, Beschreibung_D) as Text FROM Konzepte ORDER BY Text ASC", ARRAY_N);
-			echo implode(',', array_map(function ($e){
-				return '{id:' . $e[0] . ',text:"' . trim($e[1]) . '"}'; 
-			}, $concepts));
-		?>];
-		var grammarText = <?php 
-			echo json_encode(file_get_contents(plugin_dir_path(__FILE__) . '/../auto/grammatik_transkr.txt'));
-		?>;
+		var grammarText = <?php echo json_encode(va_build_grammar_for_original());?>;
 	</script>
 	
 	<div id="iframeScanDiv">
 		<iframe src="about:blank" id="iframeScan"></iframe>
 	</div>
 	<div id="iframeCodepageDiv">
-		<iframe src="<?php echo VA_PLUGIN_URL;?>/backend/transcription/Codepage_Allgemein.pdf" id="iframeCodepage" /></iframe>
+		<h1>Basiszeichen</h1>
+		
+		<table>
+			<thead>
+				<tr>
+					<th>Zeichen</th>
+					<th>Beschreibung</th>
+					<th>Beta-Code</th>
+					<th>Kommentar</th>
+				</tr>
+			</thead>
+			<tbody>
+				<?php 
+				foreach ($base_chars as $char){
+					if ($char['Darstellung']){
+						$img = $char['Darstellung'];
+					}
+					else {
+						$img = '<img src="' . $trules_image_path . $char['Beta'] . '" />';
+					}
+					
+					echo '<tr><td class="imageTranscriptionRule"><div>' . $img . '</div></td><td>' . $char['Beschreibung'] . '</td><td class="betaTranscriptionRule">' . $char['Beta'] . '</td><td>' . $char['Kommentar'] . '</td></tr>';
+				}
+				?>
+			</tbody>
+		</table>
+		
+				<h1>Diakritika</h1>
+		
+		<table>
+			<thead>
+				<tr>
+					<th>Zeichen</th>
+					<th>Beschreibung</th>
+					<th>Beta-Code</th>
+					<th>Kommentar</th>
+					<th>Beispiel</th>
+				</tr>
+			</thead>
+			<tbody>
+				<?php 
+				foreach ($diacritics as $char){
+					if ($char['Darstellung']){
+						$img = '<span style="position: relative; vertical-align: middle;">' . $char['Darstellung'] . '</span>';
+					}
+					else {
+						$img = '<img src="' . $trules_image_path . $char['Beta'] . '" />';
+					}
+					
+					echo '<tr><td class="imageTranscriptionRule"><div>' . $img . '</div></td><td>' . $char['Beschreibung'] . '</td><td class="betaTranscriptionRule">' . $char['Beta'] . '</td><td>' . $char['Kommentar'] . '</td><td>' . $char['Beta_Beispiel'] . '</td></tr>';
+				}
+				?>
+			</tbody>
+		</table>
 	</div>
 	<div id="enterTranscription">
 	<?php
@@ -143,13 +204,6 @@ function va_transcription () {
 		</div>
 	</div>
 <?php
-
-echo im_table_entry_box ('newConceptDialog', new IM_Row_Information('Konzepte', array(
-		new IM_Field_Information('Name_D', 'V', false),
-		new IM_Field_Information('Beschreibung_D', 'V', true),
-		new IM_Field_Information('Kategorie', 'E', true, true),
-		new IM_Field_Information('Hauptkategorie', 'E', true, true)
-)), 'va_playground'); //TODO remove
-//TODO add AngelegtVon Field!!!!!!!!
+	va_echo_new_concept_fields('newConceptDialog');
 }
 ?>

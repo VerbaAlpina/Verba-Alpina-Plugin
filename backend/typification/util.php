@@ -93,11 +93,7 @@ function createTypeOverlay (&$db, $dbname){
 
 <?php
 
-	echo im_table_entry_box('NeuerBTypFuerZuweisung', new IM_Row_Information('Basistypen', array(
-		new IM_Field_Information('Orth', 'V', true),
-		new IM_Field_Information('Alpenwort', 'B', false),
-		new IM_Field_Information('Kommentar_Intern', 'T', false)
-	), 'Angelegt_Von'), $dbname);
+	echo createBaseTypeOverlay($db, $dbname);
 
 	echo im_table_entry_box('NeueReferenzFuerZuweisung', new IM_Row_Information('Lemmata', array(
 		new IM_Field_Information('Quelle', 'F WHERE Referenzwoerterbuch', true),
@@ -108,14 +104,72 @@ function createTypeOverlay (&$db, $dbname){
 		new IM_Field_Information('Kommentar_Intern', 'T', false)
 	), 'Angelegt_Von'), $dbname);
 	
-	echo im_table_entry_box('NeuesKonzept', new IM_Row_Information('Konzepte', array(
-		new IM_Field_Information('Name_D', 'V', false),
-		new IM_Field_Information('Beschreibung_D', 'V', true),
-		new IM_Field_Information('Kategorie', 'E', true, true),
-		new IM_Field_Information('Hauptkategorie', 'E', true, true),
-		new IM_Field_Information('Relevanz', 'B', false, true, true),
-		new IM_Field_Information('Pseudo', 'B', false, true),
-		new IM_Field_Information('Grammatikalisch', 'B', false, true)
+	va_echo_new_concept_fields('NeuesKonzept');
+}
+
+function createBaseTypeOverlay (&$db, $dbname, $edit = false){
+	ob_start();
+	?>
+	<div id="VABasetypeOverlay" title="Basistyp" style="display : none">
+		<form name="eingabeBasistyp">
+			<h2>Typ-Information</h2>
+			<table>
+				<tr>
+					<td>Orth:</td>
+					<td><input name="Orth" type="text" /></td>
+				</tr>
+				<tr>
+					<td>Sprache:</td>
+					<td>
+						<select id="auswahlLangBasetype" name="Sprache">
+						<?php
+						$langs = $db->get_results("SELECT Abkuerzung, Bezeichnung_D FROM Sprachen WHERE Basistyp_Sprache", ARRAY_A);
+						foreach ($langs as $lang){
+							echo "<option value='{$lang['Abkuerzung']}'>{$lang['Bezeichnung_D']}</option>";
+						}
+						?>
+						</select>
+					</td>
+				</tr>
+				<tr>
+					<td>Alpenwort:</td>
+					<td><input name="Alpenwort" type="checkbox" /></td>
+				</tr>
+				<tr>
+					<td>Kommentar_Intern:</td>
+					<td><textarea name="Kommentar_Intern" /></textarea></td>	
+				</tr>
+			</table>
+		
+			<h2>Zugeordnete Referenzen</h2>
+			<select id="auswahlReferenzBasetype" multiple="multiple">
+				<?php
+				$lemmas = $db->get_results('SELECT * FROM Lemmata_Basistypen', ARRAY_A);
+				foreach ($lemmas as $lemma){
+					echo "<option value='{$lemma['Id_Lemma']}'>{$lemma['Quelle']}: {$lemma['Subvocem']}" . "</option>";
+				}
+				?>
+			</select>
+			
+			<input type="button" class="button button-primary" id="newBasetypeReferenceButton" value="Neue Referenz anlegen">
+		</form>
+		
+		<br />
+		<br />
+		<br />
+		
+		<input type="button" class="button button-primary" id="newBTypeButton" value="<?php echo ($edit? 'Ändern' : 'Einfügen'); ?>" />
+	</div>
+	<?php
+	
+	echo im_table_entry_box('NeueReferenzFuerBasistyp', new IM_Row_Information('Lemmata_Basistypen', array(
+			new IM_Field_Information('Quelle', 'F WHERE Referenz_Basistyp', true),
+			new IM_Field_Information('Subvocem', 'V', true),
+			new IM_Field_Information('Bibl_Verweis', 'V', false),
+			new IM_Field_Information('Link', 'V', false),
+			new IM_Field_Information('Kommentar_Intern', 'T', false)
 	), 'Angelegt_Von'), $dbname);
+	
+	return ob_get_clean();
 }
 ?>

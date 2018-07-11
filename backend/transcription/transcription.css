@@ -1,3 +1,7 @@
+body {
+	color: black;
+}
+
 #iframeScanDiv {
 	background-color:#bbbbbb;
 	padding:0px;
@@ -8,14 +12,20 @@
 	overflow:auto;
 }
 #iframeCodepageDiv {
-  background-color:#cccccc;
+  background-color:#ffffff;
 	padding:0px;
 	margin:0px;
 	border:0px;
 	width:30%;
 	float:right;
 	overflow:auto;
+	height: 300px;
 }
+
+#iframeCodepageDiv table, #iframeCodepageDiv tr, #iframeCodepageDiv td, #iframeCodepageDiv th{
+	border: black 1px solid;
+}
+
 #enterTranscription {
   	background-color:#dddddd;
 	padding:0px;
@@ -95,4 +105,22 @@ iframe {
 .previewStatement {
 	font-family : arial unicode;
 	font-size: 30px;
+}
+
+td.imageTranscriptionRule {
+	font-family : arial unicode;
+	font-size: 300%;
+	font-weight: bold;
+	line-height: 1em;
+	padding-bottom: 5px;
+	cursor: pointer;
+} 
+
+td.imageTranscriptionRule div {
+	display: table;
+	margin: auto;
+}
+
+td.imageTranscriptionRule img {
+	height: 1em;
 }

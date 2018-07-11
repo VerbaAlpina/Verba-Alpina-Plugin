@@ -235,15 +235,7 @@ function va_import_bsa_page (){
 
 	<?php
 	
-	echo im_table_entry_box('newConceptDialog', new IM_Row_Information('Konzepte', array(
-			new IM_Field_Information('Name_D', 'V', false),
-			new IM_Field_Information('Beschreibung_D', 'V', true),
-			new IM_Field_Information('Kategorie', 'E', true, true),
-			new IM_Field_Information('Hauptkategorie', 'E', true, true),
-			new IM_Field_Information('Relevanz', 'B', false, true, true),
-			new IM_Field_Information('Pseudo', 'B', false, true),
-			new IM_Field_Information('Grammatikalisch', 'B', false, true)
-	), 'Angelegt_Von'));
+	va_echo_new_concept_fields('newConceptDialog');
 }
 
 function va_get_bsa_records($id, $concept, &$db){
@@ -270,7 +262,7 @@ function va_get_bsa_records($id, $concept, &$db){
 				$concept_name = $db->get_var($db->prepare("SELECT IF(Name_D != '', Name_D, Beschreibung_D) FROM Konzepte WHERE Id_Konzept = %s", $concept));
 				
 				$result .= '<tr data-bsa="' . $record['Id'] . '" id="record' . $key . '"' . ($markRecord? ' style="background: yellow"': '') . '>';
-				$result .= '<td><input type="text" style="width: 100%;" value="' . str_replace(' ', '', $record['Lautschrift']) . '"></input></td>';
+				$result .= '<td><input type="text" style="width: 100%;" value="' . str_replace(',', '\\\\,', str_replace(' ', '', $record['Lautschrift'])) . '"></input></td>';
 				$result .= '<td data-concept="' . $concept . '"><span>' . $concept_name . '</span> <a href="javascript:changeConcept(' . $key . ')">(Ändern)</a></td>';
 				$result .= '<td>' . va_bsa_get_gender($record['Grammatik']) . '</td>';
 				$result .= '<td><input type="checkbox" checked /></td>';
@@ -363,7 +355,7 @@ function va_bsa_import_records ($data, &$db){
 	$num_inserted = 0;
 	foreach ($data as $point){
 		$id_inf = $db->get_var($db->prepare('SELECT Id_Informant FROM Informanten WHERE Erhebung = %s and Nummer = %s', 'BSA', $point['informant']));
-		$auess = $point['aeusserung'];
+		$auess = stripslashes($point['aeusserung']);
 		if($point['genus'] != ''){
 			$auess .= ' <' . $point['genus'] . '>';
 		}

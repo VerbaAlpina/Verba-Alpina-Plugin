@@ -38,6 +38,24 @@ function va_edit_comments_page (){
 			<option value="MISSING_en">
 				fehlende Übersetzungen E
 			</option>
+			<option value="NCORRECT_fr">
+				Übersetzung nicht korrekturgelesen F
+			</option>
+			<option value="NCORRECT_it">
+				Übersetzung nicht korrekturgelesen I
+			</option>
+			<option value="NCORRECT_sl">
+				Übersetzung nicht korrekturgelesen S
+			</option>
+			<option value="NCORRECT_rg">
+				Übersetzung nicht korrekturgelesen R
+			</option>
+			<option value="NCORRECT_ld">
+				Übersetzung nicht korrekturgelesen L
+			</option>
+			<option value="NCORRECT_en">
+				Übersetzung nicht korrekturgelesen E
+			</option>
 		</select>
 	</div>
 	
@@ -84,6 +102,14 @@ function va_edit_comments_page (){
 			}
 			?>
 		</select>
+		<span>Korrekturleser:</span>
+		<select id="commCorrectorTList" multiple="multiple" style="width: 300pt">
+			<?php 
+			foreach ($authors as $author){
+				echo "<option value='{$author['Kuerzel']}'>" . $author['Vorname'] . ' ' . $author['Name'] . '</option>';
+			}
+			?>
+		</select>
 	</div>	
 	
 	<div id="newCommentPopup" style="display: none; position: relative;">
@@ -122,7 +148,7 @@ function va_edit_comments_page (){
 		jQuery("#commDescription, #commAuthorList, #commInternal, #commT, #commS").change(function (){
 			changeD = true;
 		});
-		jQuery("#commTranslation, #commTranslatorList").change(function (){
+		jQuery("#commTranslation, #commTranslatorList, #commCorrectorTList").change(function (){
 			changeT = true;
 		});
 		jQuery("#commSaveButton").click(saveComment);
@@ -302,6 +328,7 @@ function va_edit_comments_page (){
 			data["lang"] = currentTranslation;
 			data["translation"] = jQuery("#commTranslation").val();
 			data["translators"] = jQuery("#commTranslatorList").val();
+			data["correctors"] = jQuery("#commCorrectorTList").val();
 		}
 		
 		jQuery.post(ajaxurl, data, function (response) {
@@ -344,22 +371,26 @@ function va_edit_comments_page (){
 				}, function (response) {
 
 				var data = JSON.parse(response);
-				setTranslationFields(data["Translation"], (data["Translators"] == null? []: data["Translators"].split(",")));
+				setTranslationFields(data["Translation"], (data["Translators"] == null? []: data["Translators"].split(",")), (data["Correctors"] == null? []: data["Correctors"].split(",")));
 			});
 		}
 
 		
 	}
 
-	function setTranslationFields(content, translators){
+	function setTranslationFields(content, translators, correctors){
 		if(content === undefined)
 			content = "";
 
 		if(translators === undefined)
 			translators = [];
+
+		if(correctors === undefined)
+			correctors = [];
 		
 		jQuery("#commTranslation").val(content);
 		jQuery("#commTranslatorList").val(translators).trigger("chosen:updated");
+		jQuery("#commCorrectorTList").val(correctors).trigger("chosen:updated");
 	}
 
 	function newComment (){
@@ -436,6 +467,9 @@ function va_filter_comments_for_editing (&$db, $filter){
 	if(strpos($filter, 'MISSING_') === 0){
 		$sql_filter = " AND (Approved = 'TS' OR Approved = 'T') AND NOT EXISTS(SELECT * FROM im_comments i2 WHERE i1.Id = i2.Id AND i2.Language = '" . substr($filter, 8, 2) . "')";
 	}
+	else if(strpos($filter, 'NCORRECT_') === 0){
+		$sql_filter = " AND EXISTS(SELECT * FROM im_comments i2 WHERE i1.Id = i2.Id AND i2.Language = '" . substr($filter, 9, 2) . "') AND NOT EXISTS (SELECT * FROM VTBL_Kommentar_Autor v WHERE Aufgabe = 'corr' and Id_Kommentar = i1.Id and v.Sprache = '" . substr($filter, 9, 1) . "')";
+	}
 	else {
 		$sql_filter = '';
 	}
@@ -487,7 +521,7 @@ function va_save_comment(&$db, $id, $content, $authors, $internal, $ready){
 	}
 	else {
 		$db->update('im_comments', array(
-				'Comment' => stripslashes($content),
+				'Comment' => $content,
 				'Approved' => $ready,
 				'Internal' => $internal
 		), array (
@@ -512,7 +546,7 @@ function va_save_comment(&$db, $id, $content, $authors, $internal, $ready){
 	return true;
 }
 
-function va_save_comment_translation (&$db, $id, $lang, $translation, $translators){
+function va_save_comment_translation (&$db, $id, $lang, $translation, $translators, $correctors){
 	$db->delete('VTBL_Kommentar_Autor', array('Id_Kommentar' => $id, 'Sprache' => substr($lang, 0, 1)), array ('%s', '%s'));
 	
 	if($translation == ''){
@@ -528,8 +562,12 @@ function va_save_comment_translation (&$db, $id, $lang, $translation, $translato
 		}
 		if($translators != ''){
 			foreach ($translators as $translator){
-				error_log($translator);
 				$db->insert('VTBL_Kommentar_Autor', array('Id_Kommentar' => $id, 'Kuerzel' => $translator, 'Aufgabe' => 'trad', 'Sprache' => substr($lang, 0, 1)), array('%s','%s','%s','%s'));
+			}
+		}
+		if($correctors!= ''){
+			foreach ($correctors as $corrector){
+				$db->insert('VTBL_Kommentar_Autor', array('Id_Kommentar' => $id, 'Kuerzel' => $corrector, 'Aufgabe' => 'corr', 'Sprache' => substr($lang, 0, 1)), array('%s','%s','%s','%s'));
 			}
 		}
 	}
@@ -538,9 +576,9 @@ function va_save_comment_translation (&$db, $id, $lang, $translation, $translato
 
 function va_get_comment_translation_data (&$db, $id, $lang){
 	return $db->get_row($db->prepare('
-		SELECT Comment AS Translation, GROUP_CONCAT(Kuerzel) AS Translators 
+		SELECT Comment AS Translation, GROUP_CONCAT(IF(Aufgabe = %s, Kuerzel, null)) AS Translators, GROUP_CONCAT(IF(Aufgabe = %s, Kuerzel, null)) AS Correctors
 		FROM im_comments LEFT JOIN VTBL_Kommentar_Autor ON Id = Id_Kommentar AND SUBSTR(Language, 1, 1) = Sprache
-		WHERE Id = %s AND Language = %s', $id, $lang), ARRAY_A);
+		WHERE Id = %s AND Language = %s', 'trad', 'corr', $id, $lang), ARRAY_A);
 }
 
 function va_get_missing_comments_options (&$db, $type){

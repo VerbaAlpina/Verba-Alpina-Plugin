@@ -19,15 +19,21 @@
 		&sources;
 		
 		<sources dir="${basedir}/../verba-alpina/im_config">
-		  	<file name="map.js" />
+		  	<file name="va_map.js" />
 			<file name="classes/record-window.js" />
 			<file name="classes/concept-filter.js" />
+			<file name="classes/sql-filter.js" />
 			<file name="classes/add-center-filter.js" />
+			<file name="classes/type-gender-filter.js" />
 			<file name="classes/language-families.js" />
 			<file name="classes/hexagon-option.js" />
 			<file name="map_styles/empty.js" />
 			<file name="map_styles/no_label_style.js" />
 			<file name="live/exports_va.js" />
+		</sources>
+		
+		<sources dir="${basedir}/../verba-alpina/lib">
+		  	<file name="js-map-label-gh-pages/src/maplabel.js" />
 		</sources>
 		
 		<externs dir="${basedir}/../verba-alpina/im_config">

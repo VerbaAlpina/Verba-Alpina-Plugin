@@ -24,8 +24,20 @@ var TagValues;
 var SourceMapping;
 
 /**
+ * @type{Object<string, string>}
+ */
+var TypeGenders;
+
+/**
+ * @type{Object<string, string>}
+ */
+var QIDS;
+
+/**
  * @param {string|Object} p
  * 
  * @return {Array<string>|Array<Object>}
  */
 jQuery.prototype.jstree = function (p) {};
+
+function checkNavBar(){}

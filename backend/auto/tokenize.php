@@ -99,11 +99,6 @@ function va_tokenize_records ($id_Stimulus, $vorschau) {
 			$tokenizedFlagSet = false;
 			$commentsInTagBrackets = $row['Erhebung'] != 'ALD-I' && $row['Erhebung'] != 'ALD-II';
 			
-			if($row['Erhebung'] == 'BSA'){
-				$row['Aeusserung'] = str_replace(',', '\\\\,', $row['Aeusserung']);
-				$row['Aeusserung'] = str_replace(';', '\\\\;', $row['Aeusserung']);
-			}
-			
 			if($row['Erhebung'] == 'CROWD'){
 				$row['Aeusserung'] = str_replace(';-)', '---SMILIE---', $row['Aeusserung']);
 				$row['Aeusserung'] = str_replace('(', '<', str_replace(')', '>', $row['Aeusserung']));
@@ -111,6 +106,10 @@ function va_tokenize_records ($id_Stimulus, $vorschau) {
 			
 			unset($row['Erhebung']);
 			unset($row['Gesperrt']);
+			unset($row['Ignoriert']);
+			unset($row['Geaendert_Am']);
+			unset($row['Verifiziert_Am']);
+			unset($row['Nicht_Verifizieren']);
 		
 			if($commentsInTagBrackets){
 				if (preg_match("/<.*>/U", $row["Aeusserung"])) {
@@ -196,6 +195,7 @@ function va_tokenize_records ($id_Stimulus, $vorschau) {
 						else {
 							$first_word = trim($mtokens[0]);
 							if(count($mtokens) == 2 && array_key_exists(stripslashes($first_word), $artikel)){
+								//TODO don't do this anymore create empty article token
 								//Transformiere z.B. "Der Tennen" nach "Tennen, m."
 								$komp_typ[$j] = false;
 								if($artikel[stripslashes($first_word)] != 'x'){
@@ -216,7 +216,12 @@ function va_tokenize_records ($id_Stimulus, $vorschau) {
 						$ebene_3 = array(trim($vv));
 					}
 					else { //sonst tokenisieren
-						$ebene_3 = explode(" ", trim($vv));
+						if(!$commentsInTagBrackets){ //ALD
+							$ebene_3 = explode('1 ', trim($vv)); //TODO konsequent nach allen in der Codepage angegeben Trennzeichen splitten auch für { }
+						}
+						else {
+							$ebene_3 = explode(" ", trim($vv));
+						}
 					}
 					
 					$length_tokengruppe = sizeof($ebene_3);
@@ -233,8 +238,10 @@ function va_tokenize_records ($id_Stimulus, $vorschau) {
 						$current_gender = 'n';
 					}
 					
+					$geschwungenAuf = false;
+					
 					foreach ($ebene_3 as $kkk => $vvv) {
-						
+
 						$row['Ebene_1'] = $k + 1;
 						$row['Ebene_2'] = $kk + 1;
 						$row['Ebene_3'] = $kkk + 1;
@@ -253,7 +260,7 @@ function va_tokenize_records ($id_Stimulus, $vorschau) {
 							$row['Token'] = str_replace('\\', '', $row['Token']);
 							
 							//Ersetze im Beta-Code transkribierte Umlaute in morph. Typen
-							if($klass == 'M'){
+							if($klass == 'M' || $klass == 'P'){
 								$row['Token'] = str_replace('u:', 'ü', $row['Token']);
 								$row['Token'] = str_replace('o:', 'ö', $row['Token']);
 								$row['Token'] = str_replace('a:', 'ä', $row['Token']);
@@ -293,7 +300,7 @@ function va_tokenize_records ($id_Stimulus, $vorschau) {
 							}
 							else if($klass == 'P'){
 								if(!in_array(array($row['Token'], $current_gender), $addedTypesP)){
-									$typ = $va_xxx->get_var("SELECT Beta FROM phon_Typen WHERE Beta = '" . $row['Token'] . "' AND Genus = '$current_gender'", 0, 0);
+									$typ = $va_xxx->get_var("SELECT Beta FROM phon_Typen WHERE Beta = '" . $row['Token'] . "' AND Genus = '$current_gender' AND Quelle != 'VA'", 0, 0);
 									if(!$typ){
 										$addedTypesP[] = array($row['Token'], $current_gender);
 										$insertsT[$j] = "INSERT INTO phon_Typen (Beta, Quelle, Genus, Kommentar_Intern) VALUES('" . $row['Token'] . "', '$quelle', '" . $current_gender . "', '" . $row['Bemerkung'] . "');\n";
@@ -303,13 +310,15 @@ function va_tokenize_records ($id_Stimulus, $vorschau) {
 								}
 								else
 									$insertsT[$j] = '';
-								$insertsV[$j] = "INSERT INTO VTBL_Token_phon_Typ (Id_Token, Id_phon_Typ, Quelle, Angelegt_Von, Angelegt_Am) SELECT %%%, Id_phon_Typ, '$quelle', NULL, NOW() FROM phon_Typen WHERE Beta = '" . $row['Token'] . "' AND Genus = '$current_gender' LIMIT 1;\n";
+								$insertsV[$j] = "INSERT INTO VTBL_Token_phon_Typ (Id_Token, Id_phon_Typ, Quelle, Angelegt_Von, Angelegt_Am) SELECT %%%, Id_phon_Typ, '$quelle', NULL, NOW() FROM phon_Typen WHERE Beta = '" . $row['Token'] . "' AND Genus = '$current_gender' AND Quelle != 'VA' LIMIT 1;\n";
 							}
 							
+							$row['Bemerkung'] = preg_replace('/ ?' . $quelle . '-Typ ".*"/U', '', $row['Bemerkung']);
+							
 							if(!$row['Bemerkung'])
-								$row['Bemerkung'] = $quelle . '-Typ ' . $row['Token'];
+								$row['Bemerkung'] = $quelle . '-Typ "' . $row['Token'] . '"';
 							else
-								$row['Bemerkung'] .= ' ' . $quelle . '-Typ ' . $row['Token'];
+								$row['Bemerkung'] .= ' ' . $quelle . '-Typ "' . $row['Token'] . '"';
 							$row['Token'] = '';
 						}
 						else {
@@ -320,11 +329,17 @@ function va_tokenize_records ($id_Stimulus, $vorschau) {
 						//Tokengruppen Information
 						$row['Id_Tokengruppe'] = '%%%'; //Platzhalter für eventuell benötigte Tokengruppe
 						
+						if($geschwungenAuf && $row['Token'][0] == '}'){
+							$row['Token'] = substr($row['Token'], 1);
+						}
+						$geschwungenAuf = false;
+						
 						if(sizeof($ebene_3) > 1 && $row["Ebene_3"] != sizeof($ebene_3)){ //Mehrere Tokens, aber das aktuelle ist nicht das letzte
 							if($row['Token'][strlen($row['Token']) - 1] == '{'){
 								//Letztes Zeichen { => das Token muss durch { } vom nächsten Token getrennt sein
 								$row['Trennzeichen'] = '{ }';
 								$row['Token'] = substr($row['Token'], 0, strlen($row['Token']) - 1);
+								$geschwungenAuf = true;
 							}
 							else {
 								$row['Trennzeichen'] = ' ';
@@ -332,9 +347,6 @@ function va_tokenize_records ($id_Stimulus, $vorschau) {
 						}
 						else {
 							$row['Trennzeichen'] = 'NULL';
-						}
-						if($row["Ebene_3"] == sizeof($ebene_3) && $row['Token'][0] == '}'){
-							$row['Token'] = substr($row['Token'], 1);
 						}
 						
 						//Setzte Tokenisiert-Flag
@@ -385,7 +397,7 @@ function va_tokenize_records ($id_Stimulus, $vorschau) {
 					//Tokengruppe erstellen?
 					for ($n = sizeof($ebene_3); $n > 0 ; $n--) {
 						//Abzüglich Sonderzeichen und Artikel mehr als ein Token oder kompTyp? => Tokengruppe erstellen
-						if($length_tokengruppe > 1 || $komp_typ[$j-1]) {
+						if($length_tokengruppe > 1 || (isset($komp_typ) && $komp_typ[$j-1])) {
 							if($n == sizeof($ebene_3)){
 								$insertsGroup[$j - $n] = "INSERT INTO Tokengruppen (Genus, Bemerkung) VALUES ('" . $current_gender . "', '" . $row['Bemerkung'] . "')\n";
 								$insertsTGK[$j - $n] = 'INSERT INTO VTBL_Tokengruppe_Konzept (SELECT %%%, Id_Konzept FROM VTBL_Aeusserung_Konzept WHERE ID_Aeusserung =  ' . $row['Id_Aeusserung'] . ");\n";

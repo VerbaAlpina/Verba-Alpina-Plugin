@@ -72,7 +72,10 @@ $can_write = current_user_can('va_typification_tool_write');
 			<br />
 			
 			<input type="checkbox" id="AllorNot" checked="checked" /> Nur Belege ohne morph.-lex. Typisierung anzeigen
+			<br />
 			<input type="checkbox" id="AllorNotConcept" /> Nur Belege ohne Konzeptzuweisung anzeigen
+			<br />
+			<input type="checkbox" id="AllorNotAlpes" checked="checked" /> Nur Belege aus der Alpenkonvention anzeigen
 			
 			<br />
 			<br />

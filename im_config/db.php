@@ -9,7 +9,7 @@
 			});
 			
 			global $Ue;
-			$result = new IM_Result();
+			$result = new IM_Result($_POST['key']);
 	
 			$db = IM_Initializer::$instance->database;
 	
@@ -110,7 +110,7 @@
 						$concepts = $_POST['filter']['conceptIds'];
 					}
 						
-					$where_clause = $db->prepare("Id_Concept IN " . im_key_placeholder_list($concepts), $concepts);
+					$where_clause = $db->prepare("Id_Instance IN (SELECT DISTINCT Id_Instance FROM Z_Ling WHERE Id_Concept IN " . im_key_placeholder_list($concepts) . ')', $concepts);
 					va_create_result_object($where_clause, $lang, $epsilon, $grid_category, $result, $Ue, $db);
 				break;
 				
@@ -121,12 +121,8 @@
 				break;
 				
 				case 4: //Base Type
-					//Key format <ID>|<0 for sure, 1 for unsure>
-					$uncertain = substr($_POST['key'], -1) == '1';
-					$_POST['key'] = substr($_POST['key'], 0, -2);
-					
-					$where_clause = $db->prepare("Id_Instance IN (SELECT DISTINCT Id_Instance FROM Z_Ling WHERE Id_Base_Type = %d AND Base_Type_Unsure = %d)", substr($_POST['key'], 1), $uncertain);
-					va_create_result_object($where_clause, $lang, $epsilon, $grid_category, $result, $Ue, $db);				
+					$where_clause = $db->prepare("Id_Instance IN (SELECT DISTINCT Id_Instance FROM Z_Ling WHERE Id_Base_Type = %d)", substr($_POST['key'], 1));
+					va_create_result_object($where_clause, $lang, $epsilon, $grid_category, $result, $Ue, $db);
 				break;
 				
 				case 5: //Extralinguistic
@@ -273,7 +269,7 @@
 								$row[9],
 								va_extra_ling_info_window($_POST['category'], $row, $Ue, $lang),
 								$row[2],
-								va_format_bounding_box($row[8]),
+								$row[8]? va_format_bounding_box($row[8]): null,
 								$row[4],
 								$row[5],
 								$epsilon);
@@ -298,8 +294,37 @@
 						$result->addMapElements($last_cat, $current_windows, $last_geo_data, NULL, $last_quant_data);
 					}
 				break;
+				
+				case 7: //SQL
+					$where = stripslashes($_POST['filter']['where']);
+					
+					if(strpos($where, ';') !== false){
+						return new IM_Error_Result('No semicolons permitted!');
+					}
+					
+					$max_points = 2000;
+					
+					$db->hide_errors();
+					
+					$num = $db->get_var('SELECT count(DISTINCT Id_Instance) FROM z_ling WHERE ' . $where);
+					
+					if($db->last_error != ''){
+						return new IM_Error_Result($db->last_error);
+					}
+					
+					if($num > $max_points){
+						return new IM_Error_Result('Two many points: ' . $num . '. Maximum is ' . $max_points . '.');
+					}
+					
+					va_create_result_object('Id_Instance IN (SELECT DISTINCT Id_Instance FROM z_ling WHERE ' . $where . ')', $lang, $epsilon, $grid_category, $result, $Ue, $db);
+					
+					if($db->last_error != ''){
+						return new IM_Error_Result($db->last_error);
+					}
+					
+					break;
 			}
-			
+
 			return $result;
 		}
 		catch (ErrorException $exception){
@@ -388,14 +413,21 @@ function va_translate_content ($text, &$Ue){
 }
 
 function va_create_result_object ($where_clause, $lang, $epsilon, $grid_cat, IM_Result &$result, &$Ue, &$db){
+	$bibData = [];
+	$stimulusData = [];
+	
 	$query = va_create_record_query($where_clause, $epsilon, $grid_cat, $db);
-
 	$db->query('SET SESSION group_concat_max_len = 100000');
 	$dbresult = $db->get_results($query, ARRAY_N);
 	
-	$subElementType = $_POST['filter']['subElementCategory'];
+	if(isset($_POST['filter']['subElementCategory'])){
+		$subElementType = intval($_POST['filter']['subElementCategory']);
+	}
+	else {
+		$subElementType = NULL;
+	}
 	
-	if($subElementType == 1){ //Concept
+	if($subElementType === 1){ //Concept
 		$concept_mapping = va_build_concept_mapping($where_clause, $db);			
 	}
 	
@@ -422,28 +454,30 @@ function va_create_result_object ($where_clause, $lang, $epsilon, $grid_cat, IM_
 				$type_exists = false;
 				foreach ($type_array as &$type_descr){
 					if($type_descr[0] == $kind && $type_descr[1] == $type && $type_descr[2] == $source){
-						$type_descr[3] .= '%%%' . $ref;
+						if($ref)
+							$type_descr[3][] = $ref;
 						$type_exists = true;
 						break;
 					}
 				}
 				if(!$type_exists)
-					$type_array[] = array ($kind, $type, $source, $ref);
+					$type_array[] = array ($kind, $type, $source, ($ref? [$ref]: []));
 				
 				if($source == 'VA'){
-					if($subElementType == 3) { //Lex. Typ
+					if($subElementType === 3) { //Lex. Typ
 						if(($kind == 'L')){
 							$va_sub = 'L' . $id;
 						}
 					}
-					else if ($subElementType == 2) { //Phon. Typ
+					else if ($subElementType === 2) { //Phon. Typ
 						if($kind == 'P'){
 							$va_sub = 'P'. $id;
 						}
 					}
 				}
-				else if ($row[0] == '' && strpos($row[4], $source) === 0){
-					$current_array[0] = 'TYP' . $type;
+				else if (($row[0] == '' || strpos($row[0], '###') === 0) && strpos($row[4], $source) === 0){
+					//An empty record cannot be used, since the tryMerge function of the record window needs information
+					$current_array[0] = $kind . 'TYP' . $type . $row[0];
 				}
 			}
 		}
@@ -455,17 +489,30 @@ function va_create_result_object ($where_clause, $lang, $epsilon, $grid_cat, IM_
 				$posHash1 = mb_strpos($b, '#');
 				$posHash2 = mb_strpos($b, '#', $posHash1 + 1);
 				
-				$id_btyp = mb_substr($b, 0, $posHash1);
+				$id_btyp = mb_substr($b, 0, $posHash1 - 2); //-2 to remove |0 or |1 for unsure
 				if($posHash2 === false){
 					$btyp = mb_substr($b, $posHash1 + 1);
-					$base_array[] = array ($btyp);
+					$base_array[] = [$btyp, []];
 				}
 				else {
 					$btyp = mb_substr($b, $posHash1 + 1, $posHash2 - $posHash1 - 1);
-					$etymon = mb_substr($b, $posHash2 + 1);
-					$base_array[] = array ($btyp, $etymon);
+					$ref = mb_substr($b, $posHash2 + 1);
+					
+					//For multiple base type references
+					$btypeExists = false;
+					foreach ($base_array as &$btype_descr){
+						if($btype_descr[0] == $btyp){
+							if($ref)
+								$btype_descr[1][] = $ref;
+							$btypeExists = true;
+							break;
+						}
+					}
+					
+					if(!$btypeExists)
+						$base_array[] = [$btyp, ($ref? [$ref]: [])];
 				}
-				if($subElementType == 4) { //Basistyp
+				if($subElementType === 4) { //Basistyp
 					if($va_sub === '-1'){
 						$va_sub = 'B' . $id_btyp;
 					}
@@ -477,12 +524,12 @@ function va_create_result_object ($where_clause, $lang, $epsilon, $grid_cat, IM_
 		}
 		
 		$conceptArray = $row[3]? explode(',', $row[3]): array();
-		if($subElementType == 1 && !empty($conceptArray)){ //Concept
+		if($subElementType === 1 && !empty($conceptArray)){ //Concept
 			//TODO unterschiedliche TL-Konzepte
 			$va_sub = 'C' . $concept_mapping[$conceptArray[0]];
 		}
 		
-		if($subElementType == -3){ //Tags
+		if($subElementType === -3){ //Tags
 			switch ($_POST['filter']['selectedTag']){
 				case 'ERHEBUNG':
 					$va_sub = '#' . substr($row[4], 0, strpos($row[4], ':'));
@@ -490,17 +537,36 @@ function va_create_result_object ($where_clause, $lang, $epsilon, $grid_cat, IM_
 			}
 		}
 		
-		$current_array[] = va_create_type_table($type_array, $base_array, $lang, $row[4], $Ue);
+		$current_array[] = va_create_type_table($type_array, $base_array, $lang, $row[4], $Ue, strpos($row[0], '###') !== false);
 		
 		$current_array[] = $conceptArray;
 		
-		$pos_col = strpos($row[4], ':');
-		if($pos_col === false){
-			$current_array[] = $row[4]; //source //TODO only needed since older version don't contain a colon => better solution = rebuild va_161 - va_171 tables and remove the if clause here!
-		}
-		else {
-			$current_array[] = substr_replace($row[4], '', $pos_col, 1); //source
-		}
+		//Source:
+		$sdata = explode('#', $row[4]);
+		$atlas = $sdata[0];
+		list($code, $html) = va_create_bibl_html($atlas);
+	    
+	    if(!in_array($atlas, $bibData)){
+	    	$bibData[$atlas] = "<div id='$code' style='display: none;'>" . va_format_bibliography($row[13], $row[14], $row[15], $row[16], $row[17], $row[18], $row[19], $row[20], $row[21]) . "</div>";
+	    }
+	    
+	    $key = $row[11] . '_' . $row[7];
+	    if(!in_array($key, $stimulusData)){
+	    	$res = '<div id="sti' . $key . '">' . $row[12];
+	    	
+	    	$link = va_produce_external_map_link($atlas, $sdata[1], $sdata[2], $sdata[3]);
+	    	if($link){
+	    		$res .= '<br /><br />' . $link;
+	    	}
+	    	
+	    	$res .= '</div>';
+	    	
+	    	$stimulusData[$key] = $res;
+	    }
+	    
+	    $html .= ' <span class="stimulus" data-stimulus="' . $key . '" style="text-decoration: underline; cursor: pointer;">' . $sdata[1] . '#' . $sdata[2] . '</span> ';
+
+	    $current_array[] = $html . $sdata[3] . ' (' . $sdata[4] . ')';
 		
 		//community
 		$community_names = explode('###', $row[6]);
@@ -522,7 +588,7 @@ function va_create_result_object ($where_clause, $lang, $epsilon, $grid_cat, IM_
 			switch ($_POST['filter']['markings']['tagName']){
 				case 'ERHEBUNG':
 					foreach ($_POST['filter']['markings']['tagValues'] as $key => $color){
-						if(strtolower($key) == strtolower(substr($row[4], 0, strpos($row[4], ':')))){
+						if(strtolower($key) == strtolower(substr($row[4], 0, strpos($row[4], '#')))){
 							$markingColor = $color;
 							break;
 						}
@@ -582,6 +648,9 @@ function va_create_result_object ($where_clause, $lang, $epsilon, $grid_cat, IM_
 	if($current_windows != NULL){
 		$result->addMapElements($last_cat, $current_windows, $last_geo_data, NULL, $last_quantify_data, $last_mcolor);
 	}
+	
+	$result->addExtraData('BIB', $bibData);
+	$result->addExtraData('STI', $stimulusData);
 }
 
 function va_get_quantify_data_informant ($id_informant, &$db){
@@ -701,7 +770,7 @@ function va_create_record_query ($where_clause, $epsilon, $grid_cat, &$db){
 	return "SELECT
 				Instance,
 				GROUP_CONCAT(DISTINCT CONCAT(Type_Kind, '#', Id_Type, '#', Type, '#', Type_Lang, '#', POS, '#', Gender, '#', Affix, '#', Source_Typing, '#', IF(Type_Reference IS NULL, '', Type_Reference)) SEPARATOR '-+-') AS Typings,
-				GROUP_CONCAT(DISTINCT CONCAT(Id_Base_Type, '|', Base_Type_Unsure, '#', IF(Base_Type_Unsure, '(?) ', ''), Base_Type, IF(Etymon IS NULL, '', CONCAT('#', Etymon))) SEPARATOR '-+-') AS Base_Types,
+				GROUP_CONCAT(DISTINCT CONCAT(Id_Base_Type, '|', Base_Type_Unsure, '#', IF(Base_Type_Unsure, '(?) ', ''), Base_Type, '#', IF(Base_Type_Reference IS NULL, '', Base_Type_Reference)) SEPARATOR '-+-') AS Base_Types,
 				GROUP_CONCAT(DISTINCT CONCAT('C', Id_Concept)) AS Concepts,
 				Instance_Source,
 				" . $geo_sql . " AS Geo_Data,
@@ -709,15 +778,26 @@ function va_create_record_query ($where_clause, $epsilon, $grid_cat, &$db){
 				Id_Informant,
 				Instance_Original,
 				Instance_Encoding,
-				" . $cluster_id . "
-			FROM Z_Ling JOIN A_Informant_Polygon USING (Id_Informant)
+				" . $cluster_id . ",
+				Id_Stimulus,
+				Stimulus,
+				Autor, 
+				Titel, 
+				Ort, 
+				Jahr, 
+				Download_URL, 
+				Band, 
+				Enthalten_In, 
+				Seiten, 
+				Verlag
+			FROM Z_Ling JOIN A_Informant_Polygon USING (Id_Informant) JOIN Stimuli USING (Id_Stimulus) JOIN Bibliographie ON Erhebung = Abkuerzung
 			WHERE " . $where_clause 
 					. ($_POST['outside'] == 'false' ? ' AND Alpine_Convention' : '') .
 					$where_app. "
 			GROUP BY Id_Instance";
 }
 
-function va_create_type_table (&$types, &$btypes, $lang, $source, &$Ue){
+function va_create_type_table (&$types, &$btypes, $lang, $source, &$Ue, $part_of_group){
 
 	$result = '<table class="easy-table easy-table-default">';
 	
@@ -753,20 +833,26 @@ function va_create_type_table (&$types, &$btypes, $lang, $source, &$Ue){
 	
 	//Phonetic types
 	if($source_lex_index === false)
-		$result .= va_get_type_table_row ($Ue['PHON_TYP'], $Ue['NICHT_TYPISIERT'], $va_phon_index, $source_phon_index, $phon_indexes, $types, $Ue['QUELLE']);
+		$result .= va_get_type_table_row ($Ue['PHON_TYP'], $Ue['NICHT_TYPISIERT'], $va_phon_index, $source_phon_index, $phon_indexes, $types, $Ue['QUELLE'], $part_of_group);
 	
 	//Morphologic types
-	$result .= va_get_type_table_row ($Ue['MORPH_TYP'], $Ue['NICHT_TYPISIERT'], $va_lex_index, $source_lex_index, $morph_indexes, $types, $Ue['QUELLE']);
+		$result .= va_get_type_table_row ($Ue['MORPH_TYP'], $Ue['NICHT_TYPISIERT'], $va_lex_index, $source_lex_index, $morph_indexes, $types, $Ue['QUELLE'], $part_of_group);
 	
 	//Base types
-	foreach ($btypes as $btype){
-		$result .= '<tr><td>' . $Ue['BASISTYP'] . '</td><td>' . $btype[0]  . (isset($btype[1])? ' (' . $btype[1] . ')' : '') . '</td><td>VA</td></tr>';
+	if(count($btypes) == 0){
+		$btype = $Ue['NICHT_TYPISIERT'];
 	}
+	else {
+		$btype = implode(' + ', array_map(function ($btype){
+			return add_references($btype[0], $btype[1]);
+		}, $btypes));
+	}
+	$result .= '<tr><td>' . (count($btypes) > 1 ? $Ue['BASISTYP_PLURAL']: $Ue['BASISTYP']) . '</td><td>' . $btype . '</td><td>VA</td></tr>';
 		
 	return $result . '</table>';
 }
 
-function va_get_type_table_row ($name, $empty, $va_index, $source_index, $indexes, &$types, $sourceStr){
+function va_get_type_table_row ($name, $empty, $va_index, $source_index, $indexes, &$types, $sourceStr, $part_of_group){
 	$result = '';
 	
 	if(count($indexes) == 0){
@@ -777,7 +863,11 @@ function va_get_type_table_row ($name, $empty, $va_index, $source_index, $indexe
 			
 		//Source typing (if exists)
 		if($source_index !== false){
-			$result .= '<tr><td>' . $name . '</td><td class="atlasSourceB">' . $types[$source_index][1] . '</td><td class="atlasSource">' . $sourceStr . '</td></tr>';
+			$star = '';
+			if($part_of_group){
+				$star .= '<font color="red">*</font>';
+			}
+			$result .= '<tr><td>' . $name . '</td><td class="atlasSourceB">' . $types[$source_index][1] . $star . '</td><td class="atlasSource">' . $sourceStr . '</td></tr>';
 			$count_rest--;
 			array_splice($indexes, $source_index, 1);
 		}
@@ -817,19 +907,16 @@ function va_get_type_table_row ($name, $empty, $va_index, $source_index, $indexe
 	return $result;
 }
 
-function add_references ($str, $refs){
-	if($refs != ''){
-		$ref_data = explode('%%%', $refs);
-		
-		foreach ($ref_data as $ref){
-			$data = explode('|', $ref);
-			if($data[0] !== 'VA'){
-				if($data[3]){
-					$str .= '<a title="' . $data[0] . ': ' . $data[1] . ' ' . $data[2] . '" href="' . $data[3] . '" target="_BLANK" class="encyLink">' . substr($data[0], 0, 1) . '</a>';
-				}
-				else {
-					$str .= '<span title="' . $data[0] . ': ' . $data[1] . ' ' . $data[2] . '" class="encyLink">' . substr($data[0], 0, 1) . '</span>';
-				}
+function add_references ($str, $ref_data){
+
+	foreach ($ref_data as $ref){
+		$data = explode('|', $ref);
+		if($data[0] !== 'VA'){
+			if($data[3]){
+				$str .= '<a title="' . $data[0] . ': ' . $data[1] . ' ' . $data[2] . '" href="' . $data[3] . '" target="_BLANK" class="encyLink">' . substr($data[0], 0, 1) . '</a>';
+			}
+			else {
+				$str .= '<span title="' . $data[0] . ': ' . $data[1] . ' ' . $data[2] . '" class="encyLink">' . substr($data[0], 0, 1) . '</span>';
 			}
 		}
 	}
@@ -920,5 +1007,136 @@ function va_is_hex_category ($id_cat, $type){
 		return $db->get_var($db->prepare("
 			SELECT DISTINCT GeometryType(Geo_Data) FROM Z_Geo WHERE GeometryType(Geo_Data) != 'POINT' AND Id_Category = %d", $id_cat)) == NULL;
 	}
+}
+
+function search_va_locations ($search){
+	global $Ue;
+	global $lang;
+	
+	$db = IM_Initializer::$instance->database;
+	$query = 'SELECT 
+            Id_Geo AS id, 
+            Name AS text, 
+            Category_Name AS description 
+        FROM Z_Geo
+        WHERE Name LIKE "%'.$search.'%" 
+        GROUP BY Name 
+        ORDER BY description ASC, text ASC';
+	
+	$names = $db->get_results($query);
+	
+	foreach ($names as $index => $name){
+		$names[$index]->description = va_sub_translate($names[$index]->description, $Ue);
+		$names[$index]->text = va_translate_extra_ling_name($names[$index]->text, $lang);
+	}
+	
+	return ['results' => $names];
+}
+
+function get_va_location ($id){
+    global $lang;
+    
+	$db = IM_Initializer::$instance->database;
+	$query = 'SELECT 
+                ST_AsText(ST_Envelope(IFNULL(Center, Geo_Data))) AS point, 
+                Name as text 
+            From Z_Geo WHERE Id_Geo = %f';
+	
+	$result = $db->get_row($db->prepare($query, $id), ARRAY_A);
+	$result['text'] = va_translate_extra_ling_name($result['text'], $lang);
+	
+	return $result;
+}
+
+function va_ling_search ($search, $lang){
+	global $Ue;
+	$lang = strtoupper(substr($lang, 0, 1));
+	$db = IM_Initializer::$instance->database;
+	
+	$query1 = "SELECT DISTINCT Id_Base_Type, Base_Type FROM z_ling WHERE Base_Type LIKE '%$search%' ORDER BY Base_Type ASC";
+	$bresult = $db->get_results($query1, ARRAY_A);
+	$basetypes = [];
+	foreach ($bresult as $btype){
+		$basetypes[] = ['id' => 'B' . $btype['Id_Base_Type'], 'text' => va_format_base_type($btype['Base_Type']), 'description' => $Ue['BASISTYP_PLURAL']];
+	}
+	
+	$query2 = "
+		SELECT DISTINCT GROUP_CONCAT(DISTINCT Id_Type ORDER BY Type ASC, Gender ASC SEPARATOR '+') AS Ids, Type, Type_Lang, POS, Affix 
+		FROM z_ling 
+		WHERE Source_Typing = 'VA' AND Type_Kind = 'L' AND Type LIKE '%$search%' COLLATE utf8mb4_general_ci 
+		GROUP BY Type, Type_Lang, POS 
+		ORDER BY Type ASC, Type_Lang ASC";
+	$mresult = $db->get_results($query2, ARRAY_A);
+	$morphtypes = [];
+	foreach ($mresult as $mtype){
+		$morphtypes[] = [
+			'id' => 'L' . $mtype['Ids'], 
+			'text' => va_format_lex_type($mtype['Type'], $mtype['Type_Lang'], $mtype['POS'], '', $mtype['Affix']),
+			'description' => $Ue['MORPH_TYP_PLURAL']
+		];
+	}
+	
+	$query3 = "
+    SELECT 
+        CONCAT('C', Id_Konzept) AS id, 
+        IF(Name_$lang != '', Name_$lang, Beschreibung_$lang) AS text, 
+        '{$Ue['KONZEPT_PLURAL']}' AS description FROM konzepte JOIN A_Anzahl_Konzept_Belege USING (Id_Konzept)
+    WHERE (Name_D LIKE '%$search%' OR Name_I LIKE '%$search%' OR Name_F LIKE '%$search%' OR Name_R LIKE '%$search%' OR Name_S LIKE '%$search%') AND Relevanz 
+    ORDER BY text ASC";
+	$concepts = $db->get_results($query3);
+	
+	$query4 = "
+    SELECT DISTINCT
+        CONCAT('I', Erhebung) as id,
+        Erhebung as text,
+        '{$Ue['INFORMANTEN']}' as description
+    FROM Informanten WHERE Erhebung LIKE '%$search%'
+    ORDER BY Erhebung ASC";
+	$informants = $db->get_results($query4);
+	
+	$query5 = "
+    SELECT DISTINCT
+        CONCAT(IF(GeometryType(Geo_data) = 'POLYGON' OR GeometryType(Geo_data) = 'MULTIPOLYGON', 'A', 'E'), Id_Category) as id,
+        Category_Name AS text,
+        IF(GeometryType(Geo_data) != 'POLYGON' AND GeometryType(Geo_data) != 'MULTIPOLYGON', '{$Ue['AUSSERSPR']}', '{$Ue['POLYGONE']}') as description
+    FROM Z_Geo";
+	$extra = $db->get_results($query5);
+	foreach ($extra as $e){
+	    $e->text = va_sub_translate($e->text, $Ue);
+	}
+	
+	$extra = array_filter($extra, function ($e) use ($search){
+		return mb_strpos(mb_strtolower($e->text), mb_strtolower($search)) !== false;
+	});
+	
+	$query6 = "
+	SELECT 
+		CONCAT('SYN', Id_Syn_Map) AS id,
+		Name AS text,
+		'{$Ue['SYN_MAPS_MENU']}' AS description
+	FROM im_syn_maps
+	WHERE Name LIKE '%$search%' AND Name != 'Anonymous' AND (Released = 'Released' OR Author = '" .  wp_get_current_user() -> user_login . "')";
+	$syn_maps = $db->get_results($query6);
+
+	$query7 = 'SELECT 
+            Id_Geo AS id, 
+            Name AS text, 
+            Category_Name AS description 
+        FROM Z_Geo
+        WHERE Name LIKE "%'.$search.'%" 
+        GROUP BY Name 
+        ORDER BY description ASC, text ASC';
+	
+	$locations = $db->get_results($query7);
+	
+	foreach ($locations as $index => $name){
+		$locations[$index]->description = va_sub_translate($locations[$index]->description, $Ue);
+		$locations[$index]->text = va_translate_extra_ling_name($locations[$index]->text, $lang);
+		$locations[$index] ->id = "LOC".$locations[$index] ->id;
+	}
+	
+	$names = array_merge($basetypes, $morphtypes, $concepts, $informants, $extra, $syn_maps,$locations);
+	
+	return ['results' => $names];
 }
 ?>

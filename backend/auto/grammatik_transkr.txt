@@ -26,12 +26,11 @@ Token
 
 Zeichen
   = b : Basiszeichen d : Diakritikum* {return b + d.join("");}
-  / "[" l: (Basiszeichen Diakritikum*)+ "]" d: Diakritikum* {var res = "["; for (var i = 0; i < l.length; i++) { res += l[i][0] + l[i][1].join(""); } return res + "]" + 
-
-d.join("");}
+  / "[" l: (Basiszeichen Diakritikum*)+ "]" d: Diakritikum* {var res = "["; for (var i = 0; i < l.length; i++) { res += l[i][0] + l[i][1].join(""); } return res + "]" + d.join("");}
   / "'1"
   / "'2"
   / "'"
+  / ".1"
 
 Basiszeichen
   = "aa" {return "aa";}
@@ -45,6 +44,7 @@ Basiszeichen
 Diakritikum
   = Teildiakritikum
   / "[" t : Teildiakritikum "]" {return "[" + t + "]";}
+  / "[" t1 : Teildiakritikum t2 : Teildiakritikum "]" {return "[" + t1 + t2 + "]";}
 
 Teildiakritikum
   = s : Sonderzeichen n : [1-7] {return s + n;}

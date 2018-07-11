@@ -38,6 +38,7 @@ jQuery(function() {
 	jQuery(".stimulusList select").change(changeStimulus);
 	jQuery("#AllorNot").change(changeStimulus);
 	jQuery("#AllorNotConcept").change(changeStimulus);
+	jQuery("#AllorNotAlpes").change(changeStimulus);
 	
 	//Select/Deselect token
 	jQuery("#tokenAuswahlLex").change(changeRecord);
@@ -46,7 +47,8 @@ jQuery(function() {
 	jQuery(".assignButton").click(typify);
 	jQuery("#newVAType").click(openMorphTypeDialog);
 	jQuery("#editVAType").click(editMorphType);
-	jQuery("#newMTypeButton").click (saveMorphType);
+	jQuery("#newMTypeButton").click(saveMorphType);
+	jQuery("#newBTypeButton").click(saveBaseType);
 	
 	//No Typification
 	jQuery(".conceptButton").click(assignConcept);
@@ -67,8 +69,12 @@ jQuery(function() {
 		showTableEntryDialog('NeueReferenzFuerZuweisung', callbackSaveReference, selectModes.Chosen, dbname);
 	});
 	
-	jQuery("#newBaseTypeButton").click(function () {
-		showTableEntryDialog('NeuerBTypFuerZuweisung', callbackSaveBaseType, selectModes.Chosen, dbname);
+	jQuery("#newBasetypeReferenceButton").click(function (){
+		showTableEntryDialog('NeueReferenzFuerBasistyp', callbackSaveReferenceBType, selectModes.Chosen, dbname);
+	});
+	
+	jQuery("#newBaseTypeButton").click(function (){
+		openBaseTypeDialog();
 	});
 	
 	jQuery('.infoSymbol').qtip();
@@ -85,10 +91,16 @@ jQuery(function() {
 	
 	jQuery(document).on("click", ".correctButton", function (){
 		var description = descriptionList.getDescription(jQuery(this).closest("tr").data("id-description"));
+		
+		var res = "";
+		for (var i = 0; i < description.idlist.length; i++){
+			res += description.idlist[i] + "\t\t\t Äußerung: " + description.aelist[i] + "\n";
+		}
+		
 		if(description.kind == "T" || description.kind == "P" || description.kind == "M")
-			alert("Token-Ids:\n" + description.idlist.replace(/,/g, ",\n"));
+			alert("Token-Ids:\n" + res);
 		else
-			alert("Tokengruppe-Ids:\n" + description.idlist.replace(/,/g, ",\n"));
+			alert("Tokengruppe-Ids:\n" + res);
 	});
 	
 	changeAtlas(true);
@@ -170,6 +182,7 @@ function changeStimulus(firstCall) {
 	
 	jQuery("#AllorNot").prop("disabled", true);
 	jQuery("#AllorNotConcept").prop("disabled", true);
+	jQuery("#AllorNotAlpes").prop("disabled", true);
 	selectObject.prop("disabled", true).trigger("chosen:updated");
 	jQuery("#filterAtlas").prop("disabled", true).trigger("chosen:updated");
 	jQuery("#tokensLoading").toggle(true);
@@ -181,6 +194,7 @@ function changeStimulus(firstCall) {
 		"id" : id,
 		"all" : (jQuery("#AllorNot").is(":checked")? "0": "1"),
 		"allC" : (jQuery("#AllorNotConcept").is(":checked")? "0": "1"),
+		"allA" : (jQuery("#AllorNotAlpes").is(":checked")? "0": "1"),
 		"dbname" : dbname
 	};
 	jQuery.post(ajaxurl, data, function(response) {
@@ -200,12 +214,13 @@ function changeStimulus(firstCall) {
 		
 		jQuery("#AllorNot").prop("disabled", false);
 		jQuery("#AllorNotConcept").prop("disabled", false);
+		jQuery("#AllorNotAlpes").prop("disabled", false);
 		selectObject.prop("disabled", false).trigger("chosen:updated");
 		jQuery("#filterAtlas").prop("disabled", false).trigger("chosen:updated");
 	});
 	
-	if(this.id != "AllorNot" && this.id != "AllorNotConcept"){
-		var file = selectObject.find(":selected").attr("data-file").replace("#", "%23");
+	if(this.id != "AllorNot" && this.id != "AllorNotConcept" && this.id != "AllorNotAlpes"){
+		var file = selectObject.find(":selected").attr("data-file");
 		
 		var data = {
 			"action" : "va",
@@ -215,8 +230,8 @@ function changeStimulus(firstCall) {
 		};
 		
 		jQuery.post(ajaxurl, data, function (response){
-			if(response == "1")
-				jQuery("#pdfFrame").attr("src", scanUrl + file);
+			if(response != "no")
+				jQuery("#pdfFrame").attr("src", scanUrl + response.replace("#", "%23"));
 		});
 	}
 }
@@ -276,7 +291,7 @@ function changeRecord (obj,changed){
 function deleteTypification (row){
 	var descr = descriptionList.getDescription(row.data("id-description"));
 	descr.vatype = "---LOADING---";
-	row.children().last().html("<img src='" + loadingUrl + "' />");
+	row.find("td:nth-last-child(2)").html("<img src='" + loadingUrl + "' />");
 	
 	var data = {
 		"action" : "va",
@@ -556,6 +571,11 @@ function saveMorphType (){
 
 	jQuery.post(ajaxurl, data, function (response){
 		try {
+			if(response.startsWith("Fehler")){
+				alert(response);
+				return;
+			}
+			
 			var typeInfo = JSON.parse(response);
 			closeMorphDialog();
 			
@@ -574,6 +594,37 @@ function saveMorphType (){
 				jQuery("#auswahlBestandteile").append(optionHtml).trigger("chosen:updated");
 				jQuery("#morphTypenAuswahl").append(optionHtml).trigger("chosen:updated");
 			}
+		}
+		catch (e) {
+			alert(e + "(" + response + ")");
+		}
+	});
+}
+
+function saveBaseType (){
+	var data = getBaseTypeData();
+	
+	if(data.type.Orth == ""){
+		alert("Das Feld \"Orth\" darf nicht leer sein!");
+		return;
+	}
+	
+	if(!data.type.Sprache){
+		alert("Das Feld \"Sprache\" darf nicht leer sein!");
+		return;
+	}
+
+	jQuery.post(ajaxurl, data, function (response){
+		try {
+			if(response.startsWith("Fehler")){
+				alert(response);
+				return;
+			}
+			
+			var typeInfo = JSON.parse(response);
+			closeBaseTypeDialog();
+			
+			jQuery('#auswahlBasistyp').append("<option value='" + typeInfo["Id"] + "'>" + typeInfo["Name"] + "</option>").trigger("chosen:updated");
 		}
 		catch (e) {
 			alert(e + "(" + response + ")");

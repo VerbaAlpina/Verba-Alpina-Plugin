@@ -23,14 +23,20 @@ Zeichen
   / b : Basiszeichen d: Diakritikum* "8" d2: Diakritikum* {return "<small>" + b + d.join("")  + d2.join("") + "</small>";}
   / b : Basiszeichen d: Diakritikum* "9" d2: Diakritikum* {return "<sub>" + b + d.join("") + d2.join("") + "</sub>";}
   / b : Basiszeichen d: Diakritikum* "[?]" d2 : Diakritikum* {return "<sub style='font-size:30%;'>(</sub>" + b + d.join("") + "x0323" + d2.join("") + "<sub style='font-size:30%;'>)</sub>";}
+  / b : Basiszeichen d: Diakritikum* "[-]" d2 : Diakritikum* {return "<sup style='font-size:30%;'>(</sup>" + b + d.join("") + "x0304" + d2.join("") + "<sup style='font-size:30%;'>)</sup>";}
+  / b : Basiszeichen d: Diakritikum* "[@]" d2 : Diakritikum* {return "<sub style='font-size:30%;'>(</sub>" + b + d.join("") + "x032F" + d2.join("") + "<sub style='font-size:30%;'>)</sub>";}
   / "[" b1 : Basiszeichen d1 : Diakritikum* b2 : Basiszeichen d2 : Diakritikum* "]%" {return b1 + d1.join("") + "x0361" + b2 + d2.join("");}
   / "[" b1 : Basiszeichen d1 : Diakritikum* b2 : Basiszeichen d2 : Diakritikum* "]~" {return b1 + d1.join("") + "x0360" + b2 + d2.join("");}
   / "[" b1 : Basiszeichen d1 : Diakritikum* b2 : Basiszeichen d2 : Diakritikum* "]@1" {return b1 + d1.join("") + "x035c" + b2 + d2.join("");}
+  / "[" b1 : Basiszeichen d1 : Diakritikum* b2 : Basiszeichen d2 : Diakritikum* "]-" {return b1 + d1.join("") + "x035E" + b2 + d2.join("");}
+  / "[" b1 : Basiszeichen d1 : Diakritikum* b2 : Basiszeichen d2 : Diakritikum* "]!" {return b1 + d1.join("") + "x035D" + b2 + d2.join("");}
+  / "[" b1 : Basiszeichen d1 : Diakritikum* b2 : Basiszeichen d2 : Diakritikum* "]_" {return b1 + d1.join("") + "x0332" + b2 + d2.join("");}
   / b : Basiszeichen d : Diakritikum* {return b + d.join("");}
   / " " {return "x0020";}
   / "," {return "x002c";}
   / ";" {return "x003b";}
   / "{ }" {return "x203f";}
+  / ".1" {return "x00B7";}
   
 /*
   / "[" b1 : Basiszeichen d1 : Diakritikum* b2 : Basiszeichen d2 : Diakritikum* "]%" {return b1 + d1.join("") + "xfe20" + b2 + d2.join("") + "xfe21";}
@@ -43,8 +49,10 @@ Basiszeichen
   / "a2" {return "x0252";}
   / "b1" {return "x03B2";}
   / "b2" {return "x0180";}
+  / "f2" {return "x0192";}
   / "g1" {return "x0263";}
   / "g2" {return "x210A";}
+  / "g3" {return "<svg viewbox='0 0 75 120' style='height: 0.7em; display: inline-block; vertical-align: text-bottom'><g><path d='m 60.024573,13.32606 q 4.541739,6.30194 4.541739,15.95181 0,11.81619 -8.346981,19.36548 -8.285599,7.54919 -20.928808,7.54919 -5.523739,0 -11.231597,-1.77242 -6.076107,5.64551 -6.076107,9.97815 0,2.95401 3.191491,4.06999 3.252864,1.05013 14.668581,1.37862 15.098213,0.39379 22.15631,1.31287 7.058106,0.85323 11.538473,5.31734 4.480356,4.39816 4.480356,12.53826 0,7.28665 -5.278237,14.5733 Q 63.52294,110.8753 54.132595,115.40484 44.742241,120 32.467281,120 19.271694,120 9.6358469,114.68277 0,109.43106 0,103.45739 0,100.30636 3.2528644,95.44856 6.5671019,90.59086 14.791327,81.00652 7.1194797,76.14882 7.1194797,71.42228 q 0,-7.08965 12.9500843,-18.64329 Q 5.9533608,45.42669 5.9533608,28.7527 q 0,-13.71986 9.2062152,-21.20351 Q 24.427174,0 35.536016,0 46.153862,0 53.948466,5.57988 H 69.66042 q 3.989361,0 4.664486,0.65633 Q 75,6.82691 75,9.25586 q 0,2.82275 -0.736458,3.47929 -0.675094,0.5907 -4.603112,0.5907 z m -9.635847,18.11813 q 0,-14.96721 -5.15548,-21.07214 -5.155491,-6.17079 -11.047469,-6.17079 -14.116213,0 -14.116213,20.74409 0,12.20999 4.418993,19.62801 4.418984,7.35228 11.783966,7.35228 14.116203,0 14.116203,-20.48145 z m -31.117032,50.2845 q -7.733231,10.76584 -7.733231,15.22974 0,3.01965 2.823243,5.84241 2.884615,2.8885 9.390354,4.8578 6.505729,1.96942 15.896073,1.96942 11.108842,0 19.762689,-4.39826 8.71523,-4.33263 8.71523,-12.86653 0,-4.4639 -4.296237,-6.43331 Q 59.533578,84.02627 47.258608,83.698 28.968914,83.23858 19.271694,81.72869 Z'></path><rect width='64.911903'height='10.528111' x='5.5330138' y='90.951073'></rect></g></svg>";}
   / "g4" {return "x0294";}
   / "o1" {return "x0153";}
   / "o2" {return "x0254";}
@@ -53,14 +61,17 @@ Basiszeichen
   / "c1" {return "x03C7";}
   / "c2" {return "x0481";}
   / "c3" {return "<strike>c</strike>";}
+  / "i1" {return "x0069x0337";}
   / "i3" {return "x0268";}
   / "l1" {return "x0142";}
   / "l2" {return "x026B";}
   / "r1" {return "x0280";}
+  / "p1" {return "x03C0";}
   / "e10" {return "x1D4A";} // Needed for e1 in squared brackets
   / "e1" {return "x0259";}
   / "e2" {return "x212F";}
   / "e3" {return "x03B5";}
+  / "f1" {return "x03C6";}
   / "d1" {return "x03B4";}
   / "d2" {return "x0111";}
   / "m2" {return "x0271";}
@@ -98,6 +109,12 @@ Diakritikum
   / "{" b: Basiszeichen d : Diakritikum* "}" {
   return "<span style='position: absolute; font-size: 60%; top: -0.7em; left: calc(50% - 0.3em);'>" + b + d.join("") + "</span>";
   }
+  / "-\"/" {
+  return "<span style='position: absolute; font-size: 60%; top: -0.7em; left: calc(50% - 0.3em);'>x221Ex0304x0301</span>";
+  }
+  / '"' {
+  return "<span style='position: absolute; font-size: 60%; top: -40%; left: calc(50% - 0.3em);'>x221E</span>";
+  }
   / ":1" {return "x0324";}
   / ":2" {return "x02D0";}
   / ":" {return "x0308";}
@@ -118,6 +135,7 @@ Diakritikum
   / "_" {return "x0331";}
   / "-" {return "x0304";}
   / "\\2" {return "x030F";}
+  / "\\3" {return "x05A9";}
   / "\\" {return "x0300";}
   / "=" {return "x207E";}
   / "~1" {return "x0303";}

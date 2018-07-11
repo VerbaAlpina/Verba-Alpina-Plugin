@@ -188,7 +188,7 @@ li.specificConcept {
 
 @font-face {
     font-family: zrcola;
-    src: url(../fonts/ZRColaRe.otf);
+    src: url(fonts/ZRColaRe.otf);
 }
 
 ol.footnotes p {
@@ -197,6 +197,7 @@ ol.footnotes p {
 
 .va-title {
 	position : relative;
+	font-family: 'Quicksand';
 }
 
 .va-title span.va-rel-link {
@@ -209,6 +210,25 @@ ol.footnotes p {
 }
 
 .entry-content a {text-decoration : underline;}
-.entry-content a:link {color: grey}
-.entry-content a:visited {color: grey}
-.bibl {color: #5E99BD}
+.entry-content a:link {color: #3CB371}
+.entry-content a:visited {color: #3CB371}
+
+.bibl {
+	color: #5E99BD;
+/*	text-decoration: underline; */
+	cursor: pointer;
+}
+
+.vaabr, .sabr {
+	color: grey /*#3CB371*/;
+/*	text-decoration: underline;*/
+	cursor: pointer;
+}
+
+.clickable-row{
+	cursor: pointer;
+}
+
+.clickable-row:hover{
+	opacity: 0.95;
+}

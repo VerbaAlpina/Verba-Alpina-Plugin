@@ -43,14 +43,15 @@ function HexagonOption (){
 	 * @return {undefined}
 	 */
 	this.applyState = function (val, details){
-		if(!details || details["first"] !== true){	
+		if(!details || details["first"] !== true){
 
 		   var is_quantified = symbolClusterer.checkQuantify();
 			
-		   this.setHexMenus(val == "hex");
+		   this.setHexMenus(val !== "phy");
 		   
-		   if(val == "hex"){
-				categoryManager.addAjaxData("hexgrid", details["hex"]);
+		   if(val !== "phy"){
+
+			   categoryManager.addAjaxData("hexgrid", val);
 				optionManager.setOption("ak", "false", {"first" : true});
 
 
@@ -74,7 +75,7 @@ function HexagonOption (){
 			}
 		
 		   if(details && details["load"] !== undefined)
-			   categoryManager.loadData(6, details["load"]);
+			   categoryManager.loadData(6, details["load"], "costum");
 		   
 		   for (var i = 0; i < legend.getLength(); i++){
 			   if(legend.getElement(i).category == categories.Polygon && legend.getElement(i).filterData){
@@ -85,7 +86,7 @@ function HexagonOption (){
 			
 			
 			optionManager.enableOptions(false);
-			legend.reloadMarkers(function (){
+			legend.reloadOverlays(function (){
 				optionManager.enableOptions(true);
 				if(val == "phy"){
 					jQuery("#phy_label").addClass("active");
@@ -146,5 +147,14 @@ function HexagonOption (){
 			jQuery("#polygonSelect").chosen(chosenSettings);
 			categoryManager.setElementID(categories.Polygon, "polygonSelect");
 		}
+	};
+	
+	/**
+	 * @override
+	 * 
+	 * @return {boolean}
+	 */
+	this.isSaved = function (){
+		return true;
 	};
 }
