@@ -5,7 +5,6 @@ add_action('wp_ajax_va', 'va_ajax_handler');
 add_action('wp_ajax_nopriv_va', 'va_ajax_handler');
 
 include_once('va_ajax_typification.php');
-include_once('va_ajax_transcription.php');
 include_once('va_ajax_edit_glossary.php');
 include_once('va_ajax_concept_tree.php');
 include_once('va_ajax_overview.php');
@@ -33,18 +32,10 @@ function va_ajax_handler (){
 			
 			va_ajax_typification($db);
 			break;
-		
-		//Transcription tool
-		case 'transcription':
-			if(!current_user_can('va_transcription_tool_read'))
-				break;
-			
-			va_ajax_transcription($db);
-		break;
 			
 		//Edit glossary
 		case 'edit_glossary':
-			if(!current_user_can('glossar'))
+			if(!current_user_can('va_glossary'))
 				break;
 
 			va_ajax_edit_glossary($db);
@@ -52,7 +43,7 @@ function va_ajax_handler (){
 		
 		//Edit comments
 		case 'edit_comments':
-			if(!current_user_can('im_edit_comments'))
+			if(!current_user_can('va_glossary'))
 				break;
 
 			switch($_POST['query']){
@@ -65,8 +56,10 @@ function va_ajax_handler (){
 
 					if($data_comm === false)
 						echo 'Locked';
-					else
+					else {
+						$data_comm['url'] = va_get_comments_link($_POST['id']);
 						echo json_encode($data_comm);
+					}
 					break;
 					
 				case 'removeLock':
@@ -74,9 +67,20 @@ function va_ajax_handler (){
 					break;
 					
 				case 'saveComment':
-					if(
-					va_save_comment($db, $_POST['id'], stripslashes($_POST['content']), $_POST['authors'], $_POST['internal'], $_POST['ready']) &&
-					(!isset($_POST['lang']) || va_save_comment_translation($db, $_POST['id'], $_POST['lang'], stripslashes($_POST['translation']), $_POST['translators'], $_POST['correctors'])))
+					if(!current_user_can('va_glossary_translate') && !current_user_can('va_glossary_edit')){
+						break;
+					}
+					
+					$success = true;
+					if(current_user_can('va_glossary_edit')){
+						$success = va_save_comment($db, $_POST['id'], stripslashes($_POST['content']), $_POST['authors'], $_POST['internal'], $_POST['ready']);
+					}
+					
+					if(isset($_POST['lang'])){
+						$success = $success && va_save_comment_translation($db, $_POST['id'], $_POST['lang'], stripslashes($_POST['translation']), $_POST['translators'], $_POST['correctors']);
+					}
+					
+					if($success)
 						echo 'success';
 					break;
 					
@@ -213,10 +217,11 @@ function va_ajax_handler (){
 						foreach ($token as $index => $character) {
 							foreach ($akzente as $akzent) {
 								$ak_qu = preg_quote($akzent[0], '/');
-								$character = preg_replace_callback('/([' . $vokale . '][^' . $ak_qu . 'a-zA-Z]*)' . $ak_qu . '/', function ($matches) use (&$result, $akzent, &$akzentExplizit){
-									$result .= $akzent[1];
-									$akzentExplizit = true;
-									return $matches[1];
+								$character = preg_replace_callback('/([' . $vokale . '][^' . $ak_qu . 'a-zA-Z]*)' . $ak_qu . '/', 
+									function ($matches) use (&$result, $akzent, &$akzentExplizit){
+										$result .= $akzent[1];
+										$akzentExplizit = true;
+										return $matches[1];
 								}, $character);
 							}
 							
@@ -261,11 +266,33 @@ function va_ajax_handler (){
 			
 		//Util tools
 		case 'util':
+			if ($_REQUEST['query'] == 'get_print_overlays'){
+				$db->select('va_xxx');
+				echo json_encode($db->get_col('SELECT AsText(Polygone_Vereinfacht.Geodaten) FROM Orte JOIN Polygone_Vereinfacht USING (Id_Ort) WHERE Id_Kategorie = 63 AND Epsilon = 0.003'));
+				break;
+			}
+			
 			//TODO maybe better user control
-			if(!$intern && !current_user_can('va_transcription_tool_write') && !current_user_can('va_typification_tool_write') && !current_user_can('glossar'))
+			if(!$intern && !current_user_can('va_transcription_tool_write') && !current_user_can('va_typification_tool_write') && !current_user_can('va_glossary'))
 				break;
 			
 			switch ($_REQUEST['query']){
+				case 'check_external_link':
+					va_check_external_link($_POST['link']);
+				break;
+				
+				case 'get_external_links':
+					va_get_external_links();
+				break;
+				
+				case 'get_glossary_link':
+					echo va_get_glossary_link($_POST['id']);
+				break;
+				
+				case 'get_comments_link':
+					echo va_get_comments_link($_POST['id']);
+				break;
+				
 				case 'addLock':
 					echo va_check_lock($db, $_POST);
 				break;
@@ -311,11 +338,6 @@ function va_ajax_handler (){
 				    
 				    echo json_encode($res);
 			     break;
-			     
-				 case 'get_print_overlays':
-				     $db->select('va_xxx');
-				    echo json_encode($db->get_col('SELECT AsText(Polygone_Vereinfacht.Geodaten) FROM Orte JOIN Polygone_Vereinfacht USING (Id_Ort) WHERE Id_Kategorie = 63 AND Epsilon = 0.003'));
-				 break;
 				 
 				 case 'checkTokens':
 				 	va_check_tokens_call($db);
@@ -323,6 +345,21 @@ function va_ajax_handler (){
 				 	
 				 case 'check_tokenizer':
 				 	va_tokenization_test_ajax($db);
+				 	break;
+				 	
+				 case 'tokenizeRecord':
+				 	$tokenizer = va_create_tokenizer($_POST['source']);
+				 	try {
+				 		$_POST['extraData']['notes'] = stripslashes($_POST['extraData']['notes']);
+				 		echo va_create_token_table($tokenizer->tokenize(stripslashes($_POST['record']), $_POST['extraData']), $_POST['id']);
+				 	}
+				 	catch (Exception $e){
+				 		echo 'ERR:' . $e;
+				 	}
+				 	break;
+				 	
+				 case 'get_community_name':
+				 	echo $commName = $db->get_var($db->prepare('SELECT Name FROM Orte WHERE Id_Kategorie = 62 AND ST_WITHIN(GeomFromText(%s), Geodaten)', $_POST['point']));
 				 	break;
 			}
 		break;
@@ -427,6 +464,22 @@ function va_ajax_handler (){
 					break;
 			}
 			break;
+			
+		case 'questionnaire':
+				switch ($_POST['query']){
+					case 'nextPage':
+						global $wpdb;
+						foreach ($_POST['answers'] as $answer){
+							$answer['answer'] = stripslashes($answer['answer']);
+							$answer['question_text'] = strip_tags($wpdb->get_var($wpdb->prepare('SELECT meta_value FROM wp_postmeta WHERE post_id = %d AND meta_key = %s',
+								$answer['post_id'], ('fb_seite_' . $answer['page'] . '_fb_frage_' . $answer['question'] . '_fb_uberschrift'))));
+							
+							$wpdb->insert('questionnaire_results', $answer);
+						}
+						va_questionnaire_sub_page($_POST['page'] + 1, $_POST['post']);
+						break;
+				}
+				break;
 		
 		case 'kml':
 			echo pointListToKML($_POST['sql']);

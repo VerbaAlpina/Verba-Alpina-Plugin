@@ -50,41 +50,25 @@ function HexagonOption (){
 		   this.setHexMenus(val !== "phy");
 		   
 		   if(val !== "phy"){
-
 			   categoryManager.addAjaxData("hexgrid", val);
-				optionManager.setOption("ak", "false", {"first" : true});
-
-
-				if(is_quantified){
-					map.setOptions({"styles": style_for_hex_quantify});	 //TODO should be moved to map interface
-				}
-				else{
-					map.setOptions({"styles": noLabelStyle}); //TODO should be moved to map interface
-				}
+			   optionManager.setOption("ak", "false", {"first" : true});
 			}
 			else {
 				categoryManager.removeAjaxData("hexgrid");
-
-				if(!is_quantified){
-					mapInterface.resetStyle(); 
-				}
-				else{
-					map.setOptions({"styles": style_for_quantify});	//TODO should be moved to map interface
-				}
-				
 			}
-		
-		   if(details && details["load"] !== undefined)
-			   categoryManager.loadData(6, details["load"], "costum");
 		   
-		   for (var i = 0; i < legend.getLength(); i++){
-			   if(legend.getElement(i).category == categories.Polygon && legend.getElement(i).filterData){
-				   delete(legend.getElement(i).filterData["removed"]);
-				   break;
-			   }
-		   }
-			
-			
+		   	mapInterface.updateMapStyle(is_quantified !== false);
+		
+		   	if(details && details["load"] !== undefined)
+		   		categoryManager.loadData(6, details["load"], "costum");
+		   
+		   	for (var i = 0; i < legend.getLength(); i++){
+		   		if(legend.getElement(i).category == categories.Polygon && legend.getElement(i).filterData){
+		   			delete(legend.getElement(i).filterData["removed"]);
+		   			break;
+		   		}
+		   	}
+
 			optionManager.enableOptions(false);
 			legend.reloadOverlays(function (){
 				optionManager.enableOptions(true);

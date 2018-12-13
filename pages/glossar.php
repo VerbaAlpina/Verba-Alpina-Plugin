@@ -8,7 +8,7 @@ function ladeGlossar (){
 	global $vadb;
 
 	//Nutzerberechtigung (Projektmitarbeiter usw. können interne Einträge sehen)
-	$intern = $admin || $va_mitarbeiter;
+	$intern = current_user_can('va_glossary_edit');
 	
 	$letterSet = isset($_GET['letter']);
 	$tagSet = isset($_GET['tag']);
@@ -32,7 +32,7 @@ function ladeGlossar (){
 				"hide" : "unfocus",
 				"content" : {
 					"text" : function (){
-						var result = "<div class='divPlain'>" + jQuery(this).data("plain") + "</div><br />";
+						var result = "<div class='divPlain'>" + jQuery(this).data("plain").replace(/(http[^ ]*)/, "<a href='$1'>$1</a>") + "</div><br />";
 						result += "<input class='copyButton buttonPlain' style='display: block; margin: auto;' type='button' value='<?php echo $Ue['KOPIEREN']; ?>' /><br /><br />";
 						result += "<div class='divBibtex'>" + jQuery(this).data("bibtex") + "</div><br />";
 						result += "<input class='copyButton buttonBibtex' style='display: block; margin: auto;' type='button' value='<?php echo $Ue['KOPIEREN']; ?>' />";
@@ -96,12 +96,6 @@ function ladeGlossar (){
 		$currentIndex = 0;
 		$currentTitle = 0;
 		
-		
-		/*while($currentTitle < sizeof($entryNames) && !ctype_alpha($entryNames[$currentTitle][0][0])){
-			$currentTitle++;	
-		}*/
-		
-
 		if($tagSet || $mode === 'T'){
 			$allTags = $vadb->get_results("
 				SELECT DISTINCT IF(Id_Tag IS NULL, 0, Id_Tag), IF(Tag IS NULL, '(no Tag)', Tag) 
@@ -116,11 +110,11 @@ function ladeGlossar (){
 				$url = add_query_arg('tag', $tag[0], get_permalink());
 				echo "<a href = \"$url\" $style>" . va_translate($tag[1], $Ue) . "</a>&nbsp;&nbsp;\n";
 				$nameList .= '<h2 style="margin-bottom: 0.5em">' . va_translate($tag[1], $Ue) . '</h2>';
-				while($currentTitle < count($entryNames) && strcasecmp($entryNames[$currentTitle][2], $tag[1]) === 0){
+				while($currentTitle < count($entryNames) && strcasecmp($entryNames[$currentTitle]['TagName'], $tag[1]) === 0){
 					if(!$tagSet){
-						$url = add_query_arg('tag', $tag[0], get_permalink()) . '#' . $entryNames[$currentTitle][1];
-						$estyle = va_get_glossary_link_style($entryNames[$currentTitle][1]);
-						$nameList .= "<a style='$estyle' href=\"$url\">" . $entryNames[$currentTitle][0] . '</a><br />';
+						$url = add_query_arg('tag', $tag[0], get_permalink()) . '#' . $entryNames[$currentTitle]['Id_Eintrag'];
+						list($estyle, $eclass, $eimgs) = va_get_glossary_link_style($entryNames[$currentTitle]['Id_Eintrag']);
+						$nameList .= $eimgs. "<a class='va_glossary_link $eclass' style='$estyle' href=\"$url\">" . $entryNames[$currentTitle]['Name'] . '</a><br />';
 					}
 					$currentTitle++;
 				}
@@ -131,18 +125,18 @@ function ladeGlossar (){
 		else {
 			$allLetters = range('A','Z');
 			foreach ($allLetters as $letter){
-				if($currentTitle < sizeof($entryNames) && strcasecmp(va_only_latin_letters($entryNames[$currentTitle][0])[0],$letter) == 0){
+				if($currentTitle < sizeof($entryNames) && strcasecmp(va_only_latin_letters($entryNames[$currentTitle]['Name'])[0],$letter) == 0){
 					$style = '';
 					if($letterSet && $letter == $_GET["letter"]){
 						$style = 'style = "color : blue"';
 					}
 					$url = add_query_arg('letter', $letter, get_permalink());
 					echo "<span class='linkSpan'><a href = \"$url\" $style> $letter</a></span>&nbsp;&nbsp;\n";
-					while($currentTitle < sizeof($entryNames) && strcasecmp(va_only_latin_letters($entryNames[$currentTitle][0])[0],$letter) === 0){
+					while($currentTitle < sizeof($entryNames) && strcasecmp(va_only_latin_letters($entryNames[$currentTitle]['Name'])[0],$letter) === 0){
 						if(!$letterSet){
-							$url = add_query_arg('letter', $letter, get_permalink()) . '#' . $entryNames[$currentTitle][1];
-							$estyle = va_get_glossary_link_style($entryNames[$currentTitle][1]);
-							$nameList .= "<a style='$estyle' href=\"$url\">" . $entryNames[$currentTitle][0] . '</a><br />';
+							$url = add_query_arg('letter', $letter, get_permalink()) . '#' . $entryNames[$currentTitle]['Id_Eintrag'];
+							list($estyle, $eclass, $eimgs) = va_get_glossary_link_style($entryNames[$currentTitle]['Id_Eintrag']);
+							$nameList .= $eimgs . "<a class='va_glossary_link $eclass' style='$estyle' href=\"$url\">" . $entryNames[$currentTitle]['Name'] . '</a><br />';
 						}
 						$currentTitle++;
 					}
@@ -173,27 +167,27 @@ function ladeGlossar (){
 			foreach ($entries as $e){
 				echo "<header class=\"entry-header\">";
 				echo "	<h1 class=\"entry-title va-title\">";
-				echo '<span class="va-rel-link" id="' . $e[0] . '"></span>';
-				$estyle = va_get_glossary_link_style($e[0]);
-				echo "<span style='$estyle'>" . $e[1] . '</span>';
+				echo '<span class="va-rel-link" id="' . $e['Id_Eintrag'] . '"></span>';
+				list($estyle, $eclass, $eimgs) = va_get_glossary_link_style($e['Id_Eintrag']);
+				echo "<a class='hLink' href='#" . $e['Id_Eintrag'] . "'><span style='$estyle' class='$eclass'>" . $e['Name'] . '</span></a>';
 				if($intern && $va_current_db_name == 'va_xxx'){
-					echo '&nbsp;<a href="' . get_admin_url(1) . '?page=glossar&entry=' . $e[0] . '" target="_BLANK" style="font-size: 50%">(' . $Ue['BEARBEITEN'] . ')</a>';
+					echo '&nbsp;<a href="' . get_admin_url(1) . '?page=glossar&entry=' . $e['Id_Eintrag'] . '" target="_BLANK" style="font-size: 50%">(' . $Ue['BEARBEITEN'] . ')</a>';
 				}
 				if($va_current_db_name != 'va_xxx'){
-					$cite_text = va_create_glossary_citation($e[0], $Ue);
-					$bibtex = va_create_glossary_bibtex($e[0], $Ue, true);
+					$cite_text = va_create_glossary_citation($e['Id_Eintrag'], $Ue);
+					$bibtex = va_create_glossary_bibtex($e['Id_Eintrag'], $Ue, true);
 					echo '&nbsp;<span class="quote" data-plain="' . $cite_text . '" data-bibtex="' . $bibtex. '" style="font-size: 50%; cursor : pointer; color : grey;">(' . $Ue['ZITIEREN'] . ')</span>';
 				}
 				echo "	</h1>";			
 				echo "</header>";
 				
-				parseSyntax($e[2], true, $intern, $mode) . '<br />';
+				parseSyntax($e['Text'], true, $intern, $mode) . '<br />';
 						
 				echo '<div class="entry-content">';
-				echo "$e[2] <br />";
+				echo "{$e['Text']} <br />";
 				
-				echo va_add_glossary_authors($e[4], $e[5]);
-				va_add_glossary_tags($e[3]);
+				echo va_add_glossary_authors($e['Autoren'], $e['Uebersetzer']);
+				va_add_glossary_tags($e['Tags']);
 				
 				echo'</div><br /><br /><br />';
 			}
@@ -204,40 +198,93 @@ function ladeGlossar (){
 	}
 	
 	function va_get_glossary_link_style($id){
-		if($id == 33) //Interne Syntax
-			return;
-		
+
 		global $va_current_db_name;
 		global $lang;
-		global $admin;
-		global $va_mitarbeiter;
 		
-		if(($admin || $va_mitarbeiter) && $va_current_db_name == 'va_xxx' && $lang == 'D'){
-			global $va_xxx;
-			$info = $va_xxx->get_row("SELECT Fertig, Erlaeuterung_D REGEXP '(<neu>|<mod>)' FROM Glossar WHERE Id_Eintrag = $id", ARRAY_N);
-			if($info[0] == '0'){
-				return 'color : red';
-				
-			}
-			if($info[1] == '1'){
-				return 'color : blue';
+		if((current_user_can('va_glossary_edit')) && $va_current_db_name == 'va_xxx' && $lang == 'D'){
+			if($id == 33) //Interne Syntax
+				return ['background: LemonChiffon;', '', ''];
 			
+			$style = '';
+			$classes = [];
+			$imgs = [];
+			
+			global $va_xxx;
+			$info = $va_xxx->get_row("SELECT Fertig, Erlaeuterung_D, Intern FROM Glossar WHERE Id_Eintrag = $id", ARRAY_N);
+
+			if($info[0] == '0'){
+				$style .= 'color: red;';
 			}
+			else {
+				$matches = [];
+				preg_match_all('#(?:<|\[\[)(?:neu|mod)(?: fertig="([IFSREL]*)")?(?:>|\]\])#', $info[1], $matches, PREG_SET_ORDER);
+				
+				$tlangs = ['I' => true, 'F' => true, 'S' => true, 'R' => true];
+				foreach ($matches as $match){
+					if (isset($match[1])){
+						foreach (array_keys($tlangs) as $tlang){
+							if (strpos($match[1], $tlang) === false){
+								$tlangs[$tlang] = false;
+							}
+						}
+					}
+					else {
+						foreach ($tlangs as $tlang => $val){
+							$tlangs[$tlang] = false;
+						}
+						break;
+					}
+				}
+				
+				foreach ($tlangs as $tlang => $val){
+					if(!$val){
+						if ($tlang == 'I'){
+							$imgs[] = 'images/svg_flags/italy_svg_round.png';
+						}
+						else if ($tlang == 'F'){
+							$imgs[] = 'images/svg_flags/france_svg_round.png';
+						}
+						else if ($tlang == 'S'){
+							$imgs[] = 'images/svg_flags/slovenia_svg_round.png';
+						}
+						else if ($tlang == 'R'){
+							$imgs[] = 'images/svg_flags/canton_svg_round.png';
+						}
+					}
+				}
+				
+				if(count($matches) > 0){
+					$style .= 'color: blue;';
+				}
+			}
+			
+			if ($info[2]){
+				$style .= 'background: LemonChiffon;';
+			}
+			
+			return [$style, implode(' ', $classes), implode(' ', array_map(function ($e){
+				return '<img class="missingTranslation" src="' . get_stylesheet_directory_uri() . '/' . $e . '" />';}, $imgs))];
 		}
 		return '';
 	}
 	
 	function va_add_glossary_authors($authors, $translators){
+
 		$res = '';
 		if(count($authors) > 0){
+			usort($authors, function ($a,$b){return strcmp($a[1].$a[0], $b[1].$b[0]);});
+			
 			$res .= '<br />';
-			$res .= '(auct. ' . implode(' | ', $authors);
+			$res .= '(auct. ' . implode(' | ', array_map(function ($e){return $e[0] . ' ' . $e[1] . ($e[2]? ' -[' . $e[2] . ']': '');}, $authors));
 			if(count($translators) > 0){
-				$res .= ' - trad. ' . implode(' | ', $translators);
+				usort($translators, function ($a,$b){return strcmp($a[1].$a[0], $b[1].$b[0]);});
+				$res .= ' - trad. ' . implode(' | ', array_map(function ($e){return $e[0] . ' ' . $e[1] . ($e[2]? ' -[' . $e[2] . ']': '');}, $translators));
 			}
 			$res .= ')<br />';
 		}
-		return va_add_abrv($res);
+		parseSyntax($res);
+		return $res;
 	}
 	
 	function va_add_glossary_tags($tags){
@@ -254,10 +301,10 @@ function ladeGlossar (){
 		global $vadb;
 
 		$res = $vadb->get_results("
-				select Id_Eintrag, Terminus_$lang, Erlaeuterung_$lang
+				select Id_Eintrag, Terminus_$lang as Name, Erlaeuterung_$lang as Text, Intern
 				from glossar
-				where" . ($intern? "" : " Intern = '0' and") . " Kategorie='Methodologie'
-				order by Terminus_$lang asc", ARRAY_N);
+				where" . ($intern? "" : " Intern = '0' and Fertig and") . " Kategorie='Methodologie'
+				order by Terminus_$lang asc", ARRAY_A);
 	
 		va_add_glossary_meta_information($res, $lang, $Ue);
 		
@@ -269,11 +316,11 @@ function ladeGlossar (){
 			global $vadb;
 			
 			$res = $vadb->get_results($vadb->prepare("
-					select Id_Eintrag, Terminus_$lang, Erlaeuterung_$lang
+					select Id_Eintrag, Terminus_$lang as Name, Erlaeuterung_$lang as Text, Intern
 					from glossar
-					where" . ($intern? "" : " Intern = '0' and") . " substring(Terminus_$lang,1,1) = %s and Kategorie='Methodologie'
+					where" . ($intern? "" : " Intern = '0' and Fertig and") . " substring(Terminus_$lang,1,1) = %s and Kategorie='Methodologie'
 					order by Terminus_$lang asc", $letter)
-					, ARRAY_N);
+					, ARRAY_A);
 
 			va_add_glossary_meta_information($res, $lang, $Ue);
 
@@ -286,11 +333,11 @@ function ladeGlossar (){
 			
 			if($id_tag == 0){
 				$res = $vadb->get_results($vadb->prepare("
-					select Id_Eintrag, Terminus_$lang, Erlaeuterung_$lang
+					select Id_Eintrag, Terminus_$lang as Name, Erlaeuterung_$lang as Text, Intern
 				 	from glossar LEFT JOIN VTBL_Eintrag_Tag USING (Id_Eintrag)
-				 	where" . ($intern? "" : " Intern = '0' and") . " Kategorie='Methodologie' and Id_Tag IS NULL and Terminus_$lang != ''
+				 	where" . ($intern? "" : " Intern = '0' and Fertig and") . " Kategorie='Methodologie' and Id_Tag IS NULL and Terminus_$lang != ''
 				 	order by Terminus_$lang asc", $id_tag)
-				 	, ARRAY_N);
+				 	, ARRAY_A);
 					
 				foreach ($res as &$row){
 					$row[] = array ();
@@ -298,11 +345,11 @@ function ladeGlossar (){
 			}
 			else {
 				$res = $vadb->get_results($vadb->prepare("
-					select Id_Eintrag, Terminus_$lang, Erlaeuterung_$lang
+					select Id_Eintrag, Terminus_$lang as Name, Erlaeuterung_$lang as Text, Intern
 				 	from glossar JOIN VTBL_Eintrag_Tag USING (Id_Eintrag)
-				 	where" . ($intern? "" : " Intern = '0' and") . " Kategorie='Methodologie' and Id_Tag = %d and Terminus_$lang != ''
+				 	where" . ($intern? "" : " Intern = '0' and Fertig and") . " Kategorie='Methodologie' and Id_Tag = %d and Terminus_$lang != ''
 				 	order by Terminus_$lang asc", $id_tag)
-				 	, ARRAY_N);
+				 	, ARRAY_A);
 					
 				va_add_glossary_meta_information($res, $lang, $Ue);
 			}	
@@ -313,19 +360,19 @@ function ladeGlossar (){
 			global $vadb;
 			
 			foreach ($result as &$row){
-				if($row[0] == 61 /*Versionierung*/){
-					$row[2] .= va_add_image_gallery();
+				if($row['Id_Eintrag'] == 61 /*Versionierung*/){
+					$row['Text'] .= va_add_image_gallery();
 				}
 				
-				$ctags = $vadb->get_results("SELECT Id_Tag, Tag FROM Tags JOIN VTBL_Eintrag_Tag USING (Id_Tag) WHERE Id_Eintrag = {$row[0]}", ARRAY_N);
+				$ctags = $vadb->get_results("SELECT Id_Tag, Tag FROM Tags JOIN VTBL_Eintrag_Tag USING (Id_Tag) WHERE Id_Eintrag = {$row['Id_Eintrag']}", ARRAY_N);
 				foreach ($ctags as &$ctag){
 					$ctag[1] = va_translate($ctag[1], $Ue);
 				}
-				$row[] = $ctags;
+				$row['Tags'] = $ctags;
 
 				if(va_version_newer_than('va_161')){
-					$row[] = $vadb->get_col("SELECT CONCAT(Vorname, ' ', Name) FROM Personen JOIN VTBL_Eintrag_Autor USING (Kuerzel) WHERE Id_Eintrag = {$row[0]} AND Aufgabe = 'auct'");
-					$row[] = $vadb->get_col("SELECT CONCAT(Vorname, ' ', Name) FROM Personen JOIN VTBL_Eintrag_Autor USING (Kuerzel) WHERE Id_Eintrag = {$row[0]} AND Aufgabe = 'trad' AND Sprache = '$lang'");
+					$row['Autoren'] = $vadb->get_results("SELECT Vorname, Name, Affiliation FROM Personen JOIN VTBL_Eintrag_Autor USING (Kuerzel) WHERE Id_Eintrag = {$row['Id_Eintrag']} AND Aufgabe = 'auct'", ARRAY_N);
+					$row['Uebersetzer'] = $vadb->get_results("SELECT Vorname, Name, Affiliation FROM Personen JOIN VTBL_Eintrag_Autor USING (Kuerzel) WHERE Id_Eintrag = {$row['Id_Eintrag']} AND Aufgabe = 'trad' AND Sprache = '$lang'", ARRAY_N);
 				}
 			}
 		}
@@ -335,14 +382,15 @@ function ladeGlossar (){
 			global $vadb;
 			if($tags){
 				return $vadb->get_results("
-					select Terminus_$lang, Id_Eintrag, IF(Tag IS NULL, '(no Tag)', Tag) as Tag2 
+					select Terminus_$lang as Name, Id_Eintrag, IF(Tag IS NULL, '(no Tag)', Tag) as TagName, Intern 
 				from glossar left join vtbl_eintrag_tag using (Id_Eintrag) left join tags using (Id_Tag) 
-				where Terminus_$lang != '' AND Kategorie='Methodologie'" . ($intern? "" : " and Intern = '0'") . " 
-				ORDER BY Tag2 ASC, Terminus_$lang ASC", ARRAY_N);
+				where Terminus_$lang != '' AND Kategorie='Methodologie'" . ($intern? "" : " and Intern = '0' AND Fertig") . " 
+				ORDER BY TagName ASC, Terminus_$lang ASC", ARRAY_A);
 			}
-			$titles = $vadb->get_results("select Terminus_$lang, Id_Eintrag from glossar where Terminus_$lang != '' AND Kategorie='Methodologie'" . ($intern? "" : " and Intern = '0'"), ARRAY_N);
+			$titles = $vadb->get_results("select Terminus_$lang as Name, Id_Eintrag, Intern from glossar where Terminus_$lang != '' 
+				AND Kategorie='Methodologie'" . ($intern? "" : " and Intern = '0' AND Fertig"), ARRAY_A);
 			usort($titles, function ($row1, $row2){
-				return strcasecmp(va_only_latin_letters($row1[0]), va_only_latin_letters($row2[0]));
+				return strcasecmp(va_only_latin_letters($row1['Name']), va_only_latin_letters($row2['Name']));
 			});
 			return $titles;
 		}
@@ -400,7 +448,8 @@ function ladeGlossar (){
 					. $file[2] * $size / 100 . '%; left: ' 
 					. $file[3] * $size / 100 . '%; top: ' 
 					. $file[4] . '%;" data="' . get_site_url(1) . '/wp-content/uploads/VA_logo.svg"></object>';
-					$res .= '<img style="width: ' . $size . '%" src="' . $file[0] . '" /><p>' . va_format_version_number(va_get_string_or_empty($files, $i - 1)[1]) . '</p>';
+					$vnum =	va_get_string_or_empty($files, $i - 1);
+					$res .= '<img style="width: ' . $size . '%" src="' . $file[0] . '" /><p>' . va_format_version_number($vnum? $vnum[1] : '') . '</p>';
 				$res .= '</div>';
 			}
 			return $res;

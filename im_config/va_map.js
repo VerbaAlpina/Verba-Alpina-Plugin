@@ -12,8 +12,6 @@ var categories = {
 	Custom : 7
 };
 
-var /** @type{Array<google.maps.Data.Feature|google.maps.Marker|MapLabel>}*/ printOverlays = [];
-
 //TODO fix eling error if z_geo is empty, at least "no data" should be shown again
 
 chosenSettings["normalize_search_text"] = removeDiacriticsPlusSpecial;
@@ -166,6 +164,7 @@ function bindMenuSlide(){
 		if(data["trigger"] == "menu"){
 			if(data["category"] == categories.Polygon && optionManager.getOptionState("polymode") !== "phy"){
 				//Update ajax data
+				data["ajaxData"]["hexgrid"] = data["key"]; //Ajax data already computed => has to be changed here
 				categoryManager.addAjaxData("hexgrid", data["key"]);
 			
 				//Reload other legend entries
@@ -188,6 +187,7 @@ function bindMenuSlide(){
 
 	jQuery(document).on('im_legend_after_update', function(){
 		adjustlegendTable();
+		setTableRowWidth();
 	});
 
 	jQuery(document).on('im_load_syn_map', function(){
@@ -406,8 +406,8 @@ jQuery(document).on("im_add_options", function (){
 			if(wkt){
 				var geoList = wkt.split(";");
 				for (var i = 0; i < geoList.length; i++){
-					var feature = new google.maps.Data.Feature ({"geometry" : parseGeoData(geoDataToStrictFormat(geoList[i]))});
-					map.data.add(feature);
+					var /** Object */ shapeObject = mapInterface.createShape(geoManager.parseGeoDataUnformated(geoList[i]), null, "debug");
+					mapInterface.addShape(shapeObject);
 				}
 			}
 		}));
@@ -453,91 +453,35 @@ jQuery(document).on("im_add_options", function (){
 	}
 	
 	if(ajax_object.va_staff == "1") {
-		var /** BoolOption */ printOption = new BoolOption(false, TRANSLATIONS["DRUCKFASSUNG"], function (val, details){
-   
-			if(!details || !details["first"]){  //TODO ONLY CALL WHEN URL PARAM FOR PRINT EXISTS
-
-					if(val){
-						//TODO should be moved to map interface
-						map.setMapTypeId(google.maps.MapTypeId.ROADMAP);
-						map.setOptions({"styles": emptyMapStyle});
-						
-						var cities = {	"Graz" : new google.maps.LatLng(47.08167647058823, 15.440786294117647),
-								"Wien" : new google.maps.LatLng(48.21005884090909, 16.36924844886364),
-								"Zürich" : new google.maps.LatLng(47.38053583333334, 8.533726065476195),
-								"Genève" : new google.maps.LatLng(46.20491474626866, 6.146582208955225),
-								"München" : new google.maps.LatLng(48.15599302956941, 11.536016254553722),
-								"Lyon" : new google.maps.LatLng(45.76355704838709, 4.823816322580646),
-								"Marseille" : new google.maps.LatLng(43.35255012031986, 5.402270187858101),
-								"Torino" : new google.maps.LatLng(45.07748569955254, 7.6675839411545095),
-								"Milano" : new google.maps.LatLng(45.47630795340505, 9.152742594982076),
-								"Genova" : new google.maps.LatLng(44.45599925698791, 8.909093869689082),
-								"Venezia" : new google.maps.LatLng(45.5161237585159, 12.29172227086939),
-								"Bologna" : new google.maps.LatLng(44.49460777669903, 11.329389016181231),
-								"Ljubljana" : new google.maps.LatLng(46.07171353316323, 14.519828036989805),
-								"Zagreb" : new google.maps.LatLng(45.824386, 15.977033)};
-								
-						for (var prop in cities){
-							var alignRight = prop == "Genève" || prop == "Venezia";
-							
-							var label = new MapLabel({
-								"text" : alignRight? prop + "  " : "  " + prop,
-								"position" : cities[prop],
-								"fontSize" : 12,
-								"strokeWeight" : 0,
-								"align" : alignRight? "right" : "left",
-								"map" : map
-							});
-							
-							var marker = new google.maps.Marker ({
-								"icon" : ajax_object["site_url"] + "/wp-content/plugins/verba-alpina/images/dot.png", //TODO remove hardcoded verba_alpina
-								"map" : map,
-								"position" : cities[prop]
-							});
-							
-							printOverlays.push(marker);
-							printOverlays.push(label);
-						}
-						
-						jQuery.post(ajax_object.ajaxurl, {
-							"action" : "va",
-							"namespace" : "util",
-							"query" : "get_print_overlays"
-						}, function (response){
-							var arr = JSON.parse(response);
-							for (var i = 0; i < arr.length; i++){
-								var feature = new google.maps.Data.Feature({
-									"geometry" : parseGeoData(arr[i])
-								});
-								map.data.add(feature);
-								printOverlays.push(feature);
-							}
-						});
-					}
-					else {
-		   		  		mapInterface.resetStyle();
-		   		  		for (var i = 0; i < printOverlays.length; i++){
-		   		  			var curr = printOverlays[i];
-		   		  			if(curr instanceof google.maps.Data.Feature){
-		   		  				map.data.remove(curr);
-		   		  			}
-		   		  			else {
-		   		  				curr.setMap(null);
-		   		  			}
-		   		  		}
-					}
-			}
-		}, false);
-		
-		jQuery(document).on("im_quantify_mode", function (event, val){
-			printOption.setEnabled(!val);
-		});
-
-		optionManager.addOption("print", printOption);
-		
 		optionManager.addOption("sql", new ClickOption("SQL Query", function (){
 			categoryManager.showFilterScreen(categories.Custom, "SQL");
 		}));
+	}
+	
+	if (mapInterfaceType == MapInterfaceType.GoogleMaps){
+		jQuery.ajax({
+			dataType: "json",
+			url: ajax_object["plugin_url"] + "/im_config/map_styles/empty.json",
+			success: function(data){
+				/** @type {GoogleMapsInterface} */ (mapInterface).addMapStyle("empty", data);
+				
+				if(ajax_object.va_staff == "1") {
+					var /** BoolOption */ printOption = new BoolOption(false, TRANSLATIONS["DRUCKFASSUNG"], function (val, details){
+						mapInterface.showPrintVersion(val);
+					}, false);
+
+					jQuery(document).on("im_quantify_mode", function (event, val){
+						printOption.setEnabled(!val);
+					});
+			
+					optionManager.addOption("print", printOption);
+				}
+				
+				if(optionManager.getOptionState("print")){
+					mapInterface.showPrintVersion(true);
+				}
+			}
+		});
 	}
 	
 	jQuery(document).on("im_url_changed", function (event, state){
@@ -548,7 +492,6 @@ jQuery(document).on("im_add_options", function (){
 		}
 	});
 });
-
 
 jQuery(document).on("im_legend_before_rebuild", function (event, legend){
 	//Remove old qtips
@@ -925,3 +868,71 @@ for (var i = 0; i < TagValues.length; i++){
 }
 //Pseudo tag translations
 categoryManager.addTagTranslation("ERHEBUNG", Ue["ERHEBUNG"]);
+
+/**
+ * @type {MapPosition}
+ */
+var mapPosition = {
+	"lat" : 46.059547,
+	"lng" : 11.132220,
+    "zoom" : 7,
+    "minZoom" : 6	
+};
+
+/* The threshold used here is a "lat/lng distance" of 0.000898315284119521435127501256466 
+* That corresponds to 100m in north/south direction and ca. 70m in east/west direction (at the average latitude of the alpine convention)
+*/
+var /** ClustererOptions */ clustererOptions = {
+	"viewportLat" :	43.43132018706552, 
+	"viewportLng" : 4.884734173789496, 
+	"viewportHeight" : 4.93608093568811, 
+	"viewportWidth" : 11.586466768725804, 
+	"gridsizeLng" : 16, 
+	"gridsizeLat" : 16, 
+	"threshold" : 0.000898315284119521435127501256466
+};
+
+if (mapInterfaceType == MapInterfaceType.GoogleMaps){
+	var GMData = {
+	    mapTypeId : google.maps.MapTypeId.TERRAIN,
+	    fullscreenControlOptions:{
+	      position: google.maps.ControlPosition.TOP_RIGHT
+	    },
+	    streetViewControl: false,
+	    mapTypeControl: false
+	};
+	
+	jQuery(initMap(mapPosition, clustererOptions, GMData));
+	
+	 jQuery.ajax({
+		dataType: "json",
+		url: ajax_object["plugin_url"] + "/im_config/map_styles/black_no_labels.json",
+		success: function(data){
+			/** @type {GoogleMapsInterface} */ (mapInterface).addMapStyle("hex_quantify", data);
+		}
+	 });
+	 
+	 jQuery.ajax({
+		dataType: "json",
+		url: ajax_object["plugin_url"] + "/im_config/map_styles/no_labels.json",
+		success: function(data){
+			/** @type {GoogleMapsInterface} */ (mapInterface).addMapStyle("hex_normal", data);
+		}
+	 });
+	 
+	 jQuery(document).on("im_google_maps_style", function (event, data){
+		 var state = optionManager.getOptionState('polymode');
+		 
+		 if(state != "phy"){
+			 if(data["style"] == "normal"){
+				 data["style"] = "hex_normal";
+			 }
+			 else {
+				 data["style"] = "hex_quantify";
+			 }
+		 }
+	 });
+}
+else if (mapInterfaceType == MapInterfaceType.PixiWebGL){
+	jQuery(initMap(mapPosition, clustererOptions, {}));
+}

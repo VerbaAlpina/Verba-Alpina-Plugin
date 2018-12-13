@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+
+	<xsd:annotation>
+		<xsd:documentation xml:lang="de">
+			Schema für die VerbaAlpina-Datenkategorien "Einzelbeleg", "Gemeinde", "Morpho-lexikalischer Typ" und "Konzept"); 
+			Stand: Dezember 2018;
+			Bearbeiter: Sonja Kümmet (UB LMU / IT)
+		</xsd:documentation>
+	</xsd:annotation>
+	
+	<!-- Wurzelelement -->
+	<xsd:element name="instances" type="instances"/>
+	
+
+	<!-- simpleTypes (alphabetisch geordnet)-->
+	<xsd:simpleType name="isoLang">
+		<xsd:restriction base="xsd:string">
+			<xsd:pattern value="[a-z]{3}"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	
+	<xsd:simpleType name="baseTypeUnsure">
+		<xsd:restriction base="xsd:byte">
+			<xsd:enumeration value="0"/>
+			<xsd:enumeration value="1"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	
+	<xsd:simpleType name="informantLang">
+		<xsd:restriction base="xsd:string">
+			<xsd:enumeration value="ger"/>
+			<xsd:enumeration value="rom"/>
+			<xsd:enumeration value="sla"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	
+	<xsd:simpleType name="instanceEncoding">
+		<xsd:restriction base="xsd:byte">
+			<xsd:enumeration value="1"/>
+			<xsd:enumeration value="2"/>
+			<xsd:enumeration value="3"/>
+			<xsd:enumeration value="4"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	
+	<xsd:simpleType name="instanceId">
+		<xsd:restriction base="xsd:string">
+			<xsd:pattern value="(A|C|G|L|S)([0-9])+"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	
+	<xsd:simpleType name="typeLang">
+		<xsd:restriction base="xsd:string">
+			<xsd:enumeration value="gem"/>
+			<xsd:enumeration value="roa"/>
+			<xsd:enumeration value="sla"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	
+	<xsd:simpleType name="kind">
+		<xsd:restriction base="xsd:string">
+			<xsd:enumeration value="L"/>
+			<xsd:enumeration value="P"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	
+	<xsd:simpleType name="qid">
+		<xsd:restriction base="xsd:string">
+			<xsd:pattern value="Q([0-9])+"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	
+
+	<!-- complexTypes (hierarchisch geordnet)-->
+	
+	<!-- 1. Ebene -->	
+	<xsd:complexType name="instances">
+		<xsd:sequence>
+			<xsd:element name="instance" type="instance" maxOccurs="unbounded"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	
+	
+	<!-- 2. Ebene -->
+	<xsd:complexType name="instance">
+		<xsd:sequence>
+			<xsd:element name="instance" type="xsd:string" minOccurs="0"/>
+			<xsd:element name="instanceEncoding" type="instanceEncoding" minOccurs="0"/>
+			<xsd:element name="instanceOriginal" type="xsd:string" minOccurs="0"/>
+			<xsd:element name="instanceSource" type="instanceSource"/>
+			<xsd:element name="concepts" type="concepts"/>
+			<xsd:element name="communityName" type="communityName"/>
+			<xsd:element name="communityBoundingBox" type="communityBoundingBox"/>
+			<xsd:element name="yearPublication" type="xsd:string" minOccurs="0"/>
+			<xsd:element name="yearSurvey" type="xsd:string" minOccurs="0"/>
+			<xsd:element name="informantLang" type="informantLang"/>
+			<xsd:element name="types" type="types"/>
+		</xsd:sequence>
+		<xsd:attribute name="id" type="instanceId" use="required"/>
+	</xsd:complexType>
+	
+	
+	<!-- 3. Ebene (alphabetisch geordnet) -->
+	<xsd:complexType name="communityBoundingBox">
+		<xsd:sequence>
+			<xsd:element name="point" type="point" minOccurs="5" maxOccurs="5"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	
+	<xsd:complexType name="communityName">
+		<xsd:sequence>
+			<xsd:element name="officialName" type="xsd:string"/>
+			<xsd:element name="translations" type="translations" minOccurs="0"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	
+	<xsd:complexType name="concepts">
+		<xsd:sequence>
+			<xsd:element name="concept" type="concept" minOccurs="0" maxOccurs="unbounded"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	
+	<xsd:complexType name="instanceSource">
+		<xsd:sequence>
+			<xsd:element name="source" type="xsd:string"/>
+			<xsd:element name="mapNumber" type="xsd:string"/>
+			<xsd:element name="subNumber" type="xsd:nonNegativeInteger"/>
+			<xsd:element name="informantNumber" type="xsd:string"/>
+			<xsd:element name="locationName" type="xsd:string" minOccurs="0"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	
+	<xsd:complexType name="types">
+		<xsd:sequence>
+			<xsd:element name="type" type="type" maxOccurs="unbounded"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	
+	
+	<!-- 4. Ebene (alphabetisch geordnet) -->
+	<xsd:complexType name="concept">
+		<xsd:sequence>
+			<xsd:element name="conceptDescription" type="xsd:string"/>
+			<xsd:element name="qid" type="qid" minOccurs="0"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	
+	<xsd:complexType name="point">
+		<xsd:sequence>
+			<xsd:element name="latitude" type="xsd:decimal"/>
+			<xsd:element name="longitude" type="xsd:decimal"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	
+	<xsd:complexType name="translations">
+		<xsd:sequence>
+			<xsd:element name="translation" type="translation" maxOccurs="unbounded"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	
+	<xsd:complexType name="type">
+		<xsd:sequence>
+			<xsd:element name="typeName" type="xsd:string"/>
+			<xsd:element name="typeLang" type="typeLang" minOccurs="0"/>
+			<xsd:element name="sourceTyping" type="xsd:string"/>
+			<xsd:element name="pos" type="xsd:string" minOccurs="0"/>
+			<xsd:element name="affix" type="xsd:string" minOccurs="0"/>
+			<xsd:element name="gender" type="xsd:string" minOccurs="0"/>
+			<xsd:element name="baseTypes" type="baseTypes" minOccurs="0"/>
+		</xsd:sequence>
+		<xsd:attribute name="kind" type="kind" use="required"/>
+	</xsd:complexType>
+	
+	
+	<!-- 5. Ebene -->
+	<xsd:complexType name="baseTypes">
+		<xsd:sequence>
+			<xsd:element name="baseType" type="baseType" minOccurs="0" maxOccurs="unbounded"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	
+	<xsd:complexType name="translation">
+		<xsd:simpleContent>
+			<xsd:extension base="xsd:string">
+				<xsd:attribute name="lang" type="isoLang" use="required"/>
+			</xsd:extension>
+		</xsd:simpleContent>
+	</xsd:complexType>
+	
+	
+	<!-- 6. Ebene -->
+	<xsd:complexType name="baseType">
+		<xsd:sequence>
+			<xsd:element name="baseTypeName" type="xsd:string"/>
+			<xsd:element name="baseTypeLang" type="isoLang"/>
+			<xsd:element name="baseTypeUnsure" type="baseTypeUnsure"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	
+</xsd:schema>

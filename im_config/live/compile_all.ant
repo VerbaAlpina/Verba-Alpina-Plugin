@@ -2,48 +2,54 @@
 <!DOCTYPE project [
 	<!ENTITY externs SYSTEM "../../../plugin_interactive-map/build/externs.xml">
 	<!ENTITY sources SYSTEM "../../../plugin_interactive-map/build/sources.xml">
+	<!ENTITY sources_gm SYSTEM "../../../plugin_interactive-map/build/sources_gm.xml">
+	<!ENTITY sources_pixi SYSTEM "../../../plugin_interactive-map/build/sources_pixi.xml">
+	<!ENTITY va_sources SYSTEM "va_sources.xml">
+	<!ENTITY va_externs SYSTEM "va_externs.xml">
 ]>
 
-<project name="va" basedir="../../../plugin_interactive-map/" default="compile">
+<project name="va" basedir="../../../plugin_interactive-map/" default="compileGM">
 
   <taskdef name="jscomp" classname="com.google.javascript.jscomp.ant.CompileTask"
            classpath="${basedir}/build/compiler.jar"/>
 
-  <target name="compile">
+  <target name="compileGM">
 
-	<jscomp compilationLevel="advanced" warning="verbose" debug="true" languageIn="ECMASCRIPT6_STRICT" output="compiled/interactive_map_compiled.js">
+	<jscomp compilationLevel="advanced" warning="verbose" debug="true" languageIn="ECMASCRIPT6_STRICT" output="compiled/interactive_map_compiled_gm.js">
 		
 		<!--<warning group="reportUnknownTypes" level="WARNING" />-->
 		
 		&externs;
 		&sources;
+		&sources_gm;
 		
-		<sources dir="${basedir}/../verba-alpina/im_config">
-		  	<file name="va_map.js" />
-			<file name="classes/record-window.js" />
-			<file name="classes/concept-filter.js" />
-			<file name="classes/sql-filter.js" />
-			<file name="classes/add-center-filter.js" />
-			<file name="classes/type-gender-filter.js" />
-			<file name="classes/language-families.js" />
-			<file name="classes/hexagon-option.js" />
-			<file name="map_styles/empty.js" />
-			<file name="map_styles/no_label_style.js" />
-			<file name="live/exports_va.js" />
-		</sources>
-		
-		<sources dir="${basedir}/../verba-alpina/lib">
-		  	<file name="js-map-label-gh-pages/src/maplabel.js" />
-		</sources>
-		
-		<externs dir="${basedir}/../verba-alpina/im_config">
-			<file name="externs.js" />
+		<externs dir="${basedir}/build/externs">
+			<file name="pixi_stub.js"/>
 		</externs>
 		
-		<externs dir="${basedir}/../verba-alpina/util">
-			<file name="externs_frontend.js" />
-			<file name="externs_tools.js" />
+		&va_sources;
+		&va_externs;
+		
+    </jscomp>
+
+  </target>
+	
+  <target name="compilePixi">
+
+	<jscomp compilationLevel="simple" warning="verbose" debug="true" languageIn="ECMASCRIPT6_STRICT" output="compiled/interactive_map_compiled_pixi.js">
+		
+		<!--<warning group="reportUnknownTypes" level="WARNING" />-->
+		
+		&externs;
+		&sources;
+		&sources_pixi;
+		
+		<externs dir="${basedir}/build/externs">
+			<file name="gm_stub.js"/>
 		</externs>
+		
+		&va_sources;
+		&va_externs;
 		
     </jscomp>
 

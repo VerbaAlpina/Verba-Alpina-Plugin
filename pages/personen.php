@@ -36,9 +36,9 @@ function va_show_team () {
 				<tr>
 					<td>
 						<?php 	if($person['Link'] == '')
-									echo $person['Name'] . ', ' . $person['Vorname']." (".$person['Kuerzel'].")";
+									echo $person['Name'] . ', ' . $person['Vorname'] /*." (".$person['Kuerzel'].")"*/ ;
 								else
-									echo "<a href='" . va_translate_url($person['Link']) . "'>".$person['Name'] . ', ' .$person['Vorname']." (".$person['Kuerzel'].")</a>";
+									echo "<a href='" . va_translate_url($person['Link']) . "'>".$person['Name'] . ', ' .$person['Vorname'] /*." (".$person['Kuerzel'].")*/. "</a>";
 						?>
 					</td>
 					<td><?php echo ucfirst(va_translate($person['Art'], $Ue)) . ($person['Fachgebiet']? ' (' . va_translate($person['Fachgebiet'], $Ue) . ')' : ''); ?></td>

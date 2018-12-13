@@ -41,6 +41,7 @@ function glossar (){
 	var aenderungUe = false;
 	var currEntry = 0;
 	var currTransl = "<?php echo DEFAULT_SELECT; ?>";
+	var glossaryUrl = "<?php echo va_get_glossary_link(); ?>";
 	
 	jQuery(document).ready(function (){
 
@@ -145,6 +146,7 @@ function glossar (){
 						aenderungUe = false;
 						jQuery('#entryL').val(id).trigger("chosen:updated");
 						if(id == 0){
+							jQuery("#wp-admin-bar-show_glossary_entry a").prop("href", glossaryUrl);
 							document.title = "Glossar";
 							jQuery("#translationL").val("<?php echo DEFAULT_SELECT; ?>").trigger("chosen:updated");
 							hideTranslation();
@@ -172,6 +174,7 @@ function glossar (){
 								jQuery("#internal").prop("checked", t.Intern * 1);
 								jQuery("#translatorList").val(t.uebersetzer).trigger("chosen:updated");
 								jQuery("#correctorTList").val(t.korrekturleser).trigger("chosen:updated");
+								jQuery("#wp-admin-bar-show_glossary_entry a").prop("href", t.url);
 							});
 						}
 					}
@@ -192,6 +195,7 @@ function glossar (){
 		jQuery('#description').val("");
 		hideTranslation();
 		currEntry = 0;
+		jQuery("#wp-admin-bar-show_glossary_entry a").prop("href", glossaryUrl);
 		History.pushState({}, '', '?page=glossar');
 		
 		aenderungD = false;
@@ -394,8 +398,7 @@ function glossar (){
 		}
 		jQuery("#correctorTLabel").show();
 	}
-	
-	
+
 	</script>
 	
 	<div id="topStuff" style="padding: 0">
@@ -465,7 +468,7 @@ function glossar (){
 	</table>
 	</div>
 	
-	<textarea id="description" style="width:98%;" onChange="changeTextField(false)" autocomplete="off"><?php
+	<textarea id="description" <?php if (!current_user_can('va_glossary_edit')) echo ' readonly'; ?> style="width:98%;" onChange="changeTextField(false)" autocomplete="off"><?php
 		if($curr_entry !== 0){
 			echo $va_xxx->get_var($va_xxx->prepare("SELECT Erlaeuterung_D FROM Glossar WHERE Id_Eintrag = %d", $curr_entry));
 		}
@@ -474,7 +477,7 @@ function glossar (){
 	<br />
 	
 	Autoren:
-	<select id="authorList" multiple="multiple" style="width: 300pt">
+	<select <?php if (!current_user_can('va_glossary_edit')) echo ' disabled'; ?> id="authorList" multiple="multiple" style="width: 300pt">
 		<?php 
 		$authors = $va_xxx->get_results("SELECT DISTINCT Kuerzel, Vorname, Name FROM Personen LEFT JOIN Stellen USING(Kuerzel) WHERE Art is null or Art != 'prak'", ARRAY_A);
 		foreach ($authors as $author){
@@ -484,7 +487,7 @@ function glossar (){
 	</select>
 	
 	Tags:
-	<select id="tagList" multiple="multiple" style="width: 500pt">
+	<select <?php if (!current_user_can('va_glossary_edit')) echo ' disabled'; ?> id="tagList" multiple="multiple" style="width: 500pt">
 		<?php 
 			$tags = $va_xxx->get_results('SELECT Id_Tag, Tag FROM Tags', ARRAY_A);
 			foreach ($tags as $tag){
@@ -493,9 +496,9 @@ function glossar (){
 		?>
 	</select>
 	
-	<input type="checkbox" id="ready" /> Fertig
+	<input <?php if (!current_user_can('va_glossary_edit')) echo ' disabled'; ?> type="checkbox" id="ready" /> Fertig
 	
-	<input type="checkbox" id="internal" /> Intern
+	<input <?php if (!current_user_can('va_glossary_edit')) echo ' disabled'; ?> type="checkbox" id="internal" /> Intern
 	
 	<br />
 	<br />

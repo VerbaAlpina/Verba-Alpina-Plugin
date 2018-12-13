@@ -4,9 +4,12 @@
     margin-top: 45px;
     height: calc(100% - 45px);
     top: 0px;
+    z-index: 0;
 }
 
-
+#IM_map_div .leaflet-top.leaflet-right > .leaflet-control-layers.leaflet-control{
+	margin-top: 37px;
+}
 
 #mainTable > tbody > tr > td {
 	vertical-align: top;
@@ -62,6 +65,11 @@ a.encyLink, span.encyLink{
 	font-size : 200%
 }
 
+.va_type_table td:nth-child(2) {
+	font-family : arial unicode;
+	font-size: 120%;
+}
+
 .atlasSourceB {
 	color: #2c879b;
 	font-weight: bold;
@@ -103,7 +111,23 @@ a.encyLink, span.encyLink{
 	font-size : 180%;
 	font-family : arial unicode;
 	color: #2c879b;
-	font-weight: bold;
+}
+
+.fullRecordInfo {
+	color: red;
+}
+
+.fullRecordInfo span {
+	font-size: 14px;
+	font-family: arial unicode;
+}
+
+.fullRecordInfo svg {
+	fill: red;
+}
+
+.originalRecord svg {
+	fill: #2c879b;
 }.IM_main_div table, .IM_main_div table::before, .IM_main_div table::after{
 	box-sizing: border-box;
 }
@@ -127,6 +151,25 @@ a.encyLink, span.encyLink{
 
 .loc_data_select{
 /*    min-width: 95%;*/
+}
+
+.list_export_icon{
+    width: 15px;
+    height: 15px;
+    color: #bbbbbb;
+    font-size: 20px;
+    position: absolute;
+    margin-top: -8px;
+    margin-left: 3px;
+}
+
+.list_export_icon:hover{
+  cursor: pointer;
+  color: black;
+}
+
+.list_export_icon_parent{
+    position: relative;
 }
 
 .custom_option_pane{
@@ -310,6 +353,21 @@ box-shadow: 2px 2px 3px 0px rgba(0,0,0,0.1);
     padding: 0;
     position: sticky;
     bottom: 0;
+}
+
+.im_custom_footer_big{
+    background: white;
+    position: sticky;
+    bottom: 0;
+}
+
+
+.im_custom_footer_big > input{
+    margin: 0;
+}
+
+#IM_filter_popup_content .jstree{
+    font-size: 12px;
 }
 
 
@@ -653,7 +711,7 @@ cursor: pointer;
 
 .gradient_help{
     position: absolute;
-    right: -29px;
+    right: -35px;
     top: 4px;
     font-size: 28px;
     color: #9c9a9a;
@@ -715,8 +773,8 @@ cursor: pointer;
 }
 
 .q-span{
-    top: 10px;
-    margin-left: 2px;
+    top: 19px;
+    margin-left: -7px;
     position: absolute !important;
     width: 10px !important;
     height: 10px !important;
@@ -734,16 +792,22 @@ cursor: pointer;
  }
 
 .qButtonParent{
-    padding-right: 10px;
-    padding-top: 5px;
+/*    padding-right: 10px;
+    padding-top: 5px;*/
+}
+
+
+.qButtonParent:hover {
+    color: black;
+    cursor: pointer;
 }
 
 .quantifyButton{
 
-   position: relative;
-    width: 18px;
-    height: 18px;
-    line-height: 18px !important;;
+    position: relative;
+    width: 30px;
+    height: 30px;
+    line-height: 18px !important;
     text-align: center;
     font: 14px sans-serif;
     font-weight: bold;
@@ -753,26 +817,18 @@ cursor: pointer;
     -moz-user-select: none;
     -ms-user-select: none;
     user-select: none;
-     color: #9a9a9a;
-}
-
-.quantifyButton .ring{
-    position: absolute;
-    font-size: 29px;
-    left: -5px;
-    top: -5px;
     color: #9a9a9a;
 }
 
-
-
-.quantifyButton:hover{
-    color: black;
-    cursor: pointer;
+.quantifyButton > img{
+    max-width: 100% !important;
+    opacity: 0.5;
+    margin-top: 2px;
+    margin-left: -10px;
 }
 
-.quantifyButton:hover .ring{
-    color: black;
+.quantifyButton > img:hover{
+ opacity: 1.0;
 }
 
 .quantifyButton:hover .fa-times-circle-o{

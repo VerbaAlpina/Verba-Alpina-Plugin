@@ -176,7 +176,7 @@ wp_localize_script ('im_map_script', 'QIDS', va_two_dim_to_assoc($qids));
 
 								//Morphologic types
 								echo im_table_select('Z_Ling', array('Id_Type'), array('Type', 'Type_Lang', 'POS', "'' AS Gender", 'Affix'), 'morphTypeSelect', array(
-										'list_format_function' => array('va_format_lex_type', &$Ue),
+										'list_format_function' => array('va_format_lex_type'),
 										'placeholder' => ucfirst($Ue['MORPH_TYP_PLURAL']),
 										'width' => '90%',
 										'filter' => "Type_Kind != 'P' AND Source_Typing = 'VA'" . ($admin? '': ' AND Id_Type != 6977'),
@@ -396,7 +396,8 @@ im_create_ajax_nonce_field ();
 im_create_debug_area();
 va_create_hex_popup_html($Ue);
 va_create_sql_help_text($Ue);
-
+va_create_list_popup_html($Ue);
+va_create_export_list_popup_html($Ue);
 }
 
 function va_translate_hexagon_grids ($str, $id, $epsilon, &$Ue){
@@ -441,6 +442,8 @@ function va_create_hex_popup_html (&$Ue){
 	</div>	
 <?php
 }
+
+
 
 function va_create_sql_help_text ($Ue){
 	$res = '<b>' . $Ue['VORHANDENE_SPALTEN'] . '</b><br /><br />';

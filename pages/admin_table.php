@@ -57,7 +57,7 @@ function va_show_DB_description (){
 	global $admin;
 	global $va_mitarbeiter;
 	
-	if($admin || $va_mitarbeiter){
+	if(current_user_can('va_full_database_documentation')){
 		$tables = $va_xxx->get_results('SELECT * FROM admin ORDER BY Art ASC, Tabelle ASC', ARRAY_A);
 		$kinds = $va_xxx->get_col("SELECT DISTINCT Art FROM admin WHERE Art != '' ORDER BY Art ASC", 0);
 	}

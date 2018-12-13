@@ -59,11 +59,11 @@ function va_edit_comments_page (){
 		</select>
 	</div>
 	
-	<textarea id="commDescription" style="width : 98%;"></textarea>
+	<textarea <?php if (!current_user_can('va_glossary_edit')) echo ' readonly'; ?> id="commDescription" style="width : 98%;"></textarea>
 	
 	<br />
 	Autoren:
-	<select id="commAuthorList" multiple="multiple" style="width: 300pt">
+	<select <?php if (!current_user_can('va_glossary_edit')) echo ' disabled'; ?> id="commAuthorList" multiple="multiple" style="width: 300pt">
 		<?php 
 		foreach ($authors as $author){
 			echo "<option value='{$author['Kuerzel']}'>" . $author['Vorname'] . ' ' . $author['Name'] . '</option>';
@@ -71,9 +71,9 @@ function va_edit_comments_page (){
 		?>
 	</select>
 	
-	<input type="checkbox" id="commT" /> T
-	<input type="checkbox" id="commS" /> S
-	<input type="checkbox" id="commInternal" /> Intern
+	<input <?php if (!current_user_can('va_glossary_edit')) echo ' disabled'; ?> type="checkbox" id="commT" /> T
+	<input <?php if (!current_user_can('va_glossary_edit')) echo ' disabled'; ?> type="checkbox" id="commS" /> S
+	<input <?php if (!current_user_can('va_glossary_edit')) echo ' disabled'; ?> type="checkbox" id="commInternal" /> Intern
 	
 	<br />
 	<br />
@@ -125,6 +125,7 @@ function va_edit_comments_page (){
 	</div>
 	
 	<script type="text/javascript">
+	var commentPageUrl = "<?php echo va_get_comments_link(); ?>";
 	var currentComment = "None";
 	var currentTranslation = "None";
 	
@@ -229,6 +230,7 @@ function va_edit_comments_page (){
 			setTranslationFields();
 			removeLock(currentComment);
 			currentComment = "None";
+			jQuery("#wp-admin-bar-show_comment a").prop("href", commentPageUrl);
 		}
 		else{
 			jQuery.post(ajaxurl, {
@@ -240,6 +242,7 @@ function va_edit_comments_page (){
 					if(response == "Locked"){
 						alert("Dieser Eintrag wird gerade von einem anderen Benutzer bearbeitet!");
 						jQuery("#commSelection").val(currentComment).trigger("chosen:updated");
+						jQuery("#wp-admin-bar-show_comment a").prop("href", commentPageUrl);
 						return false;
 					}
 					else {
@@ -256,6 +259,7 @@ function va_edit_comments_page (){
 						setTranslationFields();
 						jQuery("#commTranslationSelect").val("None").trigger("chosen:updated");
 						jQuery("#commTranslationArea").toggle(false);
+						jQuery("#wp-admin-bar-show_comment a").prop("href", data["url"]);
 					}
 			});
 		}
@@ -454,6 +458,15 @@ function va_edit_comments_page (){
 		setTranslationFields();
 		
 		jQuery("#newCommentPopup").dialog("close");
+
+		jQuery.post(ajaxurl, {
+			"action" : "va",
+			"namespace" : "util",
+			"query" : "get_comments_link",
+			"id" : newId
+		}, function (respose){
+			jQuery("#wp-admin-bar-show_comment a").prop("href", respose);
+		});
 	}
 	</script>
 	
@@ -465,7 +478,7 @@ function va_filter_comments_for_editing (&$db, $filter){
 	$res = '<option value="None">' . DEFAULT_SELECT . '</option>';
 	
 	if(strpos($filter, 'MISSING_') === 0){
-		$sql_filter = " AND (Approved = 'TS' OR Approved = 'T') AND NOT EXISTS(SELECT * FROM im_comments i2 WHERE i1.Id = i2.Id AND i2.Language = '" . substr($filter, 8, 2) . "')";
+		$sql_filter = " AND Approved = 'TS' AND NOT EXISTS(SELECT * FROM im_comments i2 WHERE i1.Id = i2.Id AND i2.Language = '" . substr($filter, 8, 2) . "')";
 	}
 	else if(strpos($filter, 'NCORRECT_') === 0){
 		$sql_filter = " AND EXISTS(SELECT * FROM im_comments i2 WHERE i1.Id = i2.Id AND i2.Language = '" . substr($filter, 9, 2) . "') AND NOT EXISTS (SELECT * FROM VTBL_Kommentar_Autor v WHERE Aufgabe = 'corr' and Id_Kommentar = i1.Id and v.Sprache = '" . substr($filter, 9, 1) . "')";

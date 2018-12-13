@@ -104,6 +104,16 @@
 			    $va_xxx->insert('Protokolle_TOPs', ['Id_Protokoll' => $_POST['pid'], 'Nummer' => $new_top_number, 'Titel' => $title, 'Inhalt' => $text]);
 			    echo getTop ($new_top_number, $title, $text, $_POST['edit'] == 'true');
             break;
+            
+			case 'add_participant':
+				$va_xxx->insert('VTBL_Protokolle_Teilnehmer', [
+					'Id_Protokoll' => $_POST['protocol'],
+					'Person' => $_POST['person'],
+					'Anwesend' => 0,
+					'Kommentar' => '']);
+				
+				echo 'success';
+				break;
 		}
 		die;
 	}
@@ -202,9 +212,29 @@
 
 				addBiblioQTips(jQuery("#protocolTextArea"));
 
-				window.onbeforeunload = function (){
-					removeLock ("Protokolle", null, null, "va_xxx");
+				window.onunload = function (){
+					removeLock ("Protokolle", null, null, "va_xxx", true);
 				};
+
+				jQuery(document).on("click", "#protocolAddParticipant", function (){
+					var person = jQuery("#addParticipantSelect").val();
+					var data = {
+						"action" : "va_protocols",
+						"query" : "add_participant",
+						"protocol" : jQuery("#protocolList").val(),
+						"person" : person
+					};
+
+					jQuery.post(ajax_object.ajaxurl, data, function (response){
+						if(response == "success"){
+							updateProtocol(jQuery("#protocolList").val(), jQuery("#modeList").val() == "edit");
+							jQuery("#addParticipantSelect option[value=" + person  + "]").remove();
+						}
+						else {
+							alert("Error");
+						}
+					});
+				});
 			});
 
 			function checkTime (){
@@ -643,6 +673,17 @@
 			}
 			echo '<br />';
 		}
+		
+		if ($editMode){
+			echo '<br /><br />';
+			echo '<select id="addParticipantSelect">';
+			$persons = $va_xxx->get_results("SELECT Kuerzel, CONCAT(Vorname, ' ', Name) FROM Personen p WHERE NOT EXISTS (SELECT * FROM VTBL_Protokolle_Teilnehmer v WHERE v.Person = p.Kuerzel AND Id_Protokoll = " . $row['Id_Protokoll'] . ") ORDER BY Kuerzel", ARRAY_N);
+			foreach ($persons as $person){
+				echo '<option value="' . $person[0] . '">' . $person[1] . '</option>';
+			}
+			echo '</select>';
+			echo '<input type="button" id="protocolAddParticipant" value="Teilnehmer hinzufügen" />';
+		}
 		?>
 		
 		<br />
@@ -794,6 +835,7 @@
 		return $va_xxx->get_results("
 			SELECT Id_Protokoll, Titel, Inhalt, Datum
 			FROM Protokolle_TOPs JOIN Protokolle USING (Id_Protokoll)
-			WHERE MATCH(Titel, Inhalt) AGAINST (' . $searchString . ' IN BOOLEAN MODE)" , ARRAY_A);
+			WHERE MATCH(Titel, Inhalt) AGAINST (' . $searchString . ' IN BOOLEAN MODE)
+			ORDER BY Datum DESC" , ARRAY_A);
 	}
 ?>

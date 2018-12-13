@@ -209,9 +209,9 @@ ol.footnotes p {
 	background : yellow;
 }
 
-.entry-content a {text-decoration : underline;}
-.entry-content a:link {color: #3CB371}
-.entry-content a:visited {color: #3CB371}
+.entry-content a:not(.hLink) {text-decoration : underline;}
+.entry-content a:not(.hLink):link {color: #3CB371}
+.entry-content a:not(.hLink):visited {color: #3CB371}
 
 .bibl {
 	color: #5E99BD;
@@ -219,7 +219,7 @@ ol.footnotes p {
 	cursor: pointer;
 }
 
-.vaabr, .sabr {
+.vaabr, .sabr, .iso {
 	color: grey /*#3CB371*/;
 /*	text-decoration: underline;*/
 	cursor: pointer;
@@ -231,4 +231,112 @@ ol.footnotes p {
 
 .clickable-row:hover{
 	opacity: 0.95;
+}
+
+.recordBox {
+	width: 500px;
+}
+
+.corrTable {
+	margin-bottom: 50px;
+}
+
+.corrTable td,th {
+	padding: 5px;
+	vertical-align: middle;
+}
+
+.conceptSelect {
+	max-width: 600px;
+}
+
+.corrField {
+	margin-left: 5px;
+	margin-right: 5px;
+	border: solid black 1px;
+	border-radius: 5px;
+	padding: 5px;
+	font-size: 18px;
+	cursor: pointer;
+	font-family: arial unicode;
+}
+
+.corrFieldFixd {
+	cursor: not-allowed;
+}
+
+.corrFieldToken {
+	background: lightgrey;
+}
+
+#corrTokenTable {
+	border: 1px solid black;
+}
+
+#corrTokenTable td {
+	padding: 10px;
+	text-align: center;
+}
+
+#corrTokenTable td.activeTarget {
+	background: yellow;	
+}
+
+.corrFieldSep {
+	padding-left: 10px;
+	padding-right: 10px;
+	background: #eeeeee;
+}
+
+.corrFieldConcept {
+	background: #88edf9;
+}
+
+.corrFieldType {
+	background: #22dd5f;
+}
+
+.corrFieldConcept span, .corrFieldType span {
+	position: absolute;
+	top: -8px;
+	right: -4px;
+	background: #f7facf;
+	border: 1px solid black;
+	border-radius: 5px;
+	font-size: 60%;
+	padding: 1px;
+}
+
+.corrFieldConcept span:hover, .corrFieldType span:hover {
+	background: lightgrey;	
+}
+
+td.blocked {
+	background: #adadad;
+}
+
+.corrPlus {
+	background: #f7facf;
+	border-radius: 50%;
+	width: 1.4em;
+	line-height: 60%;
+	margin: auto;
+}
+
+.corrPlus:hover {
+	background: lightgrey;
+}
+
+#entryList a {
+	line-height: 1.3em;
+}
+
+img.missingTranslation {
+	width: 10px;
+	height: 10px;
+	margin-right: 4px;	
+}
+
+.hLink {
+	color: black;
 }

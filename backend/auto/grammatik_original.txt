@@ -13,13 +13,19 @@
 	
 	var lowLetters = "acegijmnopqrsuvwxyz";
 	var longLetters = "mw";
+	
+	var lastChar;
 }
 
 start
   = Zeichen
 
 Zeichen
-  = b : Basiszeichen d: Diakritikum* "0" d2: Diakritikum* {return "<sup>" + b + d.join("") + d2.join("") + "</sup>";}
+  = k: Kleinzeichen "0" ! (Diakritikum) {return k;}
+  / "o:" ! (Diakritikum / [0-9]) {return "x00F6";}
+  / "u:" ! (Diakritikum / [0-9]) {return "x00FC";}
+  / "a:" ! (Diakritikum / [0-9]) {return "x00E4";}
+  / b : Basiszeichen d: Diakritikum* "0" d2: Diakritikum* {return "<sup>" + b + d.join("") + d2.join("") + "</sup>";}
   / b : Basiszeichen d: Diakritikum* "8" d2: Diakritikum* {return "<small>" + b + d.join("")  + d2.join("") + "</small>";}
   / b : Basiszeichen d: Diakritikum* "9" d2: Diakritikum* {return "<sub>" + b + d.join("") + d2.join("") + "</sub>";}
   / b : Basiszeichen d: Diakritikum* "[?]" d2 : Diakritikum* {return "<sub style='font-size:30%;'>(</sub>" + b + d.join("") + "x0323" + d2.join("") + "<sub style='font-size:30%;'>)</sub>";}
@@ -44,7 +50,9 @@ Zeichen
   / "[" b1 : Basiszeichen d1 : Diakritikum* b2 : Basiszeichen d2 : Diakritikum* "]@1" {return b1 + d1.join("") + "xfe27" + b2 + d2.join("") + "xfe28";}
 */
 
-Basiszeichen
+Basiszeichen = b: Basiszeichen2 {lastChar = b; return b;}
+
+Basiszeichen2
   = "a1" {return "x03B1";}
   / "a2" {return "x0252";}
   / "b1" {return "x03B2";}
@@ -76,13 +84,13 @@ Basiszeichen
   / "d2" {return "x0111";}
   / "m2" {return "x0271";}
   / "n1" {return "x0273";}
-  / "n2" {return "x1D87";}
+  / "n2" {return "x014B";}
   / "p2" {return "x00FE";}
   / "q1" {return "xA757";}
   / "t1" {return "x03D1";}
-  / "u1" {return "x1d4ca";}
+  / "u1" {return "x1D462";}
   / "z1" {return "x0292";}
-  / "'1" {return "x2010";}
+  / "'1" {return "x07F5";}
   / "'2" {return "x02C8";}
   / "'" {return "x0027";}
   / "aa" {return "aa";}
@@ -92,20 +100,56 @@ Basiszeichen
   / "uu" {return "uu";}
   / c : [a-zA-Z] {return getHexcodeFromChar(c);}
   
-/*
-  / "a10" {return "x1D45";}
-  / "d10" {return "x1D5F";}
-  / "y0" {return "x02B8";}
-  / "y0" {return "x1D43";}
-  / "x0" {return "x02E3";}
-  / "e0" {return "x1D49";}
-  / "o0" {return "x1D52";}
-  / "t0" {return "x1D57";}
-  / "a0" {return "x1D43";}
-*/
+Kleinzeichen
+	= "a1" {return "x1D45";}
+	/ "e1" {return "x1D4A";}
+	/ "b1" {return "x1D5D";}
+	/ "d1" {return "x1D5F";}
+	/ "f1" {return "x1D60";}
+	/ "c1" {return "x1D61";}
+	/ "s1" {return "x1DB4";}
+	/ "g1" {return "x02E0";}
+	/ "o1" {return "xA7F9";}
+	/ "h" {return "x02B0";}
+	/ "j" {return "x02B2";}
+	/ "r" {return "x02B3";}
+	/ "w" {return "x02B7";}
+	/ "y" {return "x02B8";}
+	/ "l" {return "x02E1";}
+	/ "s" {return "x02E2";}
+	/ "x" {return "x02E3";}
+	/ "a" {return "x1D43";}
+	/ "b" {return "x1D47";}
+	/ "d" {return "x1D48";}
+	/ "e" {return "x1D49";}
+	/ "g" {return "x1D4D";}
+	/ "k" {return "x1D4F";}
+	/ "m" {return "x1D50";}
+	/ "o" {return "x1D52";}
+	/ "p" {return "x1D56";}
+	/ "t" {return "x1D57";}
+	/ "u" {return "x1D58";}
+	/ "v" {return "x1D5B";}
+	/ "c" {return "x1D9C";}
+	/ "f" {return "x1DA0";}
+	/ "z" {return "x1DBB";}
+	/ "i" {return "x2071";}
+	/ "n" {return "x207F";}
 
 Diakritikum
-  = "--" {return "x02D0";}
+  = "{a}" {return "x0363";}
+  / "{e}" {return "x0364";}
+  / "{i}" {return "x0365";}
+  / "{o}" {return "x0366";}
+  / "{u}" {return "x0367";}
+  / "{c}" {return "x0368";}
+  / "{d}" {return "x0369";}
+  / "{h}" {return "x036A";}
+  / "{m}" {return "x036B";}
+  / "{r}" {return "x036C";}
+  / "{t}" {return "x036D";}
+  / "{v}" {return "x036E";}
+  / "{x}" {return "x036F";}
   / "{" b: Basiszeichen d : Diakritikum* "}" {
   return "<span style='position: absolute; font-size: 60%; top: -0.7em; left: calc(50% - 0.3em);'>" + b + d.join("") + "</span>";
   }
@@ -115,24 +159,31 @@ Diakritikum
   / '"' {
   return "<span style='position: absolute; font-size: 60%; top: -40%; left: calc(50% - 0.3em);'>x221E</span>";
   }
+  / ')/' {
+  var top = lowLetters.indexOf(lastChar) == -1? "10%": "-12%";
+  return "<span style='position: absolute; font-size: 20%; top: " + top + "; left: calc(50% - 0.3em); font-weight: 900'><svg viewBox='0 0 100 100' style='display: inline-block; vertical-align: text-bottom'> <g transform='translate(0,-197)'> <path style='opacity:1;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332' d='m 62.523311,202.6864 31.790967,-0.13364 -33.67596,93.63268 -6.533997,-1e-5 z' /> <path style='opacity:1;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.27790391' d='m 6.1724299,205.2214 c 2.8820995,-3.5226 9.4948791,-6.54795 16.1445731,-2.03301 46.526871,34.55507 33.752055,62.80626 0.935444,90.3371 C 17.826138,298.07355 9.918232,290.57481 7.1173704,287.74514 39.280556,261.75031 39.571048,235.98616 6.1724299,205.2214 Z'/> </g></svg></span>";
+  }
   / ":1" {return "x0324";}
   / ":2" {return "x02D0";}
   / ":" {return "x0308";}
   / "?1" {return "x0307";}
   / "?" {return "x0323";}
   / "%" {return "x0311";}
+  / "(1" {return "x1AB8";}
   / "(" {return "x031C";}
   / ")1" {return "x0339";}
   / ")" {return "x0357";}
   / "!" {return "x0306";}
   / "@1" {return "x032E";}
   / "@" {return "x032F";}
+  / "/2" {return "x030B";}
   / "/" {return "x0301";}
   / "^1" {return "x0302";}
   / "^2" {return "x032D";}
   / "^3" {return "x032C";}
   / "^" {return "x030C";}
   / "_" {return "x0331";}
+  / "-2" {return "x0304x0304";}
   / "-" {return "x0304";}
   / "\\2" {return "x030F";}
   / "\\3" {return "x05A9";}

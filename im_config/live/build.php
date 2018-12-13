@@ -27,7 +27,9 @@ foreach ($css_files as $cf){
 fclose($css);
 
 echo "Build JS...\n";
-echo shell_exec('ant -file compile_all.ant');
-copy('../../../plugin_interactive-map/compiled/interactive_map_compiled.js', 'im_live.js');
+echo shell_exec('ant -file compile_all.ant compileGM');
+//echo shell_exec('ant -file compile_all.ant compilePixi');
+copy('../../../plugin_interactive-map/compiled/interactive_map_compiled_gm.js', 'im_live_gm.js');
+//copy('../../../plugin_interactive-map/compiled/interactive_map_compiled_gm.js', 'im_live_pixi.js');
 
 echo 'Done';

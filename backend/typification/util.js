@@ -255,7 +255,9 @@ function setMorphTypeData (data){
 	jQuery(e["Orth"]).val(data.type.Orth);
 	jQuery(e["Sprache"]).val(data.type.Sprache).trigger("chosen:updated");
 	jQuery(e["Wortart"]).val(data.type.Wortart).trigger("chosen:updated");
-	jQuery(e["Affix"]).val(data.type.Affix);
+	jQuery(e["Praefix"]).val(data.type.Praefix);
+	jQuery(e["Infix"]).val(data.type.Infix);
+	jQuery(e["Suffix"]).val(data.type.Suffix);
 	jQuery(e["Genus"]).val(data.type.Genus).trigger("chosen:updated");
 	jQuery(e["Kommentar_Intern"]).val(data.type.Kommentar_Intern);
 
@@ -297,7 +299,9 @@ function getMorphTypeData (id){
 	data.type.Orth = e["Orth"].value;
 	data.type.Sprache = e["Sprache"].value;
 	data.type.Wortart = e["Wortart"].value;
-	data.type.Affix = e["Affix"].value;
+	data.type.Praefix = e["Praefix"].value;
+	data.type.Infix = e["Infix"].value;
+	data.type.Suffix = e["Suffix"].value;
 	data.type.Genus = e["Genus"].value;
 	data.type.Kommentar_Intern = e["Kommentar_Intern"].value;
 

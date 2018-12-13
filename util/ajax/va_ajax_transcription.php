@@ -1,46 +1,44 @@
 <?php
 function va_ajax_transcription (&$db){
-	switch ($_POST['query']){
-		
-		case 'delete_locks':
-			if(!current_user_can('va_transcription_tool_write'))
-				break;
-				
-			va_transcription_delete_locks($db);
-		break;
-			
+	switch ($_REQUEST['query']){
 		case 'update_informant':
 			if(!current_user_can('va_transcription_tool_write'))
 				break;
 			
-			va_transcription_delete_locks($db);
-			
 			echo va_transcription_update_informant($db, $_POST['id_stimulus'], $_POST['mode'], $_POST['region']);
 		break;
 		
+		case 'update_grammar':
+			$parser = new BetaParser($_POST['atlas']);
+			echo json_encode([$parser->build_js_grammar_string(), ($parser->build_js_grammar_string('UPPERCASE'))]);
+			break;
+		
 		case 'get_map_list':
-			$sql = "SELECT Id_Stimulus, Erhebung, Karte, Nummer, left(Stimulus,50) as Stimulus
+			$search = '%' . $db->esc_like($_REQUEST['search']) . '%';
+			
+			$sql = $db->prepare('SELECT Id_Stimulus, Erhebung, Karte, Nummer, left(Stimulus,50) as Stimulus
 					FROM Stimuli
-					WHERE Erhebung = '{$_POST['atlas']}'
-					ORDER BY special_cast(karte)";
+					WHERE Erhebung = %s
+					AND (LPAD(Karte, 4, "0") LIKE %s OR left(Stimulus,50) LIKE %s)
+					ORDER BY special_cast(karte)', $_REQUEST['atlas'], $search, $search);
 			
-			$scans = va_transcription_list_scan_dir($_POST['atlas']);
+			$scans = va_transcription_list_scan_dir($_REQUEST['atlas']);
 			
-			$result= $db->get_results($sql, ARRAY_A);
+			$result = $db->get_results($sql, ARRAY_A);
+			$options = [];
 			foreach($result as $row) {
-				$scan = $scans[$row['Karte']];
-				if($scan) {
+				if(isset($scans[$row['Karte']])) {
+					$scan = $scans[$row['Karte']];
 					$backgroundcolor="#80FF80";
-					$value = $row['Id_Stimulus'];
 				}
 				else {
 					$backgroundcolor="#fe7266";
-					$value = "None";
 				}
-				$nameKarte = $row['Erhebung'] . '#' . $row['Karte'] . '_' . $row['Nummer'] . ' (' . $row['Stimulus'] . ')';
-				$options .= "<option value=\"". ($value == 'None'? 'None' : $value . '|' . $scan) . "\" style=\"background-color:".$backgroundcolor."\">" .  $nameKarte . "</option>\n";
+				$nameKarte = $row['Erhebung'] . '#' . str_pad($row['Karte'], 4, '0', STR_PAD_LEFT) . '_' . $row['Nummer'] . ' (' . $row['Stimulus'] . ')';
+				$options[] = ['id' => $row['Id_Stimulus'] .  ($scan? '|' . $scan : ''), 'text' => $nameKarte, 'color' => $backgroundcolor];
+				//$options .= "<option value=\"". ($value == 'None'? 'None' : $value . '|' . $scan) . "\" style=\"background-color:".$backgroundcolor."\">" .  $nameKarte . "</option>\n";
 			}
-			echo $options;
+			echo json_encode(['results' => $options]);
 		break;
 		
 		case 'get_new_row':
@@ -109,7 +107,6 @@ function va_transcription_update_informant (&$db, $id_stimulus, $mode, $region){
 		and Id_Stimulus = %d
 		and $modusWhere
 		and i.Nummer like %s
-		and not exists (select * from Locks where Wert = CONCAT(s.Id_Stimulus, '|', i.Id_Informant))
 	ORDER BY i.Position asc, Erfasst_am asc"
 	, $id_stimulus, $region);
 
@@ -129,10 +126,6 @@ function va_transcription_update_informant (&$db, $id_stimulus, $mode, $region){
 		$results = $statements;
 
 	 if($results[0]["Id_Stimulus"] && $results[0]["Id_Informant"]) {
-		$sql="insert Locks (Tabelle, Wert, Gesperrt_Von, Zeit) 
-				values ('Transkription', '".$results[0]["Id_Stimulus"]."|".$results[0]["Id_Informant"]."','".wp_get_current_user()->user_login."',now())";
-		$db->query($sql);
-		
 		foreach ($results as $index => $row){
 			if($mode == 'first' || $mode == 'extra' || $row['Aeusserung'] == '<vacat>' || $row['Aeusserung'] == '<problem>'){
 				//Nur häufigstes Konzept
@@ -179,15 +172,10 @@ function va_transcription_error_string ($str){
 	echo '<br><br><div style="color: red; font-size: 100%; font-style: bold;">' . $str . '</div><br>';
 }
 
-function va_transcription_delete_locks (&$db){
-	$sql = "delete from Locks where Gesperrt_Von = '" . wp_get_current_user()->user_login . "' or hour(timediff(zeit,now())) > 0";
-	$db->query($sql);
-}
-
 function va_transcription_get_table_row (&$db, $index, $author = '', $readonly = false){
 
 	?>
-<tr id="inputRow<?php echo $index; ?>">
+<tr id="inputRow<?php echo $index; ?>" data-index="<?php echo $index; ?>">
 	<td>
 		<span class="spanNumber">
 			<?php echo $index + 1;?>.) 

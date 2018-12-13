@@ -26,15 +26,22 @@ function va_ajax_edit_glossary ($db){
 				$result['korrekturleser'] = $correctors;
 			}
 			
+			$result['url'] = va_get_glossary_link($_POST['id']);
+			
 			echo json_encode($result);
 			break;
 			
 		case 'updateEntry':
+			if(!current_user_can('va_glossary_translate') && !current_user_can('va_glossary_edit')){ //TODO finer control
+				break;
+			}
+			
 			if(isset($_POST['language'])){
 				$lang = $_POST['language'];
 				if(strlen($lang) !== 1){
 					break;
 				}
+				
 				$query = $db->prepare("UPDATE Glossar set Erlaeuterung_D = %s, Fertig = %d, Intern = %s, Erlaeuterung_$lang = %s, Terminus_$lang = %s where Id_Eintrag = %d", stripslashes($_POST['content']), $_POST['ready'], $_POST['internal'], stripslashes($_POST['erlaeuterung']), stripslashes($_POST['terminus']), $_POST['id']);
 				
 				$db->delete('VTBL_Eintrag_Autor', array('Id_Eintrag' => $_POST['id'], 'Aufgabe' => 'trad', Sprache => $lang), array ('%d', '%s', '%s'));
@@ -54,6 +61,7 @@ function va_ajax_edit_glossary ($db){
 			else {
 				$query = $db->prepare('UPDATE Glossar set Erlaeuterung_D = %s, Fertig = %d, Intern = %s where Id_Eintrag = %d', stripslashes($_POST['content']), $_POST['ready'], $_POST['internal'], $_POST['id']);
 			}
+			
 			$db->query($query);
 			
 			$db->delete('VTBL_Eintrag_Tag', array('Id_Eintrag' => $_POST['id']), array ('%d'));

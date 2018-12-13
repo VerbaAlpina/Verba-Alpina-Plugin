@@ -242,7 +242,7 @@ function addLock (table, value, callback, dbname){
 	jQuery.post(ajax_object.ajaxurl, data, callback);
 }
 
-function removeLock (table, value, callback, dbname){
+function removeLock (table, value, callback, dbname, pageClosed){
 	if(value == null){
 		var data = {
 			"action" : "va",
@@ -262,7 +262,19 @@ function removeLock (table, value, callback, dbname){
 			"dbname" : dbname
 		};
 	}
-	jQuery.post(ajax_object.ajaxurl, data, callback);
+	
+	if(pageClosed){
+		//Callback is ignored in this case
+		var fd = new FormData();
+		for (key in data){
+			fd.append(key, data[key]);
+		}
+		
+		navigator.sendBeacon(ajax_object.ajaxurl, fd);
+	}
+	else {
+		jQuery.post(ajax_object.ajaxurl, data, callback);
+	}
 }
 
 /**
@@ -512,3 +524,34 @@ function todoButtons (){
 		}
 	});
 }
+
+var currentSearchTerm;
+function getConceptSearchDefaults (){
+	var res = {};
+	res["sorter"] = function (results){
+		if(currentSearchTerm){
+			results.sort(function (a, b){
+				var t1 = a.text.toUpperCase();
+				var t2 = b.text.toUpperCase();
+
+				var diff = t1.indexOf(currentSearchTerm) - t2.indexOf(currentSearchTerm);
+				if(diff == 0){
+					return t1.localeCompare(t2);
+				}
+				else {
+					return diff;
+				}
+			});
+		}
+		return results;
+	};
+	
+	res["language"] = {};
+	res["language"]["searching"] = function (params){
+		currentSearchTerm = params["term"];
+		return "Searching...";
+	}
+	
+	return res;
+}
+

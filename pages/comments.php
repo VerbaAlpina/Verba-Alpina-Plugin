@@ -23,7 +23,7 @@ function comment_list (){
 				"show" : "click",
 				"hide" : "unfocus",
 				"content" : {
-					"text" : "<div>" + jQuery(this).prop("title") 
+					"text" : "<div>" + jQuery(this).prop("title").replace(/(http[^ ]*)/, "<a href='$1'>$1</a>")
 					+ "</div><br /><input class='copyButton' style='display: block; margin: auto;' type='button' data-content='" 
 					+ jQuery(this).prop("title") + "' value='<?php echo $Ue['KOPIEREN']; ?>' />"
 				}
@@ -92,27 +92,12 @@ function comment_list (){
 	echo '<div class="entry-content">';
 	
 	if(va_version_newer_than('va_171'))
-		$comments = $vadb->get_results("SELECT Comment, Id, Language FROM im_comments WHERE substr(Id,1,1) IN ('B','L','C') and substr(Language,1,1) = '$lang' and not Internal", ARRAY_A);
+		$comments = $vadb->get_results("SELECT Id, Language FROM im_comments WHERE substr(Id,1,1) IN ('B','L','C') and substr(Language,1,1) = '$lang' and not Internal", ARRAY_A);
 	else
-		$comments = $vadb->get_results("SELECT Comment, Id, Language FROM im_comments WHERE substr(Id,1,1) IN ('B','L','C') and substr(Language,1,1) = '$lang'", ARRAY_A);
+		$comments = $vadb->get_results("SELECT Id, Language FROM im_comments WHERE substr(Id,1,1) IN ('B','L','C') and substr(Language,1,1) = '$lang'", ARRAY_A);
 	
 	foreach ($comments as $index => $comment){
-		$letter = substr($comment['Id'], 0, 1);
-		$key = substr($comment['Id'], 1);
-
-		switch ($letter){
-			case 'B':
-				$comments[$index]['Title'] = '<em>' . $vadb->get_var($vadb->prepare('SELECT Orth FROM Basistypen WHERE Id_Basistyp = %d', $key)) . '</em> - ' . $Ue['BASISTYP'];
-				break;
-		
-			case 'L':
-				$comments[$index]['Title'] = '<em>' . $vadb->get_var($vadb->prepare('SELECT Orth FROM morph_Typen WHERE Id_morph_Typ = %d', $key)) . '</em> - ' . $Ue['MORPH_TYP'];
-				break;
-		
-			case 'C':
-				$comments[$index]['Title'] = $vadb->get_var($vadb->prepare("SELECT IF(Name_$lang != '', Name_$lang, Beschreibung_$lang) FROM Konzepte WHERE Id_Konzept = %d", $key)) . ' - ' . $Ue['KONZEPT'];
-				break;
-		}
+		$comments[$index]['Title'] = va_get_comment_title($comment['Id'], $comment['Language']);
 	}
 	
 	uasort($comments, function ($e1, $e2){
@@ -124,14 +109,14 @@ function comment_list (){
 	foreach ($comments as $comment){
 		
 		if(va_version_newer_than('va_171')){
-			$auth = $vadb->get_col($vadb->prepare("
-				SELECT CONCAT(Vorname, ' ', Name)
+			$auth = $vadb->get_results($vadb->prepare("
+				SELECT Vorname, Name, Affiliation
 				FROM VTBL_Kommentar_Autor JOIN Personen USING (Kuerzel)
-				WHERE Id_Kommentar = %s AND Aufgabe = 'auct'", $comment['Id']));
-			$trad = $vadb->get_col($vadb->prepare("
-				SELECT CONCAT(Vorname, ' ', Name) 
+				WHERE Id_Kommentar = %s AND Aufgabe = 'auct'", $comment['Id']), ARRAY_N);
+			$trad = $vadb->get_results($vadb->prepare("
+				SELECT Vorname, Name, Affiliation
 				FROM VTBL_Kommentar_Autor JOIN Personen USING (Kuerzel)
-				WHERE Id_Kommentar = %s AND Aufgabe = 'trad' AND Sprache = %s", $comment['Id'], $lang));
+				WHERE Id_Kommentar = %s AND Aufgabe = 'trad' AND Sprache = %s", $comment['Id'], $lang), ARRAY_N);
 		}
 		
 		$app = '';
@@ -143,7 +128,7 @@ function comment_list (){
 			if($citation)
 				$app .= '&nbsp;<span class="quote" title="' . $citation . '" style="font-size: 50%; cursor : pointer; color : grey; font-weight: normal;">(' . $Ue['ZITIEREN'] . ')</span>';
 		}
-		$app .= '&nbsp;<a style="font-size: 50%; cursor : pointer; color : grey; font-weight: normal; text-decoration: none;" target="_BLANK" href="' . va_get_map_link($comment['Id']) . '">(Auf Karte visualisieren)</a>';
+		$app .= '&nbsp;<a style="font-size: 50%; cursor : pointer; color : grey; font-weight: normal; text-decoration: none;" target="_BLANK" href="' . va_get_map_link($comment['Id']) . '">(' . $Ue['KARTE_VISUALISIEREN'] . ')</a>';
 		
 		if(($admin || $va_mitarbeiter) && $va_current_db_name == 'va_xxx'){
 			$app .= '&nbsp;<a style="font-size: 50%; cursor : pointer; color : grey; font-weight: normal; text-decoration: none;" target="_BLANK" href="' . get_admin_url(1) . 'admin.php?page=edit_comments&comment_id=' . $comment['Id'] . '">(' . $Ue['BEARBEITEN'] . ')</a>';
@@ -151,10 +136,10 @@ function comment_list (){
 		
 		$pre = '<span class="va-rel-link" id="' . $comment['Id'] . '"></span>';
 		
-		echo '<div class="va-entry"><header class="entry-header" style="margin-bottom: 1rem; margin-top: 5rem;"><h1 class="va-title">' . $pre . '<span class="title-string">' . $comment['Title'] . '</span>' . $app . '</h1></header>';
+		echo '<div class="va-entry"><header class="entry-header" style="margin-bottom: 1rem; margin-top: 5rem;"><h1 class="va-title">' . $pre . '<a style="color: black;" href="#' . $comment['Id'] . '" class="hLink"><span class="title-string">' . $comment['Title'] . '</span></a>' . $app . '</h1></header>';
 		
-		parseSyntax($comment['Comment'], true, $admin || $va_mitarbeiter);
-		echo '<div class="va-content">' . $comment['Comment'];
+		echo '<div class="va-content">' . va_get_comment_text($comment['Id'], $comment['Language'], $admin || $va_mitarbeiter);
+
 		if(va_version_newer_than('va_171')){
 			echo '<div>' . va_add_glossary_authors($auth, $trad) . '</div>';
 		}

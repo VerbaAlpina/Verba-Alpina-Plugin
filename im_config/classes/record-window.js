@@ -155,7 +155,7 @@ function RecordInfoWindowContent (categoryID, elementID, overlayType, data){
 		result += "</table>";
 		
 		if(hashIndex != -1){
-			result += "<br /><font color='red'>* " + Ue["BELEG_TEIL"] + " <b>" + escapeHtml(this.record.substring(hashIndex + 3)) + "</b></font>";
+			result += "<br /><span class='fullRecordInfo'>* " + Ue["BELEG_TEIL"] + " <span>" + this.record.substring(hashIndex + 3) + "</span></font>";
 		}
 		
 		return result + "</div>";
@@ -189,6 +189,7 @@ function RecordInfoWindowContent (categoryID, elementID, overlayType, data){
 	 * @return {undefined} 
 	 */
 	this.onOpen = function (content){
+
 		var /** jQuery*/ concepts = jQuery(content).find(".currentRecordWindowConcept");
 		concepts.qtip({
 			"content" : {
@@ -237,6 +238,11 @@ function RecordInfoWindowContent (categoryID, elementID, overlayType, data){
 		});
 		
 		var /** Array<Object>*/ apis = addBibLikeQTips(jQuery(content).find(".va_record_source_table"), ["bibl", "stimulus"], ["blue", "blue"], ["", "sti"]);
+		for (let i = 0; i < apis.length; i++){
+			thisObject.tooltipApis.push(apis[i]);
+		}
+		
+		var /** Array<Object>*/ apis = addBibLikeQTips(jQuery(content).find(".va_type_table"), ["iso"], ["light"], ["ISO_"]);
 		for (let i = 0; i < apis.length; i++){
 			thisObject.tooltipApis.push(apis[i]);
 		}

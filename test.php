@@ -13,18 +13,21 @@ function test_codepage_original2 (){
 	$transl = json_decode(stripslashes($_POST['data']));
 	
 	/*$va_xxx->set_charset($va_xxx->dbh, 'utf8mb4');
-	$va_xxx->query('SET NAMES utf8mb4');*/
+	$va_xxx->query("SET NAMES 'utf8mb4'");*/
 	
 	foreach ($transl as $t){
 		$uni = '';
-		$hex = preg_replace('/x([0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]+)/u', '&#x$1;', $t[1]);
+		$hex = preg_replace('/x([0-9a-fA-F]?[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]+)/u', '&#x$1;', $t[1]);
 		
-		if (strpos($t[0], 'u1') === false){
-			$uni = mb_convert_encoding($hex,'UTF-8', 'HTML-ENTITIES');
+		$uni = mb_convert_encoding($hex,'UTF-8', 'HTML-ENTITIES');
+		
+		if(strpos($t[0], 'u1') === false){
+			$va_xxx->query("UPDATE Codepage_Original SET Original = '" . addslashes($uni) . "', Hex_Original = '" . addslashes($hex) . "' WHERE Beta = '" . addslashes($t[0]) . "'");
+			echo $t[0] . ' -> ' . $hex . " | " . $uni . "\n";
 		}
-		
-		$va_xxx->query("UPDATE Codepage_Original SET Original = '" . addslashes($uni) . "', Hex_Original = '" . addslashes($hex) . "' WHERE Beta = '" . addslashes($t[0]) . "'");
-		echo $t[0] . ' -> ' . $hex . " | " . $uni . "\n";
+		else {
+			echo "UPDATE Codepage_Original SET Original = '" . addslashes($uni) . "', Hex_Original = '" . addslashes($hex) . "' WHERE Beta = '" . addslashes($t[0]) . "';\n";
+		}
 	}
 	
 	die;
@@ -33,7 +36,7 @@ function test_codepage_original2 (){
 function test_codepage_original (){
 	global $va_xxx;
 	
-	$tokens = $va_xxx->get_results("SELECT Beta FROM Codepage_Original WHERE Original regexp '^$' AND Hex_Original regexp '^$'", ARRAY_N);
+	$tokens = $va_xxx->get_results("SELECT Beta FROM Codepage_Original WHERE Original regexp '^$'", ARRAY_N);
 	
 	echo json_encode($tokens);
 	
@@ -197,6 +200,53 @@ function test_wiki (){
 
 function test (){
 
+	$conv = new VA_XML_Converter('C', '1', 'va_181');
+	echo '<pre>' . htmlentities($conv->export(false)) . '</pre>';
+	
+	return;
+// 	?>
+<!-- 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/themes/default/style.min.css" /> -->
+<!-- 	<script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/jstree.min.js"></script> -->
+<!-- 	<script>
+// 		jQuery(function (){
+// 			jQuery("#tree_div").jstree({
+// 				"core" : {
+// 					"themes" : {
+// 						"icons" : false
+// 					}
+// 				}
+// 			});
+// 		});
+	</script>-->
+	<?php
+	
+// 	global $va_xxx;
+// 	$res = $va_xxx->get_results('SELECT DISTINCT Community_Name, Id_Community FROM Z_ling WHERE Base_Type = "smetana" GROUP BY Id_Instance ORDER BY Community_Name', ARRAY_N);
+// 	echo '<h2>Vorkommen</h2><div id="tree_div"><ul>';
+// 	foreach ($res as $comm){
+// 		$num_records = $va_xxx->get_var('SELECT count(DISTINCT Id_Instance) FROM Z_ling WHERE Base_Type = "smetana" AND Id_Community = ' . $comm[1]);
+// 		echo '<li>' . $comm[0] . ' (' . $num_records . ($num_records > 1? ' Belege': ' Beleg') . ')';
+		
+// 		$concepts = $va_xxx->get_results('SELECT DISTINCT Id_Concept, IF(Name_D != "", Name_D, Beschreibung_D) FROM z_ling JOIN Konzepte ON Id_Concept = Id_Konzept 
+// 			WHERE Id_Community = ' . $comm[1] . ' AND Base_Type = "smetana" GROUP BY Id_Instance ORDER BY IF(Name_D != "", Name_D, Beschreibung_D)', ARRAY_N);
+// 		echo '<ul>';
+// 		foreach ($concepts as $concept){
+// 			$num_records2 = $va_xxx->get_var('SELECT count(DISTINCT Id_Instance) FROM Z_ling WHERE Base_Type = "smetana" AND Id_Community = ' . $comm[1] . ' AND Id_Concept = ' . $concept[0]);
+// 			echo '<li>' . $concept[1] . ' (' . $num_records2 . ($num_records2 > 1? ' Belege': ' Beleg') . ')<ul>';
+			
+// 			$records = $va_xxx->get_col('SELECT DISTINCT Instance FROM z_ling 
+// 				WHERE Id_Community = ' . $comm[1] . ' AND Base_Type = "smetana" AND Id_Concept = ' . $concept[0] . ' ORDER BY Instance');
+// 			foreach ($records as $record){
+// 				echo '<li>' . $record . '</li>';	
+// 			}
+			
+// 			echo '</ul></li>';
+// 		}
+// 		echo '</ul></li>';
+// 	}
+// 	echo '</ul></div>';
+	
+// 	return;
 ?>
 <script type="text/javascript" src="<?php echo VA_PLUGIN_URL; ?>/lib/peg-0.10.0.min.js"></script>
 <script type="text/javascript">

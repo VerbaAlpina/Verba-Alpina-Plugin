@@ -208,12 +208,12 @@ function showStartPage (){
 
 		
 		<?php
-		$res = $va_xxx->get_results('SELECT Id_Eintrag, Erlaeuterung_' . $lang . " FROM Glossar WHERE Terminus_D='Projektbeschreibung'", ARRAY_N);
-		parseSyntax($res[0][1], false, $intern);
+		$res = $va_xxx->get_results('SELECT Id_Eintrag, Erlaeuterung_' . $lang . " AS Text FROM Glossar WHERE Terminus_D = 'Projektbeschreibung'", ARRAY_A);
+		parseSyntax($res[0]['Text'], false, $intern);
 		va_add_glossary_meta_information($res, $lang);
-		echo $res[0][1];
+		echo $res[0]['Text'];
 		echo '<br />';
-		echo va_add_glossary_authors($res[0][3], $res[0][4]);
+		echo va_add_glossary_authors($res[0]['Autoren'], $res[0]['Uebersetzer']);
 		?>
 	</div>
 

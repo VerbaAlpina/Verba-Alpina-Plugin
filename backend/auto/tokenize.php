@@ -292,10 +292,10 @@ function va_tokenize_records ($id_Stimulus, $vorschau) {
 									$insertsT[$j] = '';
 									
 								if($komp_typ[$j]){
-									$insertsV[$j] = "INSERT INTO VTBL_Tokengruppe_morph_Typ (Id_Tokengruppe, Id_morph_Typ, Quelle, Angelegt_Von, Angelegt_Am) SELECT %%%, Id_morph_Typ, '$quelle', NULL, NOW() FROM morph_Typen WHERE Orth = '" . $row['Token'] . "' AND Genus = '$current_gender' LIMIT 1;\n";
+									$insertsV[$j] = "INSERT INTO VTBL_Tokengruppe_morph_Typ (Id_Tokengruppe, Id_morph_Typ, Angelegt_Von, Angelegt_Am) SELECT %%%, Id_morph_Typ, NULL, NOW() FROM morph_Typen WHERE Orth = '" . $row['Token'] . "' AND Genus = '$current_gender' LIMIT 1;\n";
 								}
 								else {
-									$insertsV[$j] = "INSERT INTO VTBL_Token_morph_Typ (Id_Token, Id_morph_Typ, Quelle, Angelegt_Von, Angelegt_Am) SELECT %%%, Id_morph_Typ, '$quelle', NULL, NOW() FROM morph_Typen WHERE Orth = '" . $row['Token'] . "' AND Genus = '$current_gender' LIMIT 1;\n";
+									$insertsV[$j] = "INSERT INTO VTBL_Token_morph_Typ (Id_Token, Id_morph_Typ, Angelegt_Von, Angelegt_Am) SELECT %%%, Id_morph_Typ, NULL, NOW() FROM morph_Typen WHERE Orth = '" . $row['Token'] . "' AND Genus = '$current_gender' LIMIT 1;\n";
 								}
 							}
 							else if($klass == 'P'){
@@ -310,7 +310,7 @@ function va_tokenize_records ($id_Stimulus, $vorschau) {
 								}
 								else
 									$insertsT[$j] = '';
-								$insertsV[$j] = "INSERT INTO VTBL_Token_phon_Typ (Id_Token, Id_phon_Typ, Quelle, Angelegt_Von, Angelegt_Am) SELECT %%%, Id_phon_Typ, '$quelle', NULL, NOW() FROM phon_Typen WHERE Beta = '" . $row['Token'] . "' AND Genus = '$current_gender' AND Quelle != 'VA' LIMIT 1;\n";
+								$insertsV[$j] = "INSERT INTO VTBL_Token_phon_Typ (Id_Token, Id_phon_Typ, Angelegt_Von, Angelegt_Am) SELECT %%%, Id_phon_Typ, NULL, NOW() FROM phon_Typen WHERE Beta = '" . $row['Token'] . "' AND Genus = '$current_gender' AND Quelle != 'VA' LIMIT 1;\n";
 							}
 							
 							$row['Bemerkung'] = preg_replace('/ ?' . $quelle . '-Typ ".*"/U', '', $row['Bemerkung']);

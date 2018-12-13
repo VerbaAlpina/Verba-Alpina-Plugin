@@ -1,5 +1,7 @@
 <?php
 
+use WouterJ\Peg\Definition;
+
 //Action Handler
 add_action('wp_ajax_token_ops', 'token_ops'); //TODO integrate into va_ajax
 
@@ -56,7 +58,7 @@ function va_get_glossary_doi_link ($version = false, $id = null){
 	}
 	
 	$append = '?' . implode('&', $params) . ($fragment !== false? '#' . $fragment: '');
-	return $link . '?urlappend=' . urlencode($append);
+	return $link . urlencode($append);
 }
 
 function va_get_comments_doi_link ($version = false, $id = null){
@@ -80,12 +82,19 @@ function va_get_comments_doi_link ($version = false, $id = null){
 	}
 	
 	$append = '?' . implode('&', $params) . ($fragment !== false? '#' . $fragment: '');
-	return $link . '?urlappend=' . urlencode($append);
+	return $link . urlencode($append);
 }
 
 
 function va_get_doi_base_link (){
-	return 'http://dx.doi.org/10.5282/verba-alpina';
+	$res = 'http://dx.doi.org/10.5282/verba-alpina?urlappend=';
+	
+	$blog_url = get_home_url();
+	if (preg_match('#[.]*/([a-z]{2})$#', $blog_url, $matches)){
+		$res .= urlencode('/' . $matches[1]);
+	}
+	
+	return $res;
 }
 
 function va_get_glossary_link_and_title ($id = null){
@@ -122,10 +131,10 @@ function va_get_map_link ($element = null){
 	return $result;
 }
 
-function va_get_comments_link (){
+function va_get_comments_link ($id = null){
 	$commentsPage = get_page_by_title('KOMMENTARE');
 	if($commentsPage != null){
-		return get_page_link($commentsPage);
+		return get_page_link($commentsPage) . ($id ? '#' . $id : '');
 	}
 	return '';
 }
@@ -155,7 +164,7 @@ function va_format_bibliography ($author, $title, $year, $loc, $link, $band, $in
 			$res .= ', ' . $seiten;
 		if($link != '')
 			if($link_abgesetzt)
-				$res .= "\n<br /><br />\n<a href='$link'>Link</a>";
+				$res .= "\n<br /><br />\n<a href='" . str_replace("'", '%27', $link) . "'>Link</a>";
 			else
 				$res .= "\n(<a href='$link'>Link</a>)";
 		return $res;
@@ -210,11 +219,10 @@ function va_translate_url ($url){
 	return $url;
 }
 
-function va_format_lex_type ($orth, $lang, $word_class, $gender, $affix, &$Ue = NULL){
-	if($Ue){
-		if(isset($Ue['ABK_' . $lang])){
-			$lang = $Ue['ABK_' . $lang];
-		}
+function va_format_lex_type ($orth, $lang, $word_class, $gender, $affix, $add_qtip_spans = false){
+
+	if ($add_qtip_spans){
+		$lang = '<span class="iso" data-iso="' . $lang . '">' . $lang . '</span>';
 	}
 	
 	if($lang && $gender)
@@ -242,8 +250,8 @@ function token_ops (){
 		switch ($_POST['type']){
 			case 'original':
 				$tokens = $va_xxx->get_results("
-					SELECT distinct Token, Erhebung FROM Tokens LEFT JOIN VTBL_Token_Konzept USING (Id_Token) LEFT JOIN Konzepte USING (Id_Konzept) JOIN Stimuli USING (ID_Stimulus) 
-					WHERE Erhebung NOT IN ('ALD-II', 'ALD-I', 'ALTR', 'Clapie', 'APV', 'BSA', 'WBOE', 'CROWD') 
+					SELECT distinct Token, Erhebung FROM Tokens LEFT JOIN VTBL_Token_Konzept USING (Id_Token) LEFT JOIN Konzepte USING (Id_Konzept) JOIN Stimuli USING (ID_Stimulus) JOIN Bibliographie ON Erhebung = Abkuerzung
+					WHERE VA_Beta
 						AND Original = '' AND Token != '' AND (Id_Konzept is null or Id_Konzept != 779)", ARRAY_N);
 				break;
 			
@@ -365,65 +373,11 @@ function va_create_comment_citation ($id, &$Ue){
  	return $num_curr > $num_newer;
  }
  
- function va_build_grammar_for_original (){
- 	global $va_xxx;
- 	
- 	$base_chars = $va_xxx->get_results("SELECT Beta FROM Transkriptionsregeln WHERE Typ = 'Basiszeichen'", ARRAY_N);
- 	$diacritics = $va_xxx->get_results("SELECT Beta FROM Transkriptionsregeln WHERE Typ = 'Diakritika' ORDER BY LENGTH(Beta) DESC", ARRAY_N);
- 	$special_chars = $va_xxx->get_results("SELECT Beta FROM Transkriptionsregeln WHERE Typ = 'Spezielle Zeichen'", ARRAY_N);
- 	$spaces = $va_xxx->get_results("SELECT Beta FROM Transkriptionsregeln WHERE Typ = 'Leerzeichen'", ARRAY_N);
- 	
- 	$result = "{var diacriticsUsed = {};}\n"; 
- 	$result .= "start = Belegliste\n";
- 	$result .= "Belegliste = b : Beleg p : (' '?  Trennzeichen ' '? Beleg)* {var res = b; for (var i = 0; i < p.length; i++){ if(p[i][0]){res.push(p[i][0]);} res.push(p[i][1]); if(p[i][2]){ res.push(p[i][2]);}res = res.concat(p[i][3]);}	return res;}\n";
- 	$result .= "Beleg = t : Token p : (Leerzeichen Token)* {var res = t; for (var i = 0; i < p.length; i++) {res.push(p[i][0]); res = res.concat(p[i][1]);} return res;}\n";
- 	$result .= "Token = z: Zeichen+ / m : Maskiert+\n";
- 	$result .= 'Maskiert = "\\\\\\\\" c: [^a-zA-Z] {return "\\\\\\\\" + c;}' . "\n";
- 	$result .= "Zeichen = b : Basiszeichen d : Diakritikum* {var res = b + d.join(''); diacriticsUsed = {}; return res;}";
- 	$result .= ' / "[" l: (Basiszeichen Diakritikum*)+ "]" d: Diakritikum {var res = "["; for (var i = 0; i < l.length; i++) { res += l[i][0] + l[i][1].join(""); } return res + "]" + d;}';
- 	$result .= " / Sonderzeichen\n";
- 	$result .= "Basiszeichen = 'aa' / 'ee' / 'ii' / 'oo' / 'uu'";
- 	if (count($base_chars) > 0)
- 		$result .= ' / ' . implode(' / ', array_map(function ($e){return '"' . $e[0] . '"';}, $base_chars));
- 	$result .= " / [a-z]\n";
- 	$result .= "Diakritikum = " . implode(' / ', array_map('va_beta_to_grammar', $diacritics)) . "\n";
- 	$result .= "Sonderzeichen = " . implode(' / ', array_map('va_beta_to_grammar', $special_chars)) . "\n";
- 	$result .= "Leerzeichen = " . implode(' / ', array_map(function ($e){return '"' . $e[0] . '"';}, $spaces)) . "\n";
- 	$result .= "Trennzeichen = ',' / ';'";
- 	 	
- 	return $result;
- }
- 
- function va_beta_to_grammar ($row){
- 	$beta = addslashes($row[0]);
- 	$rule = $row[1];
- 	
- 	$beta = preg_replace_callback('/<([bdxsn])([1-9])?(\*)?>/', function ($matches){
- 		switch ($matches[1]){
- 			case 'b':
- 				return '" ' . $matches[1] . $matches[2]  . ' : Basiszeichen' . $matches[3] . ' "';
- 			case 'd':
- 				return '" ' . $matches[1] . $matches[2] . ' : Diakritikum' . $matches[3] . ' "';
- 			case 'x':
- 				return '" ' . $matches[1] . $matches[2] . ' : Sonderzeichen' . $matches[3] . ' "';
- 			case 's':
- 				return '" ' . $matches[1] . $matches[2] . ' : Leerzeichen' . $matches[3] . ' "';
- 			case 'n':
- 				return '" ' . $matches[1] . $matches[2] . ' : [0-9]' . $matches[3] . ' "';
- 		}
- 	}, $beta);
- 	
- 	
- 	$beta = '"' . $beta . '"';
- 	
- 	$beta = str_replace('"" ', '', $beta);
- 	
- 	if($rule != '')
- 		$beta .= ' {' . $rule . '}';
- 	else
- 		$beta .= ' {if (diacriticsUsed["' . addslashes($row[0]). '"]) error("Diacritic used twice"); diacriticsUsed["' . addslashes($row[0]). '"] = true; return text();}';
- 	
- 	return $beta;
+ //Php ??
+ function dq ($array, $val){
+ 	if (isset($array[$val]) && $array[$val])
+ 		return $array[$val];
+ 	return null;
  }
  
  function va_only_latin_letters($str){
@@ -675,5 +629,170 @@ function va_array_to_html_string ($arr, $showLevel = 1, $recLevel = 0){
 	}
 	
 	return '[' . ($recLevel > $showLevel? '' : '<br />') . implode(($recLevel > $showLevel? ', ': '<br />'), $vals) . ($recLevel > $showLevel? '' : '<br />') . ']' . ($recLevel > 0? '' : '<br />');
+}
+
+function va_get_comment_text ($id, $lang, $internal){
+	global $vadb;
+	
+	if (true /*!va_version_newer_than('va_181')*/){ //TODO change
+		$content = $vadb->get_var($vadb->prepare('SELECT comment FROM im_comments WHERE Id = %s AND Language = %s', $id, $lang));
+		
+		parseSyntax($content, true, $internal);
+		
+		return $content;
+	}
+
+	$date_cache = $vadb->get_var($vadb->prepare('SELECT geaendert FROM a_text_cache WHERE Typ = "kommentar" AND Id = %s AND Sprache = %s', $id, $lang));
+	$date_comment = $vadb->get_var($vadb->prepare('SELECT changed FROM im_comments WHERE Id = %s AND Language = %s', $id, $lang));
+	
+	if ($date_cache && $date_cache > $date_comment){
+		return $vadb->get_var($vadb->prepare('SELECT Inhalt FROM a_text_cache WHERE Typ = "kommentar" AND Id = %s AND Sprache = %s', $id, $lang));
+	}
+	else {
+		$content = $vadb->get_var($vadb->prepare('SELECT comment FROM im_comments WHERE Id = %s AND Language = %s', $id, $lang));
+		
+		parseSyntax($content, true, $internal);
+		
+		$vadb->query($vadb->prepare("REPLACE INTO a_text_cache (Typ, Id, Sprache, Intern, Inhalt) VALUES ('kommentar', %s, %s, %d, %s)",
+				$id, $lang, ($internal? 1: 0), $content));
+		
+		return $content;
+	}
+}
+
+function va_concept_compare ($t1, $t2, $search){
+	$diff = mb_stripos ($t1, $search) - mb_stripos ($t2, $search);
+	if($diff == 0){
+		return strcmp($t1, $t2);
+	}
+	else {
+		return $diff;
+	}
+}
+
+//Preg replace with ignoring html tags
+function va_replace_in_text ($pattern, $callback, $subject){
+	if ($subject == '')
+		return '';
+	
+	$doc = new IvoPetkov\HTML5DOMDocument();
+	$doc->loadHTML($subject);
+	
+	$node = va_replace_in_single_html_node($doc, $pattern, $callback);
+	return substr($doc->saveHTML($node), 28, -14);
+}
+
+function va_replace_in_single_html_node (DOMNode $node, $pattern, $callback){
+
+	if ($node->nodeType === XML_TEXT_NODE){
+		$newNode = $node->ownerDocument->createDocumentFragment();
+		$newText = preg_replace_callback($pattern, $callback, $node->nodeValue);
+		$newNode->appendXML(str_replace('&', '&amp;', $newText));
+		return $newNode;
+	}
+	else {
+		if ($node->hasChildNodes()){
+			$replacements = [];
+			foreach ($node->childNodes as $child){
+				$newChild = va_replace_in_single_html_node($child, $pattern, $callback);
+				$replacements[] = [$child, $newChild];
+			}
+	
+			foreach ($replacements as $rep){
+				$node->replaceChild($rep[1], $rep[0]);
+			}
+		}
+			
+		return $node;
+	}
+}
+
+function va_get_comment_title ($id, $lang){
+	global $Ue;
+	global $vadb;
+	
+	$letter = substr($id, 0, 1);
+	$key = substr($id, 1);
+	
+	$lang = substr($lang, 0, 1);
+	
+	switch ($letter){
+		case 'B':
+			return '<em>' . $vadb->get_var($vadb->prepare('SELECT Orth FROM Basistypen WHERE Id_Basistyp = %d', $key)) . '</em> - ' . $Ue['BASISTYP'];
+			break;
+			
+		case 'L':
+			return '<em>' . $vadb->get_var($vadb->prepare('SELECT Orth FROM morph_Typen WHERE Id_morph_Typ = %d', $key)) . '</em> - ' . $Ue['MORPH_TYP'];
+			break;
+			
+		case 'C':
+			$nameData = $vadb->get_row($vadb->prepare("SELECT Name_$lang, Beschreibung_$lang FROM Konzepte WHERE Id_Konzept = %d", $key), ARRAY_A);
+			if ($nameData["Name_$lang"] && $nameData["Name_$lang"] != $nameData["Beschreibung_$lang"]){
+				$title = $nameData["Name_$lang"] . '<span style="font-size: 60%"> ('. $nameData["Beschreibung_$lang"] . ')</span>';
+			}
+			else {
+				$title = $nameData["Beschreibung_$lang"];
+			}
+			return $title  . ' - ' . $Ue['KONZEPT'];
+			break;
+	}
+}
+
+function va_create_tokenizer ($source){
+	
+	if($source == 'ALD-I'){
+		$sourceUsed = 'ALD-II';
+	}
+	else {
+		$sourceUsed = $source;
+	}
+	
+	global $va_xxx;
+	$spaceTypes = $va_xxx->get_col("SELECT Beta FROM Codepage_IPA WHERE Erhebung = '$sourceUsed' AND Art = 'Trennzeichen'");
+	if(!$spaceTypes){
+		$spaceTypes = [' '];
+	}
+	
+	$tokenizer = new Tokenizer([';', ',', $spaceTypes]);
+	$articlesDB = $va_xxx->get_results('SELECT Artikel, Genus, Sprache FROM Artikel', ARRAY_N);
+	$articles = [];
+	foreach ($articlesDB as $article){
+		$articles[$article[0]] = [$article[1], $article[2]];
+	}
+	$tokenizer->addData('articles', $articles);
+	$tokenizer->addData('schars', $va_xxx->get_col('SELECT Zeichen FROM Sonderzeichen'));
+	$tokenizer->addData('source', $source);
+	
+	$parser = false;
+	try {
+		$parser = new VA_BetaParser($sourceUsed);
+	}
+	catch (Exception $e){}
+	$tokenizer->addData('beta_parser', $parser);
+	
+	$tokenizer->addEscapeRegex('/\\\\\\\\([;,])/', '$1');
+	$tokenizer->addEscapeRegex('/\\\\\\\\(.)/');
+	
+	switch ($source){
+		case 'CROWD':
+			$tokenizer->addReplacementString('(', '<');
+			$tokenizer->addReplacementRegex('/(?<!;-)\)/', '>');
+			break;
+	}
+	
+	if($source == 'CROWD' || $va_xxx->get_var($va_xxx->prepare('SELECT VA_Beta FROM Bibliographie WHERE Abkuerzung = %s', $source))){
+		$tokenizer->addReplacementRegex('/\s+</', '<');
+		$tokenizer->addReplacementRegex('/>\s+/', '>');
+		
+		$tokenizer->addCopyRegex('/<.*>/U', 'notes', ' ', function ($str){return substr($str, 1, strlen($str) - 2);});
+	}
+	
+	$tokenizer->addPostProcessFunction('va_tokenize_to_db_cols');
+	$tokenizer->addPostProcessFunction('va_tokenize_split_double_genders');
+	$tokenizer->addPostProcessFunction('va_tokenize_handle_groups_and_concepts');
+	$tokenizer->addPostProcessFunction('va_tokenize_handle_source_types');
+	$tokenizer->addPostProcessFunction('va_add_original_and_ipa');
+	
+	return $tokenizer;
 }
 ?>

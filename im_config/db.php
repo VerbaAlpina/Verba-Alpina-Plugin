@@ -415,6 +415,13 @@ function va_translate_content ($text, &$Ue){
 function va_create_result_object ($where_clause, $lang, $epsilon, $grid_cat, IM_Result &$result, &$Ue, &$db){
 	$bibData = [];
 	$stimulusData = [];
+	$langData = [];
+	
+	
+	$isolangs = va_two_dim_to_assoc($db->get_results("
+			SELECT Abkuerzung, CONCAT(Bezeichnung_$lang, IF(ISO639 = '', '', CONCAT(' (ISO 639-', ISO639, ')'))) AS Bedeutung
+			FROM Sprachen
+			WHERE Bezeichnung_$lang != '' AND (ISO639 = '3' OR ISO639 = '5' OR ISO639 = '')", ARRAY_N));
 	
 	$query = va_create_record_query($where_clause, $epsilon, $grid_cat, $db);
 	$db->query('SET SESSION group_concat_max_len = 100000');
@@ -443,10 +450,15 @@ function va_create_result_object ($where_clause, $lang, $epsilon, $grid_cat, IM_
 				$type_info = mb_split('#', $t);
 				$kind = $type_info[0];
 				$id = $type_info[1];
-				if($kind == 'P')
+				if($kind == 'P'){
 					$type = $type_info[2];
-				else
-					$type = va_format_lex_type($type_info[2], $type_info[3], $type_info[4], $type_info[5], $type_info[6]); //util/tools.php
+				}
+				else {
+					$type = va_format_lex_type($type_info[2], $type_info[3], $type_info[4], $type_info[5], $type_info[6], isset($isolangs[$type_info[3]])); //util/tools.php
+					if($type_info[3] && !isset($langData[$type_info[3]]) && isset($isolangs[$type_info[3]])){
+						$langData[$type_info[3]] = '<div id="ISO_' .$type_info[3] . '" style="display: none;">' . $isolangs[$type_info[3]] . '</div>';
+					}
+				}
 				$source = $type_info[7];
 				$ref = $type_info[8];
 				
@@ -486,33 +498,35 @@ function va_create_result_object ($where_clause, $lang, $epsilon, $grid_cat, IM_
 		if($row[2] != ''){
 			$base_types = explode('-+-', $row[2]);
 			foreach ($base_types as $b){
-				$posHash1 = mb_strpos($b, '#');
-				$posHash2 = mb_strpos($b, '#', $posHash1 + 1);
+				$bparts = explode('#', $b);
 				
-				$id_btyp = mb_substr($b, 0, $posHash1 - 2); //-2 to remove |0 or |1 for unsure
-				if($posHash2 === false){
-					$btyp = mb_substr($b, $posHash1 + 1);
-					$base_array[] = [$btyp, []];
-				}
-				else {
-					$btyp = mb_substr($b, $posHash1 + 1, $posHash2 - $posHash1 - 1);
-					$ref = mb_substr($b, $posHash2 + 1);
-					
-					//For multiple base type references
-					$btypeExists = false;
-					foreach ($base_array as &$btype_descr){
-						if($btype_descr[0] == $btyp){
-							if($ref)
-								$btype_descr[1][] = $ref;
-							$btypeExists = true;
-							break;
-						}
+				$id_btyp = mb_substr($bparts[0], 0, - 2); //-2 to remove |0 or |1 for unsure
+				$btyp = $bparts[1];
+				if ($bparts[2] && isset($isolangs[$bparts[2]])){
+					$btyp .= ' (<span class="iso" data-iso="' . $bparts[2] . '">' . $bparts[2] . '.</span>)';
+					if (!isset($langData[$bparts[2]])){
+						$langData[$bparts[2]] = '<div id="ISO_' . $bparts[2] . '" style="display: none;">' . $isolangs[$bparts[2]] . '</div>';
 					}
-					
-					if(!$btypeExists)
-						$base_array[] = [$btyp, ($ref? [$ref]: [])];
 				}
-				if($subElementType === 4) { //Basistyp
+				
+				$ref = $bparts[3];
+				
+				$btypeExists = false;
+				
+				//For multiple base type references
+				foreach ($base_array as &$btype_descr){
+					if($btype_descr[0] == $btyp){
+						if($ref)
+							$btype_descr[1][] = $ref;
+						$btypeExists = true;
+						break;
+					}
+				}
+				
+				if(!$btypeExists)
+					$base_array[] = [$btyp, ($ref? [$ref]: [])];
+					
+				if($subElementType === 4 /*Basistyp */ && !$btypeExists) {
 					if($va_sub === '-1'){
 						$va_sub = 'B' . $id_btyp;
 					}
@@ -537,7 +551,7 @@ function va_create_result_object ($where_clause, $lang, $epsilon, $grid_cat, IM_
 			}
 		}
 		
-		$current_array[] = va_create_type_table($type_array, $base_array, $lang, $row[4], $Ue, strpos($row[0], '###') !== false);
+		$current_array[] = va_create_type_table($type_array, $base_array, $lang, $row[4], $Ue, strpos($row[0], '###') !== false) . implode('', $langData);
 		
 		$current_array[] = $conceptArray;
 		
@@ -770,7 +784,7 @@ function va_create_record_query ($where_clause, $epsilon, $grid_cat, &$db){
 	return "SELECT
 				Instance,
 				GROUP_CONCAT(DISTINCT CONCAT(Type_Kind, '#', Id_Type, '#', Type, '#', Type_Lang, '#', POS, '#', Gender, '#', Affix, '#', Source_Typing, '#', IF(Type_Reference IS NULL, '', Type_Reference)) SEPARATOR '-+-') AS Typings,
-				GROUP_CONCAT(DISTINCT CONCAT(Id_Base_Type, '|', Base_Type_Unsure, '#', IF(Base_Type_Unsure, '(?) ', ''), Base_Type, '#', IF(Base_Type_Reference IS NULL, '', Base_Type_Reference)) SEPARATOR '-+-') AS Base_Types,
+				GROUP_CONCAT(DISTINCT CONCAT(Id_Base_Type, '|', Base_Type_Unsure, '#', IF(Base_Type_Unsure, '(?) ', ''), Base_Type, '#', IFNULL(Base_Type_Lang, '') , '#', IF(Base_Type_Reference IS NULL, '', Base_Type_Reference)) SEPARATOR '-+-') AS Base_Types,
 				GROUP_CONCAT(DISTINCT CONCAT('C', Id_Concept)) AS Concepts,
 				Instance_Source,
 				" . $geo_sql . " AS Geo_Data,
@@ -799,7 +813,7 @@ function va_create_record_query ($where_clause, $epsilon, $grid_cat, &$db){
 
 function va_create_type_table (&$types, &$btypes, $lang, $source, &$Ue, $part_of_group){
 
-	$result = '<table class="easy-table easy-table-default">';
+	$result = '<table class="easy-table easy-table-default va_type_table">';
 	
 	$va_phon_index = false;
 	$va_lex_index = false;
@@ -1076,14 +1090,29 @@ function va_ling_search ($search, $lang){
 		];
 	}
 	
+	$query2_1 = "
+		SELECT DISTINCT CONCAT('P', Id_Type) as id, Type as text, '" . $Ue['PHON_TYP_PLURAL'] . "' as description
+		FROM z_ling
+		WHERE Source_Typing = 'VA' AND Type_Kind = 'P' AND Type LIKE '%$search%'
+		ORDER BY Type ASC, Type_Lang ASC";
+	$ptypes = $db->get_results($query2_1, ARRAY_A);
+	
 	$query3 = "
     SELECT 
         CONCAT('C', Id_Konzept) AS id, 
         IF(Name_$lang != '', Name_$lang, Beschreibung_$lang) AS text, 
         '{$Ue['KONZEPT_PLURAL']}' AS description FROM konzepte JOIN A_Anzahl_Konzept_Belege USING (Id_Konzept)
-    WHERE (Name_D LIKE '%$search%' OR Name_I LIKE '%$search%' OR Name_F LIKE '%$search%' OR Name_R LIKE '%$search%' OR Name_S LIKE '%$search%') AND Relevanz 
+    WHERE (Name_D LIKE '%$search%' OR Name_I LIKE '%$search%' OR Name_F LIKE '%$search%' OR Name_R LIKE '%$search%' OR Name_S LIKE '%$search%' 
+	OR Beschreibung_D LIKE '%$search%' OR Beschreibung_I LIKE '%$search%' OR Beschreibung_F LIKE '%$search%' OR Beschreibung_R LIKE '%$search%' OR Beschreibung_S LIKE '%$search%') AND Relevanz 
     ORDER BY text ASC";
 	$concepts = $db->get_results($query3);
+	
+	usort($concepts, function ($a,$b) use ($search){
+		$t1 = $a->text;
+		$t2 = $b->text;
+		
+		return va_concept_compare($t1, $t2, $search);
+	});
 	
 	$query4 = "
     SELECT DISTINCT
@@ -1135,7 +1164,7 @@ function va_ling_search ($search, $lang){
 		$locations[$index] ->id = "LOC".$locations[$index] ->id;
 	}
 	
-	$names = array_merge($basetypes, $morphtypes, $concepts, $informants, $extra, $syn_maps,$locations);
+	$names = array_merge($basetypes, $morphtypes, $ptypes,  $concepts, $informants, $extra, $syn_maps,$locations);
 	
 	return ['results' => $names];
 }

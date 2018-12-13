@@ -17,10 +17,10 @@ function va_ajax_typification (&$db){
 				$description = json_decode(stripslashes($_POST['description']));
 				$tids = getTokenIds($db, $description);
 				if($description->kind === 'G' || $description->kind === 'K' || $description->kind === 'GP'){
-					$db->query($db->prepare("DELETE FROM VTBL_Tokengruppe_morph_Typ WHERE Quelle = 'VA' AND Id_Tokengruppe IN " . keyPlaceholderList($tids), $tids));
+					$db->query($db->prepare("DELETE VTBL_Tokengruppe_morph_Typ FROM VTBL_Tokengruppe_morph_Typ JOIN morph_Typen m USING (Id_morph_Typ) WHERE m.Quelle = 'VA' AND Id_Tokengruppe IN " . keyPlaceholderList($tids), $tids));
 				}
 				else {
-					$db->query($db->prepare("DELETE FROM VTBL_Token_morph_Typ WHERE Quelle = 'VA' AND Id_Token IN " . keyPlaceholderList($tids), $tids));
+					$db->query($db->prepare("DELETE VTBL_Token_morph_Typ FROM VTBL_Token_morph_Typ JOIN morph_Typen m USING (Id_morph_Typ) WHERE m.Quelle = 'VA' AND Id_Token IN " . keyPlaceholderList($tids), $tids));
 				}
 				echo 'success';
 				break;
@@ -57,17 +57,17 @@ function va_ajax_typification (&$db){
 						error_log(json_encode($_POST)); //TODO remove if bug is fixed
 						
 						if($description->kind === 'G' || $description->kind === 'K' || $description->kind == 'GP'){
-							$db->query("DELETE FROM VTBL_Tokengruppe_morph_Typ WHERE Quelle = 'VA' AND Id_Tokengruppe IN (" . implode(',', $tids) . ')');
+							$db->query("DELETE VTBL_Tokengruppe_morph_Typ FROM VTBL_Tokengruppe_morph_Typ JOIN morph_Typen m WHERE m.Quelle = 'VA' AND Id_Tokengruppe IN (" . implode(',', $tids) . ')');
 							$db->query($db->prepare("
-						INSERT INTO VTBL_Tokengruppe_morph_Typ (Id_Tokengruppe, Id_morph_Typ, Quelle, Angelegt_Von, Angelegt_Am)
-						SELECT Id_Tokengruppe, %d, 'VA', %s, NOW()
+						INSERT INTO VTBL_Tokengruppe_morph_Typ (Id_Tokengruppe, Id_morph_Typ, Angelegt_Von, Angelegt_Am)
+						SELECT Id_Tokengruppe, %d, %s, NOW()
 						FROM Tokengruppen WHERE Id_Tokengruppe IN (" . implode(',', $tids) . ')', $_POST['newTypeId'], wp_get_current_user()->user_login));
 						}
 						else {
-							$db->query("DELETE FROM VTBL_Token_morph_Typ WHERE Quelle = 'VA' AND Id_Token IN (" . implode(',', $tids) . ')');
+							$db->query("DELETE VTBL_Token_morph_Typ FROM VTBL_Token_morph_Typ JOIN morph_Typen m USING (Id_morph_Typ) WHERE m.Quelle = 'VA' AND Id_Token IN (" . implode(',', $tids) . ')');
 							$db->query($db->prepare("
-						INSERT INTO VTBL_Token_morph_Typ (Id_Token, Id_morph_Typ, Quelle, Angelegt_Von, Angelegt_Am)
-						SELECT Id_Token, %d, 'VA', %s, NOW()
+						INSERT INTO VTBL_Token_morph_Typ (Id_Token, Id_morph_Typ, Angelegt_Von, Angelegt_Am)
+						SELECT Id_Token, %d, %s, NOW()
 						FROM Tokens WHERE Id_Token IN (" . implode(',', $tids) . ')', $_POST['newTypeId'], wp_get_current_user()->user_login));
 						}
 				}

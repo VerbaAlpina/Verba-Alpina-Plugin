@@ -4,9 +4,12 @@
     margin-top: 45px;
     height: calc(100% - 45px);
     top: 0px;
+    z-index: 0;
 }
 
-
+#IM_map_div .leaflet-top.leaflet-right > .leaflet-control-layers.leaflet-control{
+	margin-top: 37px;
+}
 
 #mainTable > tbody > tr > td {
 	vertical-align: top;
@@ -62,6 +65,11 @@ a.encyLink, span.encyLink{
 	font-size : 200%
 }
 
+.va_type_table td:nth-child(2) {
+	font-family : arial unicode;
+	font-size: 120%;
+}
+
 .atlasSourceB {
 	color: #2c879b;
 	font-weight: bold;
@@ -103,5 +111,21 @@ a.encyLink, span.encyLink{
 	font-size : 180%;
 	font-family : arial unicode;
 	color: #2c879b;
-	font-weight: bold;
+}
+
+.fullRecordInfo {
+	color: red;
+}
+
+.fullRecordInfo span {
+	font-size: 14px;
+	font-family: arial unicode;
+}
+
+.fullRecordInfo svg {
+	fill: red;
+}
+
+.originalRecord svg {
+	fill: #2c879b;
 }

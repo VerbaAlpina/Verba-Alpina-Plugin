@@ -28,8 +28,16 @@ function createTypeOverlay (&$db, $dbname){
 				<td><?php echo im_enum_select('morph_Typen', 'Wortart', 'Wortart', '---', true, '', NULL, $dbname);?></td>
 			</tr>
 			<tr>
-				<td>Affix</td>
-				<td><input name="Affix" type="text" /></td>
+				<td>Praefix</td>
+				<td><input name="Praefix" type="text" /></td>
+			</tr>
+			<tr>
+				<td>Infix</td>
+				<td><input name="Infix" type="text" /></td>
+			</tr>
+						<tr>
+				<td>Suffix</td>
+				<td><input name="Suffix" type="text" /></td>
 			</tr>
 			<tr>
 				<td>Genus</td>

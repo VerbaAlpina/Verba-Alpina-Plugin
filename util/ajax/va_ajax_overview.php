@@ -72,7 +72,7 @@ function va_overview_build_atlases_concepts (){
 					JOIN Stimuli USING (Id_Stimulus)
 					LEFT JOIN A_Konzept_Tiefen a ON a.Id_Konzept = k.Id_Konzept
 				WHERE 
-					(Aeusserung IS NULL OR (Aeusserung != '<vacat>' AND Aeusserung != '<problem>')) AND k.RELEVANZ
+					(Aeusserung IS NULL OR (Aeusserung != '<vacat>' AND Aeusserung != '<problem>')) AND k.RELEVANZ AND k.va_phase = '2'
 				GROUP BY u.Id_Ueberkonzept, Id_Aeusserung, Id_Stimulus
 				ORDER BY Basiskonzept DESC, IF(Basiskonzept, Konzept, IF(Tiefe IS NULL, 99, Tiefe)) ASC, Konzept ASC
 			", ARRAY_A);
@@ -199,7 +199,7 @@ function va_overview_build_transcription (){
 		(SELECT count(*) FROM Informanten WHERE Erhebung = Stimuli.Erhebung AND Alpenkonvention) as Informanten,
 		(SELECT count(*) FROM Aeusserungen WHERE Id_Stimulus = Stimuli.Id_Stimulus AND Aeusserung = '<problem>') AS Probleme
 	FROM Stimuli
-	WHERE VA_Phase = '1'
+	WHERE VA_Phase = '2'
 	", ARRAY_A);
 	
 	?>
