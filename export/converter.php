@@ -15,7 +15,7 @@ abstract class VA_Converter {
 		['Instance_Source', true],
 		['Id_Concept', 'concept', false],
 		[['IF(Name_D != "", CONCAT(Name_D, " (", Beschreibung_D, ")"), Beschreibung_D)', 'Concept_Description'], 'concept'],
-		[['CONCAT("Q", Konzepte.QID)', 'QID'], 'concept'],
+		[['IF(Konzepte.QID = 0, NULL, CONCAT("Q", Konzepte.QID))', 'QID'], 'concept'],
 		['Community_Name', true],
 		[['ST_AsText(ST_Envelope(Geodaten))', 'Community_Bounding_Box'], true],
 		['Year_Publication', true],
@@ -37,30 +37,30 @@ abstract class VA_Converter {
 	
 	protected $data;
 	
-	public function __construct ($type, $id, $db){
+	public function __construct ($id, $db){
 		global $va_xxx;
 		
-		$query = $this->create_query($type, $id, $db);
+		$query = $this->create_query($id, $db);
 		$va_xxx->select($db);
 		$this->data = $va_xxx->get_results($query, ARRAY_A);
 	}
 	
-	private function create_query ($type, $id, $db){
+	private function create_query ($id, $db){
 		
-		if ($type == 'C'){
-			$condition = 'Id_Concept = ' . $id;
+		if ($id[0] == 'C'){
+			$condition = 'Id_Concept = ' . substr($id, 1);
 		}
-		else if ($type == 'A'){
-			$condition = 'Id_Community = ' . $id;
+		else if ($id[0] == 'A'){
+			$condition = 'Id_Community = ' . substr($id, 1);
 		}
-		else if ($type == 'L'){
-			$condition = 'Id_Type = ' . $id . ' AND Type_Kind = "L"';
+		else if ($id[0] == 'L'){
+			$condition = 'Id_Type = ' . substr($id, 1) . ' AND Type_Kind = "L"';
 		}
-		else if ($type == 'I'){
+		else if ($id[0] == 'S' || $id[0] == 'G'){
 			$condition = 'External_Id = "' . $id  . '"';
 		}
 		else {
-			throw new Exception('Unknown type: ' . $type);
+			throw new Exception('Unknown id type: ' . $id);
 		}
 	
 		$from_clause = 'FROM ' . $db . '.z_ling JOIN ' . $db . '.Orte ON Id_Community = Id_Ort JOIN Konzepte ON Id_Konzept = Id_Concept';
@@ -77,7 +77,9 @@ abstract class VA_Converter {
 		}, self::$fields)) . ' ' . $from_clause . ' ' . $where_clause . ' ' . $appendix;
 	}
 	
-	public abstract function export();
+	public abstract function export($add_empty = true);
+	
+	public abstract function get_extension();
 	
 	protected static function va_lang_to_iso ($lang){
 		switch ($lang){
@@ -90,13 +92,76 @@ abstract class VA_Converter {
 			case 'E': return 'eng';
 		}
 	}
+	
+	public static function random_examples ($sub_class, $db, $num){
+		$zip_file = get_home_path() . 'wp-content/uploads/examples.zip';
+		$zip = new ZipArchive();
+		
+		$zip->open($zip_file, ZipArchive::CREATE);
+		
+		$ids = self::get_random_ids($db, $num);
+		foreach ($ids as $id){
+			$conv = new $sub_class($id, $db);
+			$zip->addFromString($id . '.' . $conv->get_extension(), $conv->export(false));
+		}
+		
+		$zip->close();
+	}
+	
+	private static function get_random_ids ($db, $num){
+		global $va_xxx;
+		
+		$va_xxx->select($db);
+		
+		$concepts = $va_xxx->get_col('SELECT DISTINCT Id_Concept FROM z_ling WHERE Id_Concept IS NOT NULL');
+		$types = $va_xxx->get_col('SELECT DISTINCT Id_Type FROM z_ling WHERE Type_Kind = "L"');
+		$communities = $va_xxx->get_col('SELECT DISTINCT Id_Community FROM z_ling WHERE Id_Community IS NOT NULL');
+		$instances = $va_xxx->get_col('SELECT DISTINCT External_Id FROM z_ling WHERE External_Id IS NOT NULL');
+		
+		$res = [];
+		
+		$i = 0;
+		while ($i < $num){
+			$rand1 = rand(0, 3);
+			
+			if ($rand1 == 0){
+				$rand2 = rand(0, count($concepts) - 1);
+				$id = 'C' . $concepts[$rand2];
+			}
+			else if ($rand1 == 1){
+				$rand2 = rand(0, count($types) - 1);
+				$id = 'L' . $types[$rand2];
+			}
+			else if ($rand1 == 2){
+				$rand2 = rand(0, count($communities) - 1);
+				$id = 'A' . $communities[$rand2];
+			}
+			else {
+				$rand2 = rand(0, count($instances) - 1);
+				$id = $instances[$rand2];
+			}
+			
+			if (in_array($id, $res))
+				continue;
+			
+			$res[] = $id;
+		
+			$i++;
+		}
+		
+		return $res;
+	}
 }
 
 class VA_XML_Converter extends VA_Converter {
 	private $add_empty;
 	
-	public function __construct ($type, $id, $db){
-		parent::__construct($type, $id, $db);
+	public function __construct ($id, $db){
+		parent::__construct($id, $db);
+	}
+	
+	public function get_extension (){
+		return 'xml';
 	}
 	
 	public function export ($add_empty = true){
@@ -206,8 +271,10 @@ class VA_XML_Converter extends VA_Converter {
 		unset($data['attributes']);
 		
 		foreach ($data as $key => $val){
-			if (is_array($val) && ($this->add_empty || count($val) > 0)){
-				$this->add_array($xw, $key, $val);				
+			if (is_array($val)){
+				if ($this->add_empty || count($val) > 0){
+					$this->add_array($xw, $key, $val);		
+				}					
 			}
 			else {
 				if ($this->add_empty || ($val !== '' && $val !== null)){

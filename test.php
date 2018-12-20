@@ -199,11 +199,24 @@ function test_wiki (){
 }
 
 function test (){
-
-	$conv = new VA_XML_Converter('C', '1', 'va_181');
-	echo '<pre>' . htmlentities($conv->export(false)) . '</pre>';
 	
+// 	$parser = new VA_BetaParser('AIS');
+// 	$file = file_get_contents(plugin_dir_path(__FILE__) . '/backend/auto/lei.txt');
+// 	$letters = explode("\r\n", $file);
+// 	echo '<pre>';
+// 	foreach ($letters as $letter){
+// 		echo $parser->beta_from_unicode_character($letter) . "\n";
+// 	}
+// 	echo '</pre>';
+// 	return;
+
+	VA_Converter::random_examples('VA_XML_Converter', 'va_181', 50);
 	return;
+	
+	// $conv = new VA_XML_Converter('C1', 'va_181');
+	// echo '<pre>' . htmlentities($conv->export(false)) . '</pre>';
+	
+	// return;
 // 	?>
 <!-- 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/themes/default/style.min.css" /> -->
 <!-- 	<script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/jstree.min.js"></script> -->
