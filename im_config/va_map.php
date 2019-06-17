@@ -8,6 +8,8 @@ global $admin;
 global $va_mitarbeiter;
 global $va_current_db_name;
 
+$type_occs = va_two_dim_to_assoc(IM_Initializer::$instance->database->get_results('SELECT Id, Vorkommen_AK FROM A_Typ_Vorkommen', ARRAY_N));
+
 $concepts = IM_Initializer::$instance->database->get_results("
 								SELECT 
 									a1.Id_Konzept,
@@ -17,6 +19,7 @@ $concepts = IM_Initializer::$instance->database->get_results("
 									kk.Kategorie, 
 									Name_$lang != '' OR a1.Id_Ueberkonzept = 707 AS Anzeige,
 									a1.Anzahl_Allein AS Anzahl_Belege,
+									a1.Anzahl_Allein_AK AS Anzahl_Belege_AK,
 									a1.Dateiname,
 									GROUP_CONCAT(u.Id_Konzept) AS Unterkonzepte
 								from
@@ -30,17 +33,18 @@ $concepts = IM_Initializer::$instance->database->get_results("
 
 $concepts_JS = array();
 foreach ($concepts as $concept){
-	$concepts_JS[$concept['Id_Konzept']] = array (
+	$concepts_JS[$concept['Id_Konzept']] = [
 		$concept['Name'],
 		$concept['Beschreibung'],
-		$concept['Anzahl_Belege'], 
+		$concept['Anzahl_Belege'],
 		$concept['Unterkonzepte']? explode(',', $concept['Unterkonzepte']): [], 
-		$concept['Dateiname']);
+		$concept['Dateiname'],
+		$concept['Anzahl_Belege_AK']
+	];
 }
 
 $sql_extra = "
-		SELECT Id_Category, Category_Level_1, Category_Level_2, Category_Level_3, Category_Level_4, Category_Level_5, Category_Name,
-			GeometryType(Geo_data) != 'POLYGON' AND GeometryType(Geo_data) != 'MULTIPOLYGON'
+		SELECT Id_Category, Category_Level_1, Category_Level_2, Category_Level_3, Category_Level_4, Category_Level_5, Category_Name, OnlyPolygons
 		FROM Z_Geo
 		GROUP BY Id_Category
 		ORDER BY Category_Level_1, Category_Level_2, Category_Level_3, Category_Level_4, Category_Level_5";
@@ -94,6 +98,7 @@ wp_localize_script ('im_map_script', 'TagValues', $tagValues);
 wp_localize_script ('im_map_script', 'SourceMapping', $sourceMapping);
 wp_localize_script ('im_map_script', 'TypeGenders', va_two_dim_to_assoc($typeGenders));
 wp_localize_script ('im_map_script', 'QIDS', va_two_dim_to_assoc($qids));
+wp_localize_script ('im_map_script', 'TypeOccs', $type_occs);
 
 ?>
 <style type="text/css">
@@ -155,15 +160,17 @@ wp_localize_script ('im_map_script', 'QIDS', va_two_dim_to_assoc($qids));
 							<div class="va_select_container">
 
 								<?php
-								
 								//Base types
-								echo im_table_select('Z_Ling', array('Id_Base_Type'), array('Base_Type'), 'baseTypeSelect', array(
-										'list_format_function' => 'va_format_base_type',
-										'placeholder' => ucfirst($Ue['BASISTYP_PLURAL']),
-										'width' => '90%',
-										'filter' => 'Id_Base_Type IS NOT NULL',
-										'sort_simplification_function' => 'va_remove_special_chars'
-								));
+								echo im_table_select('Z_Ling', array('Id_Base_Type'), array('Base_Type', 'Base_Type_Lang'), 'baseTypeSelect', [
+									'list_format_function' => 'va_format_base_type',
+									'placeholder' => ucfirst($Ue['BASISTYP_PLURAL']),
+									'width' => '90%',
+									'filter' => 'Id_Base_Type IS NOT NULL',
+									'sort_simplification_function' => 'va_remove_special_chars',
+									'costum_attribute_function' => function ($val, $name) use ($type_occs){
+										return 'data-in-ak=' . $type_occs['B' . $val];	
+									}
+								]);
 								echo va_get_mouseover_help($Ue['HILFE_BASISTYP'], $Ue, IM_Initializer::$instance->database, $lang, 58);
 
 								?>
@@ -182,7 +189,17 @@ wp_localize_script ('im_map_script', 'QIDS', va_two_dim_to_assoc($qids));
 										'filter' => "Type_Kind != 'P' AND Source_Typing = 'VA'" . ($admin? '': ' AND Id_Type != 6977'),
 										'sort_simplification_function' => 'va_remove_special_chars',
 										'group_by' => 'Type, Type_Lang, POS',
-										'group_order_by' => 'Type ASC, Gender ASC'
+										'group_order_by' => 'Type ASC, Gender ASC',
+										'costum_attribute_function' => function ($val, $name) use ($type_occs){
+											$types = explode('+', $val);
+											
+											foreach ($types as $type){
+												if ($type_occs['L' . $type]){
+													return 'data-in-ak=1';
+												}
+											}
+											return 'data-in-ak=0';
+										}
 									));
 								echo va_get_mouseover_help($Ue['HILFE_MORPH'], $Ue, IM_Initializer::$instance->database, $lang, 58);
 
@@ -197,7 +214,10 @@ wp_localize_script ('im_map_script', 'QIDS', va_two_dim_to_assoc($qids));
 								echo im_table_select('Z_Ling', array('Id_Type'), array('Type'), 'phonTypeSelect', array(
 										'placeholder' => ucfirst($Ue['PHON_TYP_PLURAL']),
 										'width' => '90%',
-										'filter' => "Type_Kind = 'P' AND Source_Typing = 'VA'"
+										'filter' => "Type_Kind = 'P' AND Source_Typing = 'VA'",
+										'costum_attribute_function' => function ($val, $name) use ($type_occs){
+											return 'data-in-ak=' . $type_occs['P' . $val];
+										}
 								));
 								echo va_get_mouseover_help($Ue['HILFE_PHON'], $Ue, IM_Initializer::$instance->database, $lang, 58);
 									
@@ -218,8 +238,8 @@ wp_localize_script ('im_map_script', 'QIDS', va_two_dim_to_assoc($qids));
 									return $word;
 								};
 								
-								$kats = array();
-								$params = array();
+								$kats = [];
+								$params = [];
 								
 								foreach ($concepts as $index => $concept){
 									if($concept['Anzeige']){	
@@ -231,11 +251,15 @@ wp_localize_script ('im_map_script', 'QIDS', va_two_dim_to_assoc($qids));
 										else {
 											$kats[$index][] = $concept['Beschreibung'];
 										}
+										
+										$params[$index] = ['data-in-ak' => $concept['Anzahl_Belege_AK'] > 0? '1': '0'];
+										
 										if($hasName || $concept['Dateiname']){
-											$params[$index] = array ('class' => 'conceptTooltip');
+											$params[$index]['class'] = 'conceptTooltip';
 										}
 									}
 								}	
+								
 								uasort($kats, function ($a, $b){
 									$katComp = strcmp($a[1], $b[1]);
 									if($katComp == 0){
@@ -289,7 +313,7 @@ wp_localize_script ('im_map_script', 'QIDS', va_two_dim_to_assoc($qids));
 							}
 								
 							$extra_cats = array_filter($extra_cats, function ($e){
-								return $e[7] == '1' /* No polygon*/;
+								return $e[7] == '0' /* OnlyPolygons*/;
 							});
 									
 									
@@ -317,7 +341,7 @@ wp_localize_script ('im_map_script', 'QIDS', va_two_dim_to_assoc($qids));
 									'placeholder' => ucfirst($Ue['POLYGONE']),
 									'width' => '90%',
 									'list_format_function' => array('va_sub_translate', &$Ue),
-									'filter' => "GeometryType(Geo_data) = 'POLYGON' OR GeometryType(Geo_data) = 'MULTIPOLYGON'"
+									'filter' => "OnlyPolygons"
 							));
 							
 							echo im_table_select('Z_Geo', array('Id_Category', 'CAST(Epsilon AS SIGNED)'), array('Category_Name', 'Id_Category', 'Epsilon'), 'hexagonSelect', array(

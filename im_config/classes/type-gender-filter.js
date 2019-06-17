@@ -30,18 +30,20 @@ function TypeGenderFilterComponent (){
 		result.appendChild(caption);
 		
 		for (var i = 0; i < idList.length; i++){
-			var /** string */ gender = TypeGenders[idList[i]];
-			
-			var /** Element */ input = document.createElement("input");
-			input["type"] = "checkbox";
-			input["checked"] = "checked";
-			input["className"] = "typeGenderCheckbox";
-			input["dataset"]["id"] = idList[i];
-			input["style"]["margin-right"] = "5px";
-			
-			result.appendChild(input);
-			result.appendChild(document.createTextNode(Ue["GENUS_" + gender.toUpperCase()]));
-			result.appendChild(document.createElement("br"));
+			if (optionManager.getOptionState("ak") || TypeOccs["L" + idList[i]] == "1"){
+				var /** string */ gender = TypeGenders[idList[i]];
+				
+				var /** Element */ input = document.createElement("input");
+				input["type"] = "checkbox";
+				input["checked"] = "checked";
+				input["className"] = "typeGenderCheckbox";
+				input["dataset"]["id"] = idList[i];
+				input["style"]["margin-right"] = "5px";
+				
+				result.appendChild(input);
+				result.appendChild(document.createTextNode(Ue["GENUS_" + gender.toUpperCase()]));
+				result.appendChild(document.createElement("br"));
+			}
 		}
 		return result;
 	};

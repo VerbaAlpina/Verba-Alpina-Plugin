@@ -15,6 +15,7 @@ var categories = {
 //TODO fix eling error if z_geo is empty, at least "no data" should be shown again
 
 chosenSettings["normalize_search_text"] = removeDiacriticsPlusSpecial;
+chosenSettings["display_disabled_options"] = false;
 
 jQuery(function (){
 	jQuery(".conceptTooltip").each(/** @this{Element} */ function (){
@@ -158,6 +159,14 @@ function bindMenuSlide(){
 			});
 		}
 	});
+	
+	jQuery(document).on("im_show_print_borders", function (event, callback){
+		jQuery.post(ajax_object.ajaxurl, {
+			"action" : "va",
+			"namespace" : "util",
+			"query" : "get_print_overlays"
+		}, callback);
+	});
 
 	jQuery(document).on('im_before_load_data', function(event, data){
 		
@@ -182,6 +191,20 @@ function bindMenuSlide(){
 		
 		if(data["trigger"] == "menu"){
 				if(!(jQuery('#legend_heading').next('.menu_collapse').is(':visible')))jQuery('#legend_heading').trigger('click');	
+		}
+	});
+	
+	var locationWindowQTips = {};
+	
+	jQuery(document).on("im_location_window_opened", function (event, id, element){
+		locationWindowQTips[id] = addBiblioQTips(jQuery(element));
+	});
+	
+	jQuery(document).on("im_location_window_closed", function (event, id, element){
+		for (let i = 0; i < locationWindowQTips[id].length; i++){
+			if(locationWindowQTips[id][i]){
+				locationWindowQTips[id][i]["destroy"](true);
+			}
 		}
 	});
 
@@ -304,7 +327,7 @@ function adjustlegendTable(){
     var syn_menu_height =    jQuery('#leftTable .menu_grp:nth-child(3) > .menu_heading').outerHeight();
     var search_height =  jQuery('#IM_main_div .search_container').outerHeight();
 	var move_menu_height = jQuery('.move_menu').outerHeight();
-	var remaining = window_height - legend_menu_offset - legend_menu_height - syn_menu_height - search_height - 40; 
+	var remaining = window_height - legend_menu_offset - legend_menu_height - syn_menu_height - search_height - 50; 
 	jQuery('.legendtable tbody').css('max-height',remaining+"px");
 
 }
@@ -331,12 +354,34 @@ function simplifyELingKey (key){
 	return key.substring(1);
 }
 
+/**
+ * 
+ * @param {boolean} show
+ * 
+ * @return {undefined}
+ */
+function showOutsideOnlyElements(show){
+	jQuery("#baseTypeSelect option[data-in-ak=0]").prop("disabled", !show);
+	jQuery("#baseTypeSelect").trigger("chosen:updated");
+	
+	jQuery("#morphTypeSelect option[data-in-ak=0]").prop("disabled", !show);
+	jQuery("#morphTypeSelect").trigger("chosen:updated");
+	
+	jQuery("#phonTypeSelect option[data-in-ak=0]").prop("disabled", !show);
+	jQuery("#phonTypeSelect").trigger("chosen:updated");
+	
+	jQuery("#conceptSelect a.sf-tree-leaf[data-in-ak=0]").css("display", show? "": "none");
+}
+
 jQuery(document).on("im_map_initialized", function (){
 
 	if(ajax_object.db != "xxx")
 		categoryManager.addAjaxData("db", ajax_object.db);
 	
 	categoryManager.addInfoWindowContentConstructor("record", RecordInfoWindowContent);
+	categoryManager.addInfoWindowContentConstructor("informant", InformantInfoWindowContent);
+	categoryManager.addInfoWindowContentConstructor("polygon", SyntaxInfoWindowContent);
+	categoryManager.addInfoWindowContentConstructor("simple", SyntaxInfoWindowContent);
 	
 	if (PATH["tk"] == undefined){
 		categoryManager.loadData(6, "A17", "custom", {"subElementCategory" : -1});
@@ -420,7 +465,14 @@ jQuery(document).on("im_add_options", function (){
 	
 	optionManager.addOption("ak", new BoolOption(false, TRANSLATIONS["ALPENKONVENTTION_INFORMANTEN"], function(val, details) {
 		categoryManager.addAjaxData("outside", val);
+		
+		if (details && details["first"] && !val){
+			showOutsideOnlyElements(false);
+		}
+		
 		if(!details || details["first"] !== true){
+			showOutsideOnlyElements(val);
+			
 			optionManager.enableOptions(false);
 			legend.reloadOverlays(function (){
 				optionManager.enableOptions(true);
@@ -458,6 +510,20 @@ jQuery(document).on("im_add_options", function (){
 		}));
 	}
 	
+	if(ajax_object.va_staff == "1") {
+		var /** BoolOption */ printOption = new BoolOption(false, TRANSLATIONS["DRUCKFASSUNG"], function (val, details){
+			mapInterface.showPrintVersion(val);
+		}, false);
+		
+		printOption.setEnabled(false);
+
+		jQuery(document).on("im_quantify_mode", function (event, val){
+			printOption.setEnabled(!val);
+		});
+
+		optionManager.addOption("print", printOption);
+	}
+	
 	if (mapInterfaceType == MapInterfaceType.GoogleMaps){
 		jQuery.ajax({
 			dataType: "json",
@@ -465,17 +531,7 @@ jQuery(document).on("im_add_options", function (){
 			success: function(data){
 				/** @type {GoogleMapsInterface} */ (mapInterface).addMapStyle("empty", data);
 				
-				if(ajax_object.va_staff == "1") {
-					var /** BoolOption */ printOption = new BoolOption(false, TRANSLATIONS["DRUCKFASSUNG"], function (val, details){
-						mapInterface.showPrintVersion(val);
-					}, false);
-
-					jQuery(document).on("im_quantify_mode", function (event, val){
-						printOption.setEnabled(!val);
-					});
-			
-					optionManager.addOption("print", printOption);
-				}
+				printOption.setEnabled(true);
 				
 				if(optionManager.getOptionState("print")){
 					mapInterface.showPrintVersion(true);
@@ -584,7 +640,13 @@ function createConceptToolTipContent (id){
 var /**AlphabetSorter */ alphabetSorter = new AlphabetSorter();
 var /**RecordNumberSorter */ numRecSorter = new RecordNumberSorter();
 
-var il = new SimpleListBuilder(["name", "description"]);
+var il = new SimpleListBuilder(function(index){
+	var res = ["locationName", "number", "gender", "age"];
+//	if (index != 1){
+//		res.push("description");
+//	}
+	return res;
+});
 il.addListPrinter(new JsonListPrinter());
 il.addListPrinter(new HtmlListPrinter());
 il.addListPrinter(new CsvListPrinter());
@@ -608,7 +670,7 @@ categoryManager.registerCategory (
 		"name" : Ue["INFORMANTEN"],
 		"elementID" : "informantSelect", 
 		"textForNewComment" : Ue["KOMMENTAR_INFORMANT_SCHREIBEN"],
-		"textForListRetrieval" : "Informanten-Daten exportieren",
+		"textForListRetrieval" : "Informanten-Daten exportieren", //TODO translate
 		"listBuilder" : il,
 		"editConfiguration" : informatEditConfig
 	})

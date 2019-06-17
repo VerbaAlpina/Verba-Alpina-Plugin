@@ -25,7 +25,7 @@ function va_show_team () {
 			<tbody>
 <?php
 	$personen = $va_xxx->get_results("
-		SELECT Name, Vorname, Telefon, EMail, Link, Art, Fachgebiet, Kuerzel 
+		SELECT Name, Vorname, Telefon, EMail, Link, Art, Fachgebiet, Kuerzel, orcid
 		FROM Personen JOIN Stellen USING (Kuerzel)
 		WHERE Startdatum < NOW() AND (Enddatum IS NULL OR Enddatum > NOW()) 
 		ORDER BY Name ASC", ARRAY_A);
@@ -39,6 +39,7 @@ function va_show_team () {
 									echo $person['Name'] . ', ' . $person['Vorname'] /*." (".$person['Kuerzel'].")"*/ ;
 								else
 									echo "<a href='" . va_translate_url($person['Link']) . "'>".$person['Name'] . ', ' .$person['Vorname'] /*." (".$person['Kuerzel'].")*/. "</a>";
+						echo va_orcid_link($person['orcid']);
 						?>
 					</td>
 					<td><?php echo ucfirst(va_translate($person['Art'], $Ue)) . ($person['Fachgebiet']? ' (' . va_translate($person['Fachgebiet'], $Ue) . ')' : ''); ?></td>

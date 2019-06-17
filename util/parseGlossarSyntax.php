@@ -8,16 +8,26 @@ function parseSyntax(&$value, $replaceNewlines = false, $intern = false, $mode =
 		global $map_path;
 		global $comment_path;
 		global $lang;
+		global $general_beta_parser;
 		
 		$media_path = get_site_url (1) . '/wp-content/uploads/';
 		$map_path = va_get_map_link ();
 		$comment_path = va_get_comments_link ();
-		
+		$beta_parser = va_get_general_beta_parser();
+
 		if ($replaceNewlines) {
 			$value = nl2br ($value);
 			// Re-convert new lines after tags to newlines
 			$value = preg_replace ('#><br />#', '>', $value);
 		}
+		
+		//Beta code
+		$value = preg_replace_callback('/(?<!-)#1([^#]*)##/', function ($match) use (&$beta_parser){
+			$parse_res = $beta_parser->convert_to_original($match[1]);
+			if ($parse_res['string'])
+				return '<span style="font-family: arial unicode;">' . $parse_res['string'] . '</span>';
+			return '<span style="background: red;">' . $match[1] . '</span>';
+		}, $value);
 		
 		// " - " -> " – "
 		$value = preg_replace ('/ - /', ' – ', $value);
@@ -149,7 +159,7 @@ function parseSyntax(&$value, $replaceNewlines = false, $intern = false, $mode =
 		$value = preg_replace_callback ('/(?<!-)\[\[SQL:(.*)((?:\|(?:db|width|height|id)=.*)*)\]\]/sU', function ($treffer) {
 			global $va_current_db_name;
 			$atts['db'] = $va_current_db_name;
-			$atts['query'] = $treffer[1];
+			$atts['query'] = str_replace('<br />', '', $treffer[1]);
 			$atts['login'] = 'va_wordpress';
 			if (count ($treffer) > 2) {
 				$params = explode ('|', $treffer[2]);
@@ -278,6 +288,7 @@ function va_create_bibl_html($abk, $descr = null) {
 	$code = preg_replace ('/\s+/', '', $abk);
 	$code = str_replace ('/', '', $code);
 	$code = str_replace ('.', '', $code);
+	$code = mb_strtolower($code);
 	
 	return [
 		$code,

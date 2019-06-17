@@ -34,6 +34,11 @@ var TypeGenders;
 var QIDS;
 
 /**
+ * @type{Object<string, string>}
+ */
+var TypeOccs;
+
+/**
  * @param {string|Object} p
  * 
  * @return {Array<string>|Array<Object>}

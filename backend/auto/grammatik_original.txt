@@ -73,6 +73,7 @@ Basiszeichen2
   / "c2" {return "x0481";}
   / "c3" {return "<strike>c</strike>";}
   / "i1" {return "x0069x0337";}
+  / "i2" {return "x0131";}
   / "i3" {return "x0268";}
   / "l1" {return "x0142";}
   / "l2" {return "x026B";}

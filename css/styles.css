@@ -15,7 +15,7 @@
 
 /* Legend focus */
 
-.focused > td {
+tr:not(.im_child_legend_element) .focused > td {
 	font-weight : bold;
 }
 
@@ -339,4 +339,11 @@ img.missingTranslation {
 
 .hLink {
 	color: black;
+}
+
+img.orcid {
+	height: 1em;
+	margin-left: 0.5em;
+	border: 0px;
+	box-shadow: none;
 }

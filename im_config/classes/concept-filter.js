@@ -114,9 +114,10 @@ function createSubTreeJSON (id_concept){
 		count += childResult["count"];
 	}
 	
+	var numRecords = /** @type{number} */ (optionManager.getOptionState("ak")? conceptArray[2]: conceptArray[5]);
 	
 	var /** Object<string, ?>*/ result = {
-			"text" : getNodeText(/** @type{string} */ (conceptArray[0]), /** @type{string} */ (conceptArray[1]), /** @type{number} */ (conceptArray[2])),
+			"text" : getNodeText(/** @type{string} */ (conceptArray[0]), /** @type{string} */ (conceptArray[1]), numRecords),
 	  		"state"       : {
 	  			"selected"  : true
 	  		},

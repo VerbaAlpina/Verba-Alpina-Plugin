@@ -17,7 +17,7 @@ function va_tokenize_test() {
 					[
 						'Token' => '\\\\:',
 						'IPA' => '',
-						'Original' => '',
+						'Original' => ':',
 						'Trennzeichen' => ' ',
 						'Trennzeichen_Original' => ' ',
 						'Trennzeichen_IPA' => ' ',
@@ -1410,7 +1410,7 @@ function va_tokenize_test() {
 					[
 						'Token' => '\\\\*\\\\?',
 						'IPA' => '',
-						'Original' => '',
+						'Original' => '*?',
 						'Trennzeichen' => ' ',
 						'Trennzeichen_IPA' => ' ',
 						'Trennzeichen_Original' => ' ',
@@ -1661,6 +1661,441 @@ function va_tokenize_test() {
 					'warnings' => []
 				]
 			]
+		],
+		
+		[
+			'AIS',
+			'ta:st <wo anders sagt man #1ta:s1t##>',
+			[
+				'class' => 'B',
+				'concepts' => [
+					11
+				],
+				'notes' => '',
+				'lang' => 'rom'
+			],
+			[
+				'tokens' => [
+					[
+						'Token' => 'ta:st',
+						'IPA' => 'tæst',
+						'Original' => 'täst',
+						'Trennzeichen' => NULL,
+						'Trennzeichen_IPA' => NULL,
+						'Trennzeichen_Original' => NULL,
+						'Ebene_1' => 1,
+						'Ebene_2' => 1,
+						'Ebene_3' => 1,
+						'Bemerkung' => 'wo anders sagt man täʃt',
+						'Genus' => '',
+						'Konzepte' => [
+							11
+						],
+						'Id_Tokengruppe' => NULL,
+						'MTyp' => NULL,
+						'PTyp' => NULL
+					]
+				],
+				'global' => [
+					'groups' => [],
+					'mtypes' => [],
+					'ptypes' => [],
+					'warnings' => []
+				]
+			]
+		],
+		
+		[
+			'AIS',
+			'\\\\:la\\ lo?do?le(/ta1',
+			[
+				'class' => 'B',
+				'concepts' => [4],
+				'notes' => '',
+				'lang' => 'rom'
+			],
+			[
+				'tokens' => [
+					[
+						'Token' => '\\\\:',
+						'IPA' => '',
+						'Original' => ':',
+						'Trennzeichen' => ' ',
+						'Trennzeichen_IPA' => ' ',
+						'Trennzeichen_Original' => ' ',
+						'Ebene_1' => 1,
+						'Ebene_2' => 1,
+						'Ebene_3' => 1,
+						'Bemerkung' => '',
+						'Genus' => '',
+						'Konzepte' => [
+							779
+						],
+						'Id_Tokengruppe' => NULL,
+						'MTyp' => NULL,
+						'PTyp' => NULL
+					],
+					[
+						'Token' => 'la\\',
+						'IPA' => 'lˌa',
+						'Original' => 'là',
+						'Trennzeichen' => ' ',
+						'Trennzeichen_IPA' => ' ',
+						'Trennzeichen_Original' => ' ',
+						'Ebene_1' => 1,
+						'Ebene_2' => 1,
+						'Ebene_3' => 2,
+						'Bemerkung' => '',
+						'Genus' => 'f',
+						'Konzepte' => [
+							699
+						],
+						'Id_Tokengruppe' => NULL,
+						'MTyp' => NULL,
+						'PTyp' => NULL
+					],
+					[
+						'Token' => 'lo?do?le(/ta1',
+						'IPA' => 'lodolˈɛtɑ',
+						'Original' => 'lọdọlé̜tα',
+						'Trennzeichen' => NULL,
+						'Trennzeichen_IPA' => NULL,
+						'Trennzeichen_Original' => NULL,
+						'Ebene_1' => 1,
+						'Ebene_2' => 1,
+						'Ebene_3' => 3,
+						'Bemerkung' => '',
+						'Genus' => 'f',
+						'Konzepte' => [
+							4
+						],
+						'Id_Tokengruppe' => NULL,
+						'MTyp' => NULL,
+						'PTyp' => NULL
+					]
+				],
+				'global' => [
+					'groups' => [],
+					'mtypes' => [],
+					'ptypes' => [],
+					'warnings' => []
+				]
+			]
+		],
+		
+		[
+			'AIS',
+			'\\\\: la\\ lo?do?le(/ta1',
+			[
+				'class' => 'B',
+				'concepts' => [4],
+				'notes' => '',
+				'lang' => 'rom'
+			],
+			[
+				'tokens' => [
+					[
+						'Token' => '\\\\:',
+						'IPA' => '',
+						'Original' => ':',
+						'Trennzeichen' => ' ',
+						'Trennzeichen_IPA' => ' ',
+						'Trennzeichen_Original' => ' ',
+						'Ebene_1' => 1,
+						'Ebene_2' => 1,
+						'Ebene_3' => 1,
+						'Bemerkung' => '',
+						'Genus' => '',
+						'Konzepte' => [
+							779
+						],
+						'Id_Tokengruppe' => NULL,
+						'MTyp' => NULL,
+						'PTyp' => NULL
+					],
+					[
+						'Token' => 'la\\',
+						'IPA' => 'lˌa',
+						'Original' => 'là',
+						'Trennzeichen' => ' ',
+						'Trennzeichen_IPA' => ' ',
+						'Trennzeichen_Original' => ' ',
+						'Ebene_1' => 1,
+						'Ebene_2' => 1,
+						'Ebene_3' => 2,
+						'Bemerkung' => '',
+						'Genus' => 'f',
+						'Konzepte' => [
+							699
+						],
+						'Id_Tokengruppe' => NULL,
+						'MTyp' => NULL,
+						'PTyp' => NULL
+					],
+					[
+						'Token' => 'lo?do?le(/ta1',
+						'IPA' => 'lodolˈɛtɑ',
+						'Original' => 'lọdọlé̜tα',
+						'Trennzeichen' => NULL,
+						'Trennzeichen_IPA' => NULL,
+						'Trennzeichen_Original' => NULL,
+						'Ebene_1' => 1,
+						'Ebene_2' => 1,
+						'Ebene_3' => 3,
+						'Bemerkung' => '',
+						'Genus' => 'f',
+						'Konzepte' => [
+							4
+						],
+						'Id_Tokengruppe' => NULL,
+						'MTyp' => NULL,
+						'PTyp' => NULL
+					]
+				],
+				'global' => [
+					'groups' => [],
+					'mtypes' => [],
+					'ptypes' => [],
+					'warnings' => []
+				]
+			]
+		],
+		
+		[
+			'TSA',
+			'Nasn',
+			[
+				'class' => 'P',
+				'concepts' => [4],
+				'notes' => '',
+				'lang' => 'ger'
+			],
+			[
+				'tokens' => [
+					[
+						'Token' => '',
+						'IPA' => '',
+						'Original' => '',
+						'Trennzeichen' => NULL,
+						'Trennzeichen_IPA' => NULL,
+						'Trennzeichen_Original' => NULL,
+						'Ebene_1' => 1,
+						'Ebene_2' => 1,
+						'Ebene_3' => 1,
+						'Bemerkung' => 'TSA-Typ "Nasn"',
+						'Genus' => '',
+						'Konzepte' => [
+							4
+						],
+						'Id_Tokengruppe' => NULL,
+						'MTyp' => NULL,
+						'PTyp' => 'NEW0'
+					]
+				],
+				'global' => [
+					'groups' => [],
+					'mtypes' => [],
+					'ptypes' => [
+						[
+							'Beta' => 'Nasn',
+							'Original' => 'Nasn',
+							'Quelle' => 'TSA'
+						]
+					],
+					'warnings' => []
+				]
+			]
+		],
+		
+		[
+			'DizMT',
+			'lemma111 lemma112 lemma113 / lemma211 ### lemma311 lemma312',
+			[
+				'class' => 'M',
+				'concepts' => [4],
+				'notes' => '',
+				'lang' => 'rom'
+			],
+			[
+				'tokens' => [
+					[
+						'Token' => '',
+						'IPA' => '',
+						'Original' => '',
+						'Trennzeichen' => ' ',
+						'Trennzeichen_IPA' => NULL,
+						'Trennzeichen_Original' => ' ',
+						'Ebene_1' => 1,
+						'Ebene_2' => 1,
+						'Ebene_3' => 1,
+						'Bemerkung' => 'DizMT-Typ "lemma111"',
+						'Genus' => '',
+						'Konzepte' => [],
+						'Id_Tokengruppe' => 'NEW0',
+						'MTyp' => 'NEW0',
+						'PTyp' => NULL
+					],
+					[
+						'Token' => '',
+						'IPA' => '',
+						'Original' => '',
+						'Trennzeichen' => ' ',
+						'Trennzeichen_IPA' => NULL,
+						'Trennzeichen_Original' => ' ',
+						'Ebene_1' => 1,
+						'Ebene_2' => 1,
+						'Ebene_3' => 2,
+						'Bemerkung' => 'DizMT-Typ "lemma112"',
+						'Genus' => '',
+						'Konzepte' => [],
+						'Id_Tokengruppe' => 'NEW0',
+						'MTyp' => 'NEW1',
+						'PTyp' => NULL
+					],
+					[
+						'Token' => '',
+						'IPA' => '',
+						'Original' => '',
+						'Trennzeichen' => NULL,
+						'Trennzeichen_IPA' => NULL,
+						'Trennzeichen_Original' => NULL,
+						'Ebene_1' => 1,
+						'Ebene_2' => 1,
+						'Ebene_3' => 3,
+						'Bemerkung' => 'DizMT-Typ "lemma113"',
+						'Genus' => '',
+						'Konzepte' => [],
+						'Id_Tokengruppe' => 'NEW0',
+						'MTyp' => 'NEW2',
+						'PTyp' => NULL
+					],
+					[
+						'Token' => '',
+						'IPA' => '',
+						'Original' => '',
+						'Trennzeichen' => NULL,
+						'Trennzeichen_IPA' => NULL,
+						'Trennzeichen_Original' => NULL,
+						'Ebene_1' => 2,
+						'Ebene_2' => 1,
+						'Ebene_3' => 1,
+						'Bemerkung' => 'DizMT-Typ "lemma211"',
+						'Genus' => '',
+						'Konzepte' => [4],
+						'Id_Tokengruppe' => NULL,
+						'MTyp' => 'NEW4',
+						'PTyp' => NULL
+					],
+										[
+						'Token' => '',
+						'IPA' => '',
+						'Original' => '',
+						'Trennzeichen' => ' ',
+						'Trennzeichen_IPA' => NULL,
+						'Trennzeichen_Original' => ' ',
+						'Ebene_1' => 3,
+						'Ebene_2' => 1,
+						'Ebene_3' => 1,
+						'Bemerkung' => 'DizMT-Typ "lemma311"',
+						'Genus' => '',
+						'Konzepte' => [],
+						'Id_Tokengruppe' => 'NEW1',
+						'MTyp' => 'NEW5',
+						'PTyp' => NULL
+					],
+										[
+						'Token' => '',
+						'IPA' => '',
+						'Original' => '',
+						'Trennzeichen' => NULL,
+						'Trennzeichen_IPA' => NULL,
+						'Trennzeichen_Original' => NULL,
+						'Ebene_1' => 3,
+						'Ebene_2' => 1,
+						'Ebene_3' => 2,
+						'Bemerkung' => 'DizMT-Typ "lemma312"',
+						'Genus' => '',
+						'Konzepte' => [],
+						'Id_Tokengruppe' => 'NEW1',
+						'MTyp' => 'NEW6',
+						'PTyp' => NULL
+					]
+				],
+				'global' => [
+					'groups' => [
+						[
+							'Genus' => '',
+							'Bemerkung' => 'DizMT-Typ "lemma111 lemma112 lemma113"',
+							'Konzepte' => [
+								4
+							],
+							'MTyp' => 'NEW3',
+							'PTyp' => NULL
+						],
+						[
+							'Genus' => '',
+							'Bemerkung' => 'DizMT-Typ "lemma311 lemma312"',
+							'Konzepte' => [
+								4
+							],
+							'MTyp' => 'NEW7',
+							'PTyp' => NULL
+						]
+					],
+					'mtypes' => [
+						[
+							'Beta' => 'lemma111',
+							'Orth' => 'lemma111',
+							'Genus' => '',
+							'Quelle' => 'DizMT'
+						],
+						[
+							'Beta' => 'lemma112',
+							'Orth' => 'lemma112',
+							'Genus' => '',
+							'Quelle' => 'DizMT'
+						],
+						[
+							'Beta' => 'lemma113',
+							'Orth' => 'lemma113',
+							'Genus' => '',
+							'Quelle' => 'DizMT'
+						],
+						[
+							'Beta' => 'lemma111 lemma112 lemma113',
+							'Orth' => 'lemma111 lemma112 lemma113',
+							'Genus' => '',
+							'Quelle' => 'DizMT'
+						],
+						[
+							'Beta' => 'lemma211',
+							'Orth' => 'lemma211',
+							'Genus' => '',
+							'Quelle' => 'DizMT'
+						],
+						[
+							'Beta' => 'lemma311',
+							'Orth' => 'lemma311',
+							'Genus' => '',
+							'Quelle' => 'DizMT'
+						],
+						[
+							'Beta' => 'lemma312',
+							'Orth' => 'lemma312',
+							'Genus' => '',
+							'Quelle' => 'DizMT'
+						],
+						[
+							'Beta' => 'lemma311 lemma312',
+							'Orth' => 'lemma311 lemma312',
+							'Genus' => '',
+							'Quelle' => 'DizMT'
+						]
+					],
+					'ptypes' => [],
+					'warnings' => []
+				]
+			]
 		]
 	];
 	
@@ -1784,6 +2219,16 @@ function va_tokenize_test() {
 				'notes' => '',
 				'lang' => 'rom'
 			]
+		],
+		[
+			'AIS',
+			'bah <auch #1z//##>',
+			[
+				'class' => 'B',
+				'concepts' => [4],
+				'notes' => '',
+				'lang' => 'rom'
+			]
 		]
 	];
 	
@@ -1792,7 +2237,7 @@ function va_tokenize_test() {
 		
 		try {
 			$res = $tokenizer->tokenize ($test[1], $test[2]);
-			echo 'Error. No exception thrown for token "' . $test[1] . '" for source "' . $test[0] . '"<br /><br />';
+			echo 'Error. No exception thrown for token "' . htmlentities($test[1]) . '" for source "' . $test[0] . '"<br /><br />';
 		} catch ( TokenizerException $e ) {
 			echo 'Test ' . ($index + count ($tests)) . ' successfull!<br />';
 		}
@@ -1801,7 +2246,7 @@ function va_tokenize_test() {
 	echo '<br><br>';
 	
 	$parser = new VA_BetaParser ('AIS');
-	echo '<pre>' . $parser->build_js_grammar_string ('UPPERCASE') . '</pre>';
+	echo '<pre>' . $parser->build_js_grammar_string (['UPPERCASE']) . '</pre>';
 }
 function va_tokenization_test_ajax(&$db) {
 	$index = 0;

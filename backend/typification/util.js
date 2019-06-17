@@ -278,8 +278,22 @@ function setBaseTypeData (data){
 	jQuery(e["Sprache"]).val(data.type.Sprache).trigger("chosen:updated");
 	jQuery(e["Alpenwort"]).prop("checked", data.type.Alpenwort == "1");
 	jQuery(e["Kommentar_Intern"]).val(data.type.Kommentar_Intern);
-
-	jQuery("#auswahlReferenzBasetype").val(data.refs).trigger("chosen:updated");
+	
+	jQuery.post(ajaxurl, {
+		"action" : "va",
+		"namespace" : "typification",
+		"query" : "getReferences",
+		"ids" : data.refs
+	}, function (response){
+		var refdata = JSON.parse(response);
+		for (let i = 0; i < refdata.length; i++){
+			var option = new Option(refdata[i].text, refdata[i].id, false, true);
+			jQuery("#auswahlReferenzBasetype").append(option);
+		}
+		jQuery("#auswahlReferenzBasetype").trigger("change");
+	});
+	
+	//jQuery("#auswahlReferenzBasetype").val(data.refs).trigger("chosen:updated");
 }
 
 function getMorphTypeData (id){
@@ -377,14 +391,37 @@ function openBaseTypeDialog (closingFunction){
 		"minWidth" : 700,
 		"modal": true,
 		"close" : function (){
-			jQuery("#VABasetypeOverlay select").chosen("destroy");
+			jQuery("#VABasetypeOverlay select:not(#auswahlReferenzBasetype").chosen("destroy");
+			jQuery("#VABasetypeOverlay #auswahlReferenzBasetype").select2("destroy"); 
 			
 			if (closingFunction)
 				closingFunction ();
 		}
 	});
 	
-	jQuery("#VABasetypeOverlay select").val([]).chosen({"allow_single_deselect" : true, "width": "400px", "normalize_search_text" : removeDiacriticsPlusSpecial, "search_contains": true});
+	jQuery("#auswahlReferenzBasetype").empty();
+	
+	jQuery("#VABasetypeOverlay #auswahlReferenzBasetype").select2({
+		"ajax" : {
+			"type" : "POST",
+			"url" : ajaxurl,
+			"dataType": "json",
+			"data" : function (params){
+				return {
+					"action" : "va",
+					"namespace" : "typification",
+					"query" : "getReferences",
+					"search" : params.term
+				};
+			},
+			"processResults": function (data){
+				return {"results": data};
+			}
+		},
+		"minimumInputLength" : 2
+	});
+	
+	jQuery("#VABasetypeOverlay select:not(#auswahlReferenzBasetype)").val([]).chosen({"allow_single_deselect" : true, "width": "400px", "normalize_search_text" : removeDiacriticsPlusSpecial, "search_contains": true});
 }
 
 function closeBaseTypeDialog (){

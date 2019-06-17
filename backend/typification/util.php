@@ -150,14 +150,7 @@ function createBaseTypeOverlay (&$db, $dbname, $edit = false){
 			</table>
 		
 			<h2>Zugeordnete Referenzen</h2>
-			<select id="auswahlReferenzBasetype" multiple="multiple">
-				<?php
-				$lemmas = $db->get_results('SELECT * FROM Lemmata_Basistypen', ARRAY_A);
-				foreach ($lemmas as $lemma){
-					echo "<option value='{$lemma['Id_Lemma']}'>{$lemma['Quelle']}: {$lemma['Subvocem']}" . "</option>";
-				}
-				?>
-			</select>
+			<select id="auswahlReferenzBasetype" multiple="multiple" style="min-width: 400px;"></select>
 			
 			<input type="button" class="button button-primary" id="newBasetypeReferenceButton" value="Neue Referenz anlegen">
 		</form>

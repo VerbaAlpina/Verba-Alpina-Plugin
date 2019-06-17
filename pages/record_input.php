@@ -205,8 +205,8 @@ function va_get_concept_input_list($id_stimulus, $id_informant, $show_notes){
 	SELECT Name_$lang AS Name, Beschreibung_$lang AS Beschreibung, Name_D, Beschreibung_D, Aeusserung, Id_Konzept, Id_Aeusserung, IF(Id_Token IS NULL, 0, 1) AS Readonly, Bemerkung
 	FROM Konzepte JOIN (SELECT Id_Aeusserung, Aeusserung, Aeusserungen.Bemerkung, Id_Token, Id_Konzept FROM VTBL_Aeusserung_Konzept JOIN Aeusserungen USING(Id_Aeusserung) LEFT JOIN Tokens USING (Id_Aeusserung) WHERE Aeusserungen.Id_Stimulus = %d AND Aeusserungen.Id_Informant = %d) k
 	USING (Id_Konzept)
-	ORDER BY Basiskonzept DESC, IF(Name_$lang != '', Name_$lang, IF(Beschreibung_$lang != '', Beschreibung_$lang, IF(Name_D != '', Name_D, Beschreibung_D))) ASC
-	LIMIT 200", $id_stimulus, $id_informant), ARRAY_A);
+	GROUP BY Id_Konzept, Id_Aeusserung
+	ORDER BY IF(Name_$lang != '', Name_$lang, IF(Beschreibung_$lang != '', Beschreibung_$lang, IF(Name_D != '', Name_D, Beschreibung_D))) ASC", $id_stimulus, $id_informant), ARRAY_A);
 	
 	$res = '';
 	

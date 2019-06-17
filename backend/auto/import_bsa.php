@@ -262,7 +262,7 @@ function va_get_bsa_records($id, $concept, &$db){
 				$concept_name = $db->get_var($db->prepare("SELECT IF(Name_D != '', Name_D, Beschreibung_D) FROM Konzepte WHERE Id_Konzept = %s", $concept));
 				
 				$result .= '<tr data-bsa="' . $record['Id'] . '" id="record' . $key . '"' . ($markRecord? ' style="background: yellow"': '') . '>';
-				$result .= '<td><input type="text" style="width: 100%;" value="' . str_replace(',', '\\\\,', str_replace(' ', '', $record['Lautschrift'])) . '"></input></td>';
+				$result .= '<td><input type="text" style="width: 100%;" value="' . str_replace(';', '\\\\;', str_replace(',', '\\\\,', str_replace(' ', '', $record['Lautschrift']))) . '"></input></td>';
 				$result .= '<td data-concept="' . $concept . '"><span>' . $concept_name . '</span> <a href="javascript:changeConcept(' . $key . ')">(Ändern)</a></td>';
 				$result .= '<td>' . va_bsa_get_gender($record['Grammatik']) . '</td>';
 				$result .= '<td><input type="checkbox" checked /></td>';

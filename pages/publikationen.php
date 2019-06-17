@@ -19,13 +19,18 @@ function wissPub (){
 				echo '<li>';
 				
 				$link = $p['Download_URL'];
+				$container = $p['Enthalten_In'];
 				$parts = parse_url($link);
-				if($parts['host'] == $_SERVER['HTTP_HOST']){
+				if($parts['host'] === $_SERVER['HTTP_HOST']){
 					global $va_current_db_name;
-					$link = add_query_arg('db', substr($va_current_db_name, 3), $link);	
+					$link = add_query_arg('db', substr($va_current_db_name, 3), $link);
+					$pos_host = strpos($link, $parts['host']);
+					$app = substr($link, $pos_host + strlen($parts['host']));
+					$link = va_get_doi_base_link() . urlencode($app);
+					$container = '';
 				}
 				
-				echo va_format_bibliography($p['Autor'], $p['Titel'], $p['Jahr'], $p['Ort'], $link, $p['Band'], $p['Enthalten_In'], $p['Seiten'], $p['Verlag'], false);
+				echo va_format_bibliography($p['Autor'], $p['Titel'], $p['Jahr'], $p['Ort'], $link, $p['Band'], $container, $p['Seiten'], $p['Verlag'], false);
 				echo '</li>';
 				echo '<br />';
 			}
@@ -123,7 +128,7 @@ function formatDate ($start, $end, &$Ue){
 			$month_start = substr($date_start, 3, 2);
 			$month_end = substr($date_end, 3, 2);
 			if($month_start == $month_end)
-				$res = $start_day . '-' . $end_day . substr($date_end, 2);
+				$res = $start_day . '.-' . $end_day . substr($date_end, 2);
 			else
 				$res = $start_day . '.' . $month_start . '. - ' . $end_day . '.' . $month_end . substr($date_end, 5);
 		}

@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2016-12-07 17:31+0100\n"
-"PO-Revision-Date: 2016-12-07 17:31+0100\n"
+"POT-Creation-Date: 2019-05-13 17:29+0200\n"
+"PO-Revision-Date: 2019-05-13 17:29+0200\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: de_DE\n"
@@ -21,130 +21,45 @@ msgstr ""
 "X-Poedit-Basepath: ..\n"
 "X-Poedit-SearchPath-0: .\n"
 
-#: backend/transcription/transcription.php:53
-#: transkription/transkription.php:246
-msgid "Choose atlas"
-msgstr "Atlas wählen"
-
-#: backend/transcription/transcription.php:68
-#: transkription/transkription.php:193
-msgid "Informant no."
-msgstr "Informant-Nr."
-
-#: backend/transcription/transcription.php:73
-#: transkription/transkription.php:172
-msgid "Informant number(s)"
-msgstr "Informanten-Nummer(n)"
-
-#: backend/transcription/transcription.php:79
-#: transkription/transkription.php:179
-msgid "Initial recording"
-msgstr "Ersterfassung"
-
-#: backend/transcription/transcription.php:80
-#: transkription/transkription.php:180
-msgid "Correction"
-msgstr "Korrektur"
-
-#: backend/transcription/transcription.php:81
-#: transkription/transkription.php:182
-msgid "Problems"
-msgstr "Probleme"
-
-#: backend/transcription/transcription.php:89
-#: transkription/transkription.php:199
-msgid "Transcription"
-msgstr "Transkription"
-
-#: backend/transcription/transcription.php:90
-msgid "+ Add row"
-msgstr "Zeile hinzufügen"
-
-#: backend/transcription/transcription.php:97
-#: transkription/transkription.php:200
-msgid "Insert"
-msgstr "Eintragen"
-
-#: backend/transcription/transcription.php:102
-#: transkription/transkription.php:202
-msgid "Problem"
-msgstr "Problem"
-
-#: backend/transcription/transcription.php:105
-msgid "Create new concept"
-msgstr "Neues Konzept anlegen"
-
-#: backend/typification/lex.php:37
+#: backend/typification/lex.php:42
 msgid "Lexical Types"
 msgstr "Lexikalische Typen"
 
-#: backend/typification/lex.php:46
+#: backend/typification/lex.php:49
 msgid "Choose Atlas"
 msgstr "Atlas wählen"
 
-#: backend/typification/lex.php:60
+#: backend/typification/lex.php:68
 msgid "Choose Stimulus"
 msgstr "Stimulus auswählen"
 
-#: backend/typification/lex.php:110
+#: backend/typification/lex.php:128
 msgid "Assign type"
 msgstr "Typ zuweisen"
 
-#: backend/typification/lex.php:111
+#: backend/typification/lex.php:129
 msgid "Create new type"
 msgstr "Neuen Typ erstellen"
 
-#: backend/typification/lex.php:128
+#: backend/typification/lex.php:146
 msgid "Assign concept"
 msgstr "Konzept zuweisen"
 
-#: backend/typification/lex.php:129
-msgid "Add concept"
-msgstr "Konzept hinzufügen"
+#: backend/typification/lex.php:147
+msgid "Create new concept"
+msgstr "Neues Konzept anlegen"
 
-#: backend/typification/lex.php:135
+#: backend/typification/lex.php:153
 msgid "Typification not necessary"
 msgstr "Typisierung nicht notwendig"
 
-#: backend/typification/lex.php:147
+#: backend/typification/lex.php:165
 msgid "Confirm"
 msgstr "Bestätigen"
 
-#: transkription/transkription.php:154
-msgid "No value!"
-msgstr "Kein Wert!"
-
-#: transkription/transkription.php:174
-msgid "Entry number"
-msgstr "Eintrag-Nummer"
-
-#: transkription/transkription.php:181
-msgid "Additional"
-msgstr "Zusätzlich"
-
-#: transkription/transkription.php:206 util/ajax/va_ajax_transcription.php:197
-msgid "record"
-msgstr "Beleg"
-
-#: transkription/transkription.php:207
-msgid "phonetic type"
-msgstr "phonetischer Typ"
-
-#: transkription/transkription.php:208
-msgid "morphological type"
-msgstr "morphologischer Typ"
-
-#: transkription/transkription.php:212
-msgid "Assigned concepts"
-msgstr "Zugewiesene Konzepte"
-
-#: transkription/transkription.php:214 util/ajax/va_ajax_transcription.php:217
-msgid "Choose Concept(s)"
-msgstr "Konzept(e) auswählen"
-
-#: transkription/transkription.php:256
-msgid "Chose map"
-msgstr "Karte wählen"
+#: pages/comments.php:88
+msgid "Search"
+msgstr ""
 
 #: util/ajax/va_ajax_transcription.php:153
 msgid "Everything transcribed!"
@@ -166,45 +81,132 @@ msgstr "Keine weiteren Probleme!"
 msgid "Informant number(s) not valid!"
 msgstr "Informanten-Nummer(n) nicht gültig!"
 
-#: util/ajax/va_ajax_transcription.php:198
+#: util/ajax/va_ajax_transcription.php:192
+msgid "record"
+msgstr "Beleg"
+
+#: util/ajax/va_ajax_transcription.php:193
 msgid "phon. type"
 msgstr "Phon. Typ"
 
-#: util/ajax/va_ajax_transcription.php:199
+#: util/ajax/va_ajax_transcription.php:194
 msgid "morph. type"
 msgstr "Morph. Typ"
 
-#: util/ajax/va_ajax_transcription.php:205
-msgid "nominal"
-msgstr "nominal"
+#: util/ajax/va_ajax_transcription.php:265
+msgid "Choose Concept(s)"
+msgstr "Konzept(e) auswählen"
 
-#: util/ajax/va_ajax_transcription.php:206
-msgid "verbal"
-msgstr "verbal"
-
-#: util/ajax/va_ajax_transcription.php:212
-msgid "Inflexion form"
-msgstr "Flexionsform"
-
-#: util/ajax/va_ajax_transcription.php:235
+#: util/ajax/va_ajax_transcription.php:283
 msgid "Remove&nbsp;row"
 msgstr "Zeile&nbsp;entfernen"
 
-#: va.php:143
-msgid "Log in"
+#: va.php:709
+msgid ""
+"Adds a marker to the data base that there are no attestations for this "
+"informant."
 msgstr ""
+"Markiert in der Datenbank, dass es für diesen Informanten keine Belege gibt."
 
-#: va.php:512 va.php:515
-msgid "Transcription tool"
-msgstr "Transkriptionstool"
+#: va.php:712 va.php:713
+msgid "Concept does not exist"
+msgstr "Konzept nicht vorhanden"
 
-#: va.php:520
+#: va.php:714
+msgid ""
+"Adds a marker to the data base that this concept is not known at this place."
+msgstr ""
+"Markiert in der Datenbank, dass dieses Konzept an diesem Ort unbekannt ist."
+
+#: va.php:717 va.php:718
+msgid "Term not known"
+msgstr "Bezeichnung nicht bekannt"
+
+#: va.php:719
+msgid ""
+"Adds a marker to the data base that this concept is known at this place, but "
+"the informant does not know a term for it."
+msgstr ""
+"Markiert in der Datenbank, dass das Konzept an diesem Ort bekannt ist, aber "
+"der Informant keine Bezeichnung dafür kennt."
+
+#: va.php:721
+msgid "Only within alpine convention"
+msgstr "Nur innerhalb der Alpenkonvention"
+
+#: va.php:886
 msgid "Typification"
 msgstr "Typisierung"
 
-#: va.php:530
+#: va.php:906
 msgid "Data base"
 msgstr "Datenbank"
+
+#~ msgid "Choose atlas"
+#~ msgstr "Atlas wählen"
+
+#~ msgid "Informant no."
+#~ msgstr "Informant-Nr."
+
+#~ msgid "Informant number(s)"
+#~ msgstr "Informanten-Nummer(n)"
+
+#~ msgid "Initial recording"
+#~ msgstr "Ersterfassung"
+
+#~ msgid "Correction"
+#~ msgstr "Korrektur"
+
+#~ msgid "Problems"
+#~ msgstr "Probleme"
+
+#~ msgid "Transcription"
+#~ msgstr "Transkription"
+
+#~ msgid "+ Add row"
+#~ msgstr "Zeile hinzufügen"
+
+#~ msgid "Insert"
+#~ msgstr "Eintragen"
+
+#~ msgid "Problem"
+#~ msgstr "Problem"
+
+#~ msgid "Add concept"
+#~ msgstr "Konzept hinzufügen"
+
+#~ msgid "No value!"
+#~ msgstr "Kein Wert!"
+
+#~ msgid "Entry number"
+#~ msgstr "Eintrag-Nummer"
+
+#~ msgid "Additional"
+#~ msgstr "Zusätzlich"
+
+#~ msgid "phonetic type"
+#~ msgstr "phonetischer Typ"
+
+#~ msgid "morphological type"
+#~ msgstr "morphologischer Typ"
+
+#~ msgid "Assigned concepts"
+#~ msgstr "Zugewiesene Konzepte"
+
+#~ msgid "Chose map"
+#~ msgstr "Karte wählen"
+
+#~ msgid "nominal"
+#~ msgstr "nominal"
+
+#~ msgid "verbal"
+#~ msgstr "verbal"
+
+#~ msgid "Inflexion form"
+#~ msgstr "Flexionsform"
+
+#~ msgid "Transcription tool"
+#~ msgstr "Transkriptionstool"
 
 #~ msgid "Not possible: "
 #~ msgstr "Nicht möglich: "
@@ -218,8 +220,18 @@ msgstr "Datenbank"
 #~ msgid "CHOOSE TOKEN"
 #~ msgstr "TOKEN AUSWÄHLEN"
 
-#~ msgid "Assigns a type from a lingustic atlas to a token. Thereby the type is \\\"transformed\\\" into a VA type. Types marked in red are very similar to already exisitng types and should not be used, normally (e.g. for the VA type \\\"Alphütte\\\" there is a type \\\"Almhütte\\\" in some lingustic atlases)."
-#~ msgstr "Weist dem Token einen Typ zu, der aus einem Sprachatlanten stammt. Dabei wird dieser Typ in einen VA-Typ \\\"umgewandelt\\\". Rot markierte Typen sind einem bereits bestehenden Typen sehr ähnlich und sollten deshalb im Normalfall nicht genutzt werden. (z.B. gibt es für den VA-Typen \\\"Alphütte\\\" in Sprachatlanten den Typ \\\"Almhütte\\\")"
+#~ msgid ""
+#~ "Assigns a type from a lingustic atlas to a token. Thereby the type is \\"
+#~ "\"transformed\\\" into a VA type. Types marked in red are very similar to "
+#~ "already exisitng types and should not be used, normally (e.g. for the VA "
+#~ "type \\\"Alphütte\\\" there is a type \\\"Almhütte\\\" in some lingustic "
+#~ "atlases)."
+#~ msgstr ""
+#~ "Weist dem Token einen Typ zu, der aus einem Sprachatlanten stammt. Dabei "
+#~ "wird dieser Typ in einen VA-Typ \\\"umgewandelt\\\". Rot markierte Typen "
+#~ "sind einem bereits bestehenden Typen sehr ähnlich und sollten deshalb im "
+#~ "Normalfall nicht genutzt werden. (z.B. gibt es für den VA-Typen \\"
+#~ "\"Alphütte\\\" in Sprachatlanten den Typ \\\"Almhütte\\\")"
 
 #~ msgid "Create new entry"
 #~ msgstr "Neuen Eintrag erstellen"
@@ -230,8 +242,12 @@ msgstr "Datenbank"
 #~ msgid "No selection!"
 #~ msgstr "Keine Auswahl!"
 
-#~ msgid "Not possible the following concepts are already assigned to identical tokens: "
-#~ msgstr "Nicht möglich! Folgende Konzepte sind identischen Tokens bereits zugeordnet: "
+#~ msgid ""
+#~ "Not possible the following concepts are already assigned to identical "
+#~ "tokens: "
+#~ msgstr ""
+#~ "Nicht möglich! Folgende Konzepte sind identischen Tokens bereits "
+#~ "zugeordnet: "
 
 #~ msgid "Filter: "
 #~ msgstr "Filtern: "

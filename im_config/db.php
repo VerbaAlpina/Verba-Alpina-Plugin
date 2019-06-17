@@ -1,7 +1,8 @@
 <?php
-
-	//TODO Übersetzung der Sprachgebiete in den Info-Windows funktioniert zumindest in der 161 nicht
 	function load_va_data (){
+		
+		//error_log('Start VA: ' . memory_get_usage());
+		
 		try {
 			set_error_handler(function ($severity, $message, $file, $line){
 				throw new ErrorException($message, 0, $severity, $file, $line);
@@ -42,7 +43,7 @@
 					
 					if($grid_category !== NULL){
 						$query = "
-						SELECT Ortsname, Nummer, AsText(" . $geo_sql. ") as Geo, Id_Informant, Id_Polygon
+						SELECT Ortsname, Nummer, AsText(" . $geo_sql. ") as Geo, Id_Informant, Id_Polygon, Alter_Informant, Geschlecht, Bemerkungen
 						FROM Informanten JOIN A_Informant_Polygon USING (Id_Informant)
 						WHERE Erhebung = %s" . ($_POST['outside'] == 'false' ? ' and Alpenkonvention' : '') . ' AND Id_Kategorie = %d
 						GROUP BY Id_Informant
@@ -68,7 +69,8 @@
 							
 							$info_windows[] = (isset($_POST['editMode'])?
 									new IM_EditableElementInfoWindowData($row['Id_Informant'], va_get_edit_data_informant($row['Id_Informant'], $db)) :
-									new IM_SimpleElementInfoWindowData($row['Ortsname'], $row['Nummer']));
+									new IM_InformantInfoWindowData($row['Ortsname'], $row['Nummer'], $row['Geschlecht'], $row['Alter_Informant'], $row['Bemerkungen']));
+									//new IM_SimpleElementInfoWindowData(, va_informant_description($Ue, $row['Nummer'], $row['Geschlecht'], $row['Alter_Informant'], $row['Bemerkungen'])));
 						}
 						if(count($info_windows) > 0){
 							$result->addMapElements(-1, $info_windows, $last_geo, NULL, va_get_quantify_data_informant($last_id, $db));
@@ -77,7 +79,7 @@
 					}
 					else {
 						$query = "
-						SELECT Ortsname, Nummer, AsText(" . $geo_sql. ") as Geo, Id_Informant
+						SELECT Ortsname, Nummer, AsText(" . $geo_sql. ") as Geo, Id_Informant, Alter_Informant, Geschlecht, Bemerkungen
 						FROM Informanten JOIN A_Informant_Polygon USING (Id_Informant)
 						WHERE Erhebung = %s" . ($_POST['outside'] == 'false' ? ' and Alpenkonvention' : '') . '
 						GROUP BY Id_Informant
@@ -90,7 +92,8 @@
 									-1,
 									(isset($_POST['editMode'])?
 											new IM_EditableElementInfoWindowData($row['Id_Informant'], va_get_edit_data_informant($row['Id_Informant'], $db)) :
-											new IM_SimpleElementInfoWindowData($row['Ortsname'], $row['Nummer'])),
+											//new IM_SimpleElementInfoWindowData($row['Ortsname'], va_informant_description($Ue, $row['Nummer'], $row['Geschlecht'], $row['Alter_Informant'], $row['Bemerkungen']))),
+											new IM_InformantInfoWindowData($row['Ortsname'], $row['Nummer'], $row['Geschlecht'], $row['Alter_Informant'], $row['Bemerkungen'])),
 									$row['Geo'],
 									NULL,
 									va_get_quantify_data_informant($row['Id_Informant'], $db)
@@ -100,6 +103,10 @@
 				break;
 				
 				case 1: //Concept
+					global $time;
+					$time = microtime(true);
+					//error_log('Start');
+					
 					if($_POST['filter']['conceptIds'] == 'ALL'){
 						$concepts = $db->get_col($db->prepare('SELECT Id_Konzept FROM A_Ueberkonzepte_Erweitert WHERE Id_Ueberkonzept = %d', substr($_POST['key'], 1)));
 						$concepts[] = substr($_POST['key'], 1);
@@ -111,6 +118,7 @@
 					}
 						
 					$where_clause = $db->prepare("Id_Instance IN (SELECT DISTINCT Id_Instance FROM Z_Ling WHERE Id_Concept IN " . im_key_placeholder_list($concepts) . ')', $concepts);
+					//error_log('Subconcepts: ' . (microtime(true) - $time)); $time = microtime(true);
 					va_create_result_object($where_clause, $lang, $epsilon, $grid_category, $result, $Ue, $db);
 				break;
 				
@@ -127,6 +135,8 @@
 				
 				case 5: //Extralinguistic
 				case 6: //Polygons
+					
+					//error_log('Start extraling: ' . memory_get_usage());
 					
 					$id_cat = substr($_POST['key'], 1);
 					
@@ -180,6 +190,8 @@
 					
 					//TODO split areas and extra-ling and move code for tags etc. to functions
 					
+					//error_log('Before db: ' . memory_get_usage());
+					
 					if($_POST['category'] == 5){ //ExtraLing
 						if($grid_category === NULL){
 							$geo_sql = 'Geo_Data';
@@ -208,9 +220,11 @@
 						ORDER BY Cluster_Id ASC';
 						$data = $db->get_results($db->prepare($query, $epsilon), ARRAY_N);
 					}
+
+					$db->flush();
 					
-					
-	
+					//error_log('After db: ' . memory_get_usage());
+
 					//Compute categories for records:
 					if(isset($_POST['filter']) && $_POST['filter']['subElementCategory'] == -1){ //Pseudo category
 						$subCategoryId = 0;
@@ -239,6 +253,8 @@
 						}
 					}
 					
+					//error_log('Before sort: ' . memory_get_usage());
+					
 					usort($data, function ($a, $b){
 						$cat = strcmp($a[9], $b[9]);
 						
@@ -247,6 +263,8 @@
 						}
 						return $cat;
 					});
+					
+					//error_log('After sort: ' . memory_get_usage());
 					
 					//Add records:
 					$last_id = -1;
@@ -267,7 +285,7 @@
 								$db,
 								$result,
 								$row[9],
-								va_extra_ling_info_window($_POST['category'], $row, $Ue, $lang),
+								va_extra_ling_info_window($_POST['category'], $_POST['key'], $row, $Ue, $lang),
 								$row[2],
 								$row[8]? va_format_bounding_box($row[8]): null,
 								$row[4],
@@ -279,20 +297,25 @@
 								//Has to be a point symbol => most of the special cases treated in va_add_extra_ling_element can be omitted
 								$result->addMapElements($last_cat, $current_windows, $last_geo_data, NULL, $last_quant_data);
 							}
-							$current_windows = array(va_extra_ling_info_window($_POST['category'], $row, $Ue, $lang));
+							$current_windows = array(va_extra_ling_info_window($_POST['category'], $_POST['key'], $row, $Ue, $lang));
 							$last_id = $row[7];
 							$last_cat = $row[9];
 							$last_geo_data = $row[2];
 							$last_quant_data = va_get_quantify_data_extra_ling($row[5]);
 						}
 						else {
-							$current_windows[] = va_extra_ling_info_window($_POST['category'], $row, $Ue, $lang);
+							$current_windows[] = va_extra_ling_info_window($_POST['category'], $_POST['key'], $row, $Ue, $lang);
 						}
 					}
+					
 					if($current_windows != NULL){
 						//Has to be a point symbol => most of the special cases treated in va_add_extra_ling_element can be omitted
 						$result->addMapElements($last_cat, $current_windows, $last_geo_data, NULL, $last_quant_data);
 					}
+					
+					
+					//error_log('End VA: ' .  memory_get_usage());
+					
 				break;
 				
 				case 7: //SQL
@@ -331,40 +354,49 @@
 			return new IM_Error_Result($exception);
 		}
 	}
-
-function va_extra_ling_info_window ($category, $row, $Ue, $lang){
 	
+function va_informant_description ($Ue, $number, $gender, $age, $notes){
+	$res = '<table class="informantDetails"><tr><td>' . $Ue['INFORMANT_NUMMER'] . '</td><td>' . $number . '</td></tr>';
+	
+	if ($gender){
+		$res .= '<tr><td>' . $Ue['GESCHLECHT'] . '</td><td>' . $gender . '</td></tr>';
+	}
+	
+	if ($age){
+		$res .= '<tr><td>' . $Ue['ALTER'] . '</td><td>' . $age . '</td></tr>';
+	}
+
+	$res .= '</table>';
+	
+	if ($notes){
+		$notes = va_sub_translate($notes, $Ue);
+		parseSyntax($notes, true);
+		$res .= '<br /><div>' . $notes . '</div>';
+	}
+	
+	return $res;
+}
+
+function va_extra_ling_info_window ($category, $key, $row, $Ue, $lang){
 	
 	if($row[6] == '0'){ //No translations
 		$name = $row[0];
-		$descr = $row[1];
+		//$descr = $row[1];
 	}
 	else {
 		$name = va_translate_content(va_translate_extra_ling_name($row[0], $lang), $Ue);
-		$descr = va_translate_content($row[1], $Ue);
+		//$descr = va_translate_content($row[1], $Ue);
 	}
 	
-	if ($category == 6){
-		$id = $row[4];
-		return new IM_PolygonInfoWindowData($name, $descr, $id);
-	}
-	else {
-		return new IM_SimpleElementInfoWindowData($name, $descr);
-	}
-}
+	return new IM_LazyElementInfoWindowData($category, $key, $row[4], $name);
 	
-function va_translate_extra_ling_name ($name, $lang){
-	//Check potential name translations:
-	$name_list = explode('###', $name);
-	$oname = $name_list[0];
-	unset($name_list[0]);
-	foreach ($name_list as $curr_oname){
-		if($curr_oname[0] === $lang){
-			$oname = mb_substr($curr_oname, 2);
-			break;
-		}
-	}
-	return $oname;
+// 	if ($category == 6){
+// 		$id = $row[4];
+// 		return new IM_VAPolygonInfoWindowData($name, $descr, $id);
+// 	}
+// 	else {
+// 		return new IM_SimpleElementInfoWindowData($name, $descr);
+// 	}
 }
 	
 function va_add_extra_ling_element (&$db, &$result, $subVal, $info, $geo, $bounding_box, $id, $poly, $epsilon){
@@ -413,20 +445,24 @@ function va_translate_content ($text, &$Ue){
 }
 
 function va_create_result_object ($where_clause, $lang, $epsilon, $grid_cat, IM_Result &$result, &$Ue, &$db){
+	global $time;
+	
 	$bibData = [];
 	$stimulusData = [];
 	$langData = [];
-	
-	
+	$informants = [];
+
 	$isolangs = va_two_dim_to_assoc($db->get_results("
 			SELECT Abkuerzung, CONCAT(Bezeichnung_$lang, IF(ISO639 = '', '', CONCAT(' (ISO 639-', ISO639, ')'))) AS Bedeutung
 			FROM Sprachen
 			WHERE Bezeichnung_$lang != '' AND (ISO639 = '3' OR ISO639 = '5' OR ISO639 = '')", ARRAY_N));
 	
-	$query = va_create_record_query($where_clause, $epsilon, $grid_cat, $db);
-	$db->query('SET SESSION group_concat_max_len = 100000');
-	$dbresult = $db->get_results($query, ARRAY_N);
+	//error_log('Iso lang array created: ' . (microtime(true) - $time)); $time = microtime(true);
 	
+	$dbresult = va_get_db_results($where_clause, $epsilon, $grid_cat, $db);
+	
+	//error_log('Db main results: ' . (microtime(true) - $time)); $time = microtime(true);
+
 	if(isset($_POST['filter']['subElementCategory'])){
 		$subElementType = intval($_POST['filter']['subElementCategory']);
 	}
@@ -438,7 +474,7 @@ function va_create_result_object ($where_clause, $lang, $epsilon, $grid_cat, IM_
 		$concept_mapping = va_build_concept_mapping($where_clause, $db);			
 	}
 	
-	$map_data = array();
+	$map_data = [];
 	foreach ($dbresult as $row){
 		$va_sub = '-1'; //The group for the selected record
 		$current_array = array($row[0]); //Beleg
@@ -494,7 +530,7 @@ function va_create_result_object ($where_clause, $lang, $epsilon, $grid_cat, IM_
 			}
 		}
 		
-		$base_array = array();
+ 		$base_array = array();
 		if($row[2] != ''){
 			$base_types = explode('-+-', $row[2]);
 			foreach ($base_types as $b){
@@ -560,12 +596,13 @@ function va_create_result_object ($where_clause, $lang, $epsilon, $grid_cat, IM_
 		$atlas = $sdata[0];
 		list($code, $html) = va_create_bibl_html($atlas);
 	    
-	    if(!in_array($atlas, $bibData)){
-	    	$bibData[$atlas] = "<div id='$code' style='display: none;'>" . va_format_bibliography($row[13], $row[14], $row[15], $row[16], $row[17], $row[18], $row[19], $row[20], $row[21]) . "</div>";
+		$atlas_lower = mb_strtolower($atlas);
+		if(!isset($bibData[$atlas_lower])){
+			$bibData[$atlas_lower] = $code;
 	    }
 	    
 	    $key = $row[11] . '_' . $row[7];
-	    if(!in_array($key, $stimulusData)){
+	    if(!isset($stimulusData[$key])){
 	    	$res = '<div id="sti' . $key . '">' . $row[12];
 	    	
 	    	$link = va_produce_external_map_link($atlas, $sdata[1], $sdata[2], $sdata[3]);
@@ -576,26 +613,30 @@ function va_create_result_object ($where_clause, $lang, $epsilon, $grid_cat, IM_
 	    	$res .= '</div>';
 	    	
 	    	$stimulusData[$key] = $res;
-	    }
+	   	}
 	    
-	    $html .= ' <span class="stimulus" data-stimulus="' . $key . '" style="text-decoration: underline; cursor: pointer;">' . $sdata[1] . '#' . $sdata[2] . '</span> ';
+ 	    $html .= ' <span class="stimulus" data-stimulus="' . $key . '" style="text-decoration: underline; cursor: pointer;">' . $sdata[1] . '#' . $sdata[2] . '</span> ';
 
 	    $current_array[] = $html . $sdata[3] . ' (' . $sdata[4] . ')';
 		
-		//community
-		$community_names = explode('###', $row[6]);
-		$cname = $community_names[0];
-		unset($community_names[0]);
-		foreach ($community_names as $curr_cname){
-			if($curr_cname[0] === $lang){
-				$cname = mb_substr($curr_cname, 2);
-			}
-		}
+		// community
+ 		$community_names = explode('###', $row[6]);
+ 		$cname = $community_names[0];
+
+ 		$num_variants = count($community_names) - 1;
+ 		for ($i = 0; $i < $num_variants; $i++){
+ 			$var_name = $community_names[$i + 1];
+ 			if($var_name[0] === $lang){
+ 				$cname = mb_substr($var_name, 2);
+ 			}
+ 		}
 		$current_array[] = $cname;
 		
 		$current_array[] = $row[8]; //original
 		
 		$current_array[] = $row[9]; //encoding
+		
+		$current_array[] = $row[13]; //Geonames Id
 		
 		$markingColor = -1;
 		if(isset($_POST['filter']['markings'])){
@@ -611,8 +652,36 @@ function va_create_result_object ($where_clause, $lang, $epsilon, $grid_cat, IM_
 			}
 		}
 
-		$map_data[] = array($va_sub, new IM_RecordInfoWindowData($current_array), $row[5], va_get_quantify_data_informant($row[7], $db), $row[10], $markingColor);
+		if(!isset($informants[$row[7]])){
+			$informants[$row[7]] = true;
+		}
+		
+		$map_data[] = [$va_sub, new IM_RecordInfoWindowData($current_array), $row[5], $row[7] /* id_informant as stub for quantify data */, $row[10], $markingColor];
 	}
+	
+	//error_log('Results converted: ' . (microtime(true) - $time)); $time = microtime(true);
+	
+	//Add quantify data
+	$quant_data = va_get_quantify_data_informant_array(array_keys($informants), $db);
+	
+	foreach ($map_data as $index => $row){
+		$map_data[$index][3] = $quant_data[$row[3]];
+	}
+	
+	//error_log('Quantify data added: ' . (microtime(true) - $time)); $time = microtime(true);
+	
+	if ($bibData){
+		$bib_from_db = $db->get_results('SELECT Lower(Abkuerzung), Autor, Titel, Ort, Jahr, Download_URL, Band, Enthalten_In, Seiten, Verlag FROM Bibliographie WHERE Abkuerzung IN (' .
+				implode(',', va_surround(array_keys($bibData), "'")) . ')', ARRAY_N);
+	
+		foreach ($bib_from_db as $bib_array){
+			//Bibdata contains the code and is updated to contain the bib html
+			$bibData[$bib_array[0]] = "<div id='{$bibData[$bib_array[0]]}' style='display: none;'>" . 
+				va_format_bibliography($bib_array[1], $bib_array[2], $bib_array[3], $bib_array[4], $bib_array[5], $bib_array[6], $bib_array[7], $bib_array[8], $bib_array[9]) . "</div>";
+		}
+	}
+	
+	//error_log('Bib data added: ' . (microtime(true) - $time)); $time = microtime(true);
 	
 	usort($map_data, function ($a, $b){
 		$cat = strcmp($a[0], $b[0]);
@@ -628,6 +697,8 @@ function va_create_result_object ($where_clause, $lang, $epsilon, $grid_cat, IM_
 		}
 		return $cat;
 	});
+	
+	//error_log('Results sorted: ' . (microtime(true) - $time)); $time = microtime(true);
 	
 	$last_id = -1;
 	$last_cat = -1;
@@ -663,8 +734,40 @@ function va_create_result_object ($where_clause, $lang, $epsilon, $grid_cat, IM_
 		$result->addMapElements($last_cat, $current_windows, $last_geo_data, NULL, $last_quantify_data, $last_mcolor);
 	}
 	
+	//error_log('Results clustered: ' . (microtime(true) - $time)); $time = microtime(true);
+	
 	$result->addExtraData('BIB', $bibData);
 	$result->addExtraData('STI', $stimulusData);
+	
+	//error_log('Ready: ' . (microtime(true) - $time)); $time = microtime(true);
+}
+
+function va_get_quantify_data_informant_array($arr, &$db){
+	$res = [];
+	
+	if (empty($arr))
+		return $res;
+	
+	$dbdata = $db->get_results('SELECT Id_Informant, Id_Kategorie, Id_Polygon FROM A_Informant_Polygon WHERE Id_Informant IN (' . implode(',', $arr) . ') ORDER BY Id_Informant ASC', OBJECT);
+
+	$current_id = null;
+	$current_info = null;
+	$count = count($dbdata);
+	
+	for ($i = 0; $i < $count; $i++){
+		$row = $dbdata[$i];
+		
+		if ($row->Id_Informant !== $current_id){
+			$res[$current_id] = $current_info;
+			$current_id = $row->Id_Informant;
+			$current_info = new IM_Point_Quantify_Info();
+		}
+		
+		$current_info->addCategoryIndex('A' . $row->Id_Kategorie, $row->Id_Polygon);
+	}
+	
+	$res[$current_id] = $current_info;
+	return $res;
 }
 
 function va_get_quantify_data_informant ($id_informant, &$db){
@@ -719,8 +822,36 @@ function va_build_concept_mapping ($where_clause, &$db){
 		}
 	}
 	
+	$concept_mapping = array();
+	
+	if (count($top_level_concept_list) == 1){
+		//All concepts belong to the same toplevel concept
+		
+		$max_level = 0;
+		$min_level = 9999;
+		
+		$only_key = array_keys($top_level_concept_list)[0];
+		
+		foreach ($top_level_concept_list[$only_key] as $centry){
+			if ($centry[1] > $max_level){
+				$max_level = $centry[1];
+			}
+			if ($centry[1] < $min_level){
+				$min_level = $centry[1];
+			}
+		}
+		
+		if ($max_level == $min_level){
+			//Return concepts unchanged
+			foreach ($top_level_concept_list[$only_key] as $centry){
+				$concept_mapping['C' . $centry[0]] = $centry[0];
+			}
+			return $concept_mapping;
+		}
+	}
+
+	
 	//"Downgrade" concepts
-	$concept_mapping = array(); 
 	foreach ($top_level_concept_list as $clist){
 		if(count($clist) == 1){
 			$concept_mapping['C' . $clist[0][0]] = $clist[0][0]; //Use concept itself
@@ -755,10 +886,14 @@ function va_build_concept_mapping ($where_clause, &$db){
 			}
 		}
 	}
+		
 	return $concept_mapping;
 }
 
-function va_create_record_query ($where_clause, $epsilon, $grid_cat, &$db){
+function va_get_db_results ($where_clause, $epsilon, $grid_cat, &$db){
+	
+	$db->query('SET SESSION group_concat_max_len = 100000');
+	
 	
 	if($epsilon === 0){
 		if($_POST['community'] == 'true'){
@@ -769,19 +904,10 @@ function va_create_record_query ($where_clause, $epsilon, $grid_cat, &$db){
 		}
 	}
 	else {
-		$geo_sql = $db->prepare('(SELECT AsText(Center) FROM Z_Geo WHERE Id_Geo = Id_Polygon AND Epsilon = %f)', $epsilon);
+		$geo_sql = 'NULL';
 	}
 	
-	if($grid_cat === NULL){
-		$cluster_id = 'Cluster_Id';
-		$where_app = '';
-	}
-	else {
-		$cluster_id = 'Id_Polygon';
-		$where_app = $db->prepare(' AND Id_Kategorie = %d', $grid_cat);
-	}
-	
-	return "SELECT
+	$query = "SELECT
 				Instance,
 				GROUP_CONCAT(DISTINCT CONCAT(Type_Kind, '#', Id_Type, '#', Type, '#', Type_Lang, '#', POS, '#', Gender, '#', Affix, '#', Source_Typing, '#', IF(Type_Reference IS NULL, '', Type_Reference)) SEPARATOR '-+-') AS Typings,
 				GROUP_CONCAT(DISTINCT CONCAT(Id_Base_Type, '|', Base_Type_Unsure, '#', IF(Base_Type_Unsure, '(?) ', ''), Base_Type, '#', IFNULL(Base_Type_Lang, '') , '#', IF(Base_Type_Reference IS NULL, '', Base_Type_Reference)) SEPARATOR '-+-') AS Base_Types,
@@ -792,23 +918,44 @@ function va_create_record_query ($where_clause, $epsilon, $grid_cat, &$db){
 				Id_Informant,
 				Instance_Original,
 				Instance_Encoding,
-				" . $cluster_id . ",
+				Cluster_Id,
 				Id_Stimulus,
 				Stimulus,
-				Autor, 
-				Titel, 
-				Ort, 
-				Jahr, 
-				Download_URL, 
-				Band, 
-				Enthalten_In, 
-				Seiten, 
-				Verlag
-			FROM Z_Ling JOIN A_Informant_Polygon USING (Id_Informant) JOIN Stimuli USING (Id_Stimulus) JOIN Bibliographie ON Erhebung = Abkuerzung
+				Geonames_Id
+			FROM Z_Ling JOIN Stimuli USING (Id_Stimulus)
 			WHERE " . $where_clause 
-					. ($_POST['outside'] == 'false' ? ' AND Alpine_Convention' : '') .
-					$where_app. "
+					. ($_POST['outside'] == 'false' ? ' AND Alpine_Convention' : '') . "
 			GROUP BY Id_Instance";
+	
+	$dbresult = $db->get_results($query, ARRAY_N);
+
+	if ($epsilon !== 0){ //Hexagon grid => Find hexagon centers
+		$informants = [];
+		foreach ($dbresult as $row){
+			if (!isset($informants[$row[7]])){
+				$informants[$row[7]] = true;
+			}
+		}
+		
+		$polygon_data = $db->get_results($db->prepare('
+			SELECT Id_Informant, Id_Polygon, AsText(Center) 
+			FROM Z_Geo JOIN A_Informant_Polygon ON Id_Geo = Id_Polygon
+			WHERE Id_Informant IN (' . implode(',', array_keys($informants)) . ') AND Epsilon = %f AND Id_Kategorie = %f', $epsilon, $grid_cat), ARRAY_N);
+		
+		$poly_map = [];
+		foreach ($polygon_data as $polygon){
+			$poly_map[$polygon[0]] = [$polygon[1], $polygon[2]];
+		}
+		
+		foreach ($dbresult as &$row){
+			$poly_for_row = $poly_map[$row[7]];
+			$row[10] = $poly_for_row[0]; //Cluster Id
+			$row[5] = $poly_for_row[1]; //Geo data
+		}
+	}
+	
+	return $dbresult;
+	
 }
 
 function va_create_type_table (&$types, &$btypes, $lang, $source, &$Ue, $part_of_group){
@@ -965,12 +1112,36 @@ class IM_RecordInfoWindowData extends IM_ElementInfoWindowData {
 			'source' => $arr[3],
 			'community' => $arr[4],
 			'original' => $arr[5],
-			'encoding' => $arr[6]
+			'encoding' => $arr[6],
+			'geonames' => $arr[7]
 		);
 	}
 	
 	protected function getTypeSpecificData (){
 	 	return $this->data;
+	}
+}
+
+class IM_InformantInfoWindowData extends IM_ElementInfoWindowData {
+	private $data;
+	
+	function __construct ($location, $number, $gender, $age, $text){
+		parent::__construct('informant');
+		
+		$text = va_sub_translate($text, $Ue);
+		parseSyntax($text, true);
+		
+		$this->data = [
+			'locationName' => $location,
+			'number' => $number,
+			'gender' => $gender,
+			'age' => $age,
+			'description' => $text
+		];
+	}
+	
+	protected function getTypeSpecificData (){
+		return $this->data;
 	}
 }
 
@@ -1023,43 +1194,20 @@ function va_is_hex_category ($id_cat, $type){
 	}
 }
 
-function search_va_locations ($search){
-	global $Ue;
-	global $lang;
-	
-	$db = IM_Initializer::$instance->database;
-	$query = 'SELECT 
-            Id_Geo AS id, 
-            Name AS text, 
-            Category_Name AS description 
-        FROM Z_Geo
-        WHERE Name LIKE "%'.$search.'%" 
-        GROUP BY Name 
-        ORDER BY description ASC, text ASC';
-	
-	$names = $db->get_results($query);
-	
-	foreach ($names as $index => $name){
-		$names[$index]->description = va_sub_translate($names[$index]->description, $Ue);
-		$names[$index]->text = va_translate_extra_ling_name($names[$index]->text, $lang);
-	}
-	
-	return ['results' => $names];
-}
-
 function get_va_location ($id){
     global $lang;
     
 	$db = IM_Initializer::$instance->database;
 	$query = 'SELECT 
                 ST_AsText(ST_Envelope(IFNULL(Center, Geo_Data))) AS point, 
-                Name as text 
+                Name, Description
             From Z_Geo WHERE Id_Geo = %f';
 	
 	$result = $db->get_row($db->prepare($query, $id), ARRAY_A);
-	$result['text'] = va_translate_extra_ling_name($result['text'], $lang);
+	parseSyntax($result['Description'], true);
+	$text = '<h1>' . va_translate_extra_ling_name($result['Name'], $lang) . '</h1>' . $result['Description'];
 	
-	return $result;
+	return ['point' => $result['point'], 'text' => $text];
 }
 
 function va_ling_search ($search, $lang){
@@ -1067,11 +1215,11 @@ function va_ling_search ($search, $lang){
 	$lang = strtoupper(substr($lang, 0, 1));
 	$db = IM_Initializer::$instance->database;
 	
-	$query1 = "SELECT DISTINCT Id_Base_Type, Base_Type FROM z_ling WHERE Base_Type LIKE '%$search%' ORDER BY Base_Type ASC";
+	$query1 = "SELECT DISTINCT Id_Base_Type, Base_Type, Base_Type_Lang FROM z_ling WHERE Base_Type LIKE '%$search%' ORDER BY Base_Type ASC";
 	$bresult = $db->get_results($query1, ARRAY_A);
 	$basetypes = [];
 	foreach ($bresult as $btype){
-		$basetypes[] = ['id' => 'B' . $btype['Id_Base_Type'], 'text' => va_format_base_type($btype['Base_Type']), 'description' => $Ue['BASISTYP_PLURAL']];
+		$basetypes[] = ['id' => 'B' . $btype['Id_Base_Type'], 'text' => va_format_base_type($btype['Base_Type'], $btype['Base_Type_Lang']), 'description' => $Ue['BASISTYP_PLURAL']];
 	}
 	
 	$query2 = "
@@ -1152,7 +1300,7 @@ function va_ling_search ($search, $lang){
             Name AS text, 
             Category_Name AS description 
         FROM Z_Geo
-        WHERE Name LIKE "%'.$search.'%" 
+        WHERE Name LIKE "%'.$search.'%" AND Name NOT LIKE "%Ue[%" 
         GROUP BY Name 
         ORDER BY description ASC, text ASC';
 	
@@ -1167,5 +1315,39 @@ function va_ling_search ($search, $lang){
 	$names = array_merge($basetypes, $morphtypes, $ptypes,  $concepts, $informants, $extra, $syn_maps,$locations);
 	
 	return ['results' => $names];
+}
+
+function va_load_info_window ($category, $element_id, $overlay_ids, $lang){
+	$db = IM_Initializer::$instance->database;
+	$lang = strtoupper(substr($lang, 0, 1));
+	global $Ue;
+	
+	if ($category == 5 || $category == 6){
+		$res = $db->get_results($db->prepare('SELECT Id_Geo, Name, Description, ContainsTranslations FROM z_geo WHERE Epsilon = 0 AND Id_Geo IN ' . im_key_placeholder_list($overlay_ids), $overlay_ids), ARRAY_A);
+		
+		$info_windows = [];
+		foreach ($res as $row){
+			if($row['ContainsTranslations'] == '0'){
+				$name = $row['Name'];
+				$descr = $row['Description'];
+			}
+			else {
+				$name = va_translate_content(va_translate_extra_ling_name($row['Name'], $lang), $Ue);
+				$descr = va_translate_content($row['Description'], $Ue);
+			}
+			
+			parseSyntax($descr, true);
+			
+			if ($category == 6){
+				$id = $row['Id_Geo'];
+				$info_windows[] = new IM_PolygonInfoWindowData($name, $descr, $id);
+			}
+			else {
+				$info_windows[] = new IM_SimpleElementInfoWindowData($name, $descr);
+			}
+		}
+		
+		return $info_windows;
+	}
 }
 ?>

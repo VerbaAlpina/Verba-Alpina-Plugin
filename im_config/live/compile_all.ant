@@ -8,7 +8,7 @@
 	<!ENTITY va_externs SYSTEM "va_externs.xml">
 ]>
 
-<project name="va" basedir="../../../plugin_interactive-map/" default="compileGM">
+<project name="va" basedir="../../../plugin_interactive-map/" default="compilePixi">
 
   <taskdef name="jscomp" classname="com.google.javascript.jscomp.ant.CompileTask"
            classpath="${basedir}/build/compiler.jar"/>

@@ -361,6 +361,28 @@ function va_ajax_handler (){
 				 case 'get_community_name':
 				 	echo $commName = $db->get_var($db->prepare('SELECT Name FROM Orte WHERE Id_Kategorie = 62 AND ST_WITHIN(GeomFromText(%s), Geodaten)', $_POST['point']));
 				 	break;
+				 	
+				 case 'search_locations':
+				 	echo json_encode(search_va_locations($_POST['search']));
+				 	break;
+				 	
+				 case 'get_location_description':
+				 	echo $va_xxx->get_var($va_xxx->prepare('SELECT Beschreibung FROM Orte WHERE Id_Ort = %d', $_POST['id']));
+				 	break;
+				 	
+				 case 'save_location_description':
+				 	if($va_xxx->update('Orte', ['Beschreibung' => $_POST['content']], ['Id_Ort' => $_POST['id']]) !== false){
+				 		echo 'success';
+				 	}
+				 	break;
+				 	
+				 case 'find_geoname_id':
+				 	echo json_encode(va_load_geonames_ids($_POST['count']));
+				 	break;
+					
+				case 'get_informant_list':
+					va_get_informant_geo_data(stripslashes($_POST['source']), $_POST['regions']);
+					break;
 			}
 		break;
 		
@@ -437,11 +459,11 @@ function va_ajax_handler (){
 				
 			switch ($_POST['query']){
 				case 'updateTable':
-					echo va_records_for_stimulus($_POST['id_stimulus']);
+					echo va_tokenization_info_for_stimulus($_POST['stimulus']);
 				break;
 				
 				case 'tokenize':
-					echo va_tokenize_records($_POST['id_stimulus'], $_POST['preview'] == 'true'? true: false); //in tokenize.php
+					echo va_tokenize_for_stimulus($_POST['stimulus'], $_POST['preview']);
 					break;
 			}
 		break;
@@ -470,6 +492,10 @@ function va_ajax_handler (){
 					case 'nextPage':
 						global $wpdb;
 						foreach ($_POST['answers'] as $answer){
+							if (is_array($answer['answer'])){
+								$answer['answer'] = implode('###', $answer['answer']);
+							}
+							
 							$answer['answer'] = stripslashes($answer['answer']);
 							$answer['question_text'] = strip_tags($wpdb->get_var($wpdb->prepare('SELECT meta_value FROM wp_postmeta WHERE post_id = %d AND meta_key = %s',
 								$answer['post_id'], ('fb_seite_' . $answer['page'] . '_fb_frage_' . $answer['question'] . '_fb_uberschrift'))));

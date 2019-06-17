@@ -156,7 +156,13 @@ function showStartPage (){
 
 	<div class="start_options_right">
 		<a href= '<?php echo get_page_link(get_page_by_title("LIVEGRAPH")); ?>' ><div><i class="fas fa-chart-pie"></i> <?php echo ucfirst($Ue['LIVEGRAPH'])?></div></a>
-		<!-- <div><i class="fas fa-graduation-cap"></i> TUTORIAL </div>  TODO: ADD WHEN AVAILABLE-->  
+		<?php
+		include_once('wp-admin/includes/file.php');
+		$tfile = '/dokumente/tutorials/tutorial_' . substr(get_locale(), 0, 2) . '.mp4';
+		if (file_exists(get_home_path() . $tfile)){
+			echo '<a href="' . get_home_url(1) . $tfile .'" target="_BLANK"><div><i class="fas fa-graduation-cap"></i> Tutorial</div></a>';
+		}
+		?>
 	 </div>
 
 		<?php	
@@ -183,21 +189,6 @@ function showStartPage (){
 		<h3><?php echo $Ue['LEITUNG']; ?></h3>
 		Thomas Krefeld | Stephan Lücke
 
-
-
-		<?php
-// 		$tutorial_post = get_page_by_title('Interaktive Karte Tutorial', OBJECT, 'post');
-// 		if($tutorial_post){
-// 			if(function_exists('mlp_get_linked_elements')){ //Translated version
-// 				$linked = mlp_get_linked_elements( 3105, '', 1 );
-// 			}
-// 			else {
-// 				$linked = array(3105);
-// 			}
-			
-// 			echo '<span class="eyecatcher"><a href="' . get_permalink($linked[get_current_blog_id()]) . '">TUTORIAL</a></span>';
-// 		}
-		?>
 		
 		<h3><?php echo $Ue['DAS_PROJEKT']; ?>	
 			<span class="cite_btn"><i class="fas fa-book" style="padding-right: 2px;"></i>

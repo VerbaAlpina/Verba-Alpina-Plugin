@@ -1,5 +1,10 @@
 <?php
 function lex_typification (){
+	
+// 	if (!isDevTester()){
+// 		echo 'Under construction';
+// 		return;
+// 	}
 
 $dbname = NULL;
 	

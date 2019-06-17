@@ -1,6 +1,11 @@
 <?php 
 function va_edit_base_type_page (){
 	
+// 	if (!isDevTester()){
+// 		echo 'Under construction';
+// 		return;
+// 	}
+	
 	global $va_xxx;
 	$dbname = 'va_xxx';
 	?>

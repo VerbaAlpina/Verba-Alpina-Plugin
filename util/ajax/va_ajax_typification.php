@@ -16,6 +16,7 @@ function va_ajax_typification (&$db){
 				
 				$description = json_decode(stripslashes($_POST['description']));
 				$tids = getTokenIds($db, $description);
+				
 				if($description->kind === 'G' || $description->kind === 'K' || $description->kind === 'GP'){
 					$db->query($db->prepare("DELETE VTBL_Tokengruppe_morph_Typ FROM VTBL_Tokengruppe_morph_Typ JOIN morph_Typen m USING (Id_morph_Typ) WHERE m.Quelle = 'VA' AND Id_Tokengruppe IN " . keyPlaceholderList($tids), $tids));
 				}
@@ -31,19 +32,21 @@ function va_ajax_typification (&$db){
 				
 				$description = json_decode(stripslashes($_POST['description']));
 				$tids = getTokenIds($db, $description);
-				if (empty($tids))
+				
+				if (empty($tids)){
 					error_log(json_encode($_POST)); //TODO remove if bug is fixed
+				}
 					
-					$placeholder_list = keyPlaceholderList($tids);
-					array_push($tids, $_POST['concept']);
-					if($description->kind === 'G' || $description->kind === 'K' || $description->kind = 'GP'){
-						$db->query($db->prepare("DELETE FROM VTBL_Tokengruppe_Konzept WHERE Id_Tokengruppe IN " . $placeholder_list . " AND Id_Konzept = %d", $tids));
-					}
-					else {
-						$db->query($db->prepare("DELETE FROM VTBL_Token_Konzept WHERE Id_Token IN " . $placeholder_list . " AND Id_Konzept = %d", $tids));
-					}
-					echo 'success';
-					break;
+				$placeholder_list = keyPlaceholderList($tids);
+				array_push($tids, $_POST['concept']);
+				if($description->kind === 'G' || $description->kind === 'K' || $description->kind === 'GP'){
+					$db->query($db->prepare("DELETE FROM VTBL_Tokengruppe_Konzept WHERE Id_Tokengruppe IN " . $placeholder_list . " AND Id_Konzept = %d", $tids));
+				}
+				else {
+					$db->query($db->prepare("DELETE FROM VTBL_Token_Konzept WHERE Id_Token IN " . $placeholder_list . " AND Id_Konzept = %d", $tids));
+				}
+				echo 'success';
+				break;
 					
 		case 'addTypification':
 			if(!current_user_can('va_typification_tool_write'))
@@ -56,7 +59,7 @@ function va_ajax_typification (&$db){
 					if (empty($tids))
 						error_log(json_encode($_POST)); //TODO remove if bug is fixed
 						
-						if($description->kind === 'G' || $description->kind === 'K' || $description->kind == 'GP'){
+						if($description->kind === 'G' || $description->kind === 'K' || $description->kind === 'GP'){
 							$db->query("DELETE VTBL_Tokengruppe_morph_Typ FROM VTBL_Tokengruppe_morph_Typ JOIN morph_Typen m WHERE m.Quelle = 'VA' AND Id_Tokengruppe IN (" . implode(',', $tids) . ')');
 							$db->query($db->prepare("
 						INSERT INTO VTBL_Tokengruppe_morph_Typ (Id_Tokengruppe, Id_morph_Typ, Angelegt_Von, Angelegt_Am)
@@ -84,7 +87,7 @@ function va_ajax_typification (&$db){
 					$tids = getTokenIds($db, $description);
 					
 					if(!isset($_REQUEST['allowMultipleConcepts'])){
-						if($description->kind === 'G' || $description->kind === 'K' || $description->kind == 'GP'){
+						if($description->kind === 'G' || $description->kind === 'K' || $description->kind === 'GP'){
 							$olds = $db->get_col($db->prepare('
 							SELECT DISTINCT Id_Konzept FROM VTBL_Tokengruppe_Konzept
 							WHERE Id_Tokengruppe IN (' . implode(',', $tids) . ')
@@ -242,6 +245,23 @@ function va_ajax_typification (&$db){
 			$file_loc = substr($_POST['file'], 0, strpos($_POST['file'], '#')) . '/' . $_POST['file'];
 			$file = get_home_path() . 'dokumente/scans/' . $file_loc;
 			echo file_exists($file)? $file_loc: 'no';
+			break;
+			
+		case 'getReferences':
+			if (isset($_POST['ids'])){
+				$where = 'Id_Lemma IN (' . implode(',', array_filter($_POST['ids'], 'is_numeric')) . ')';
+			}
+			else if (isset($_POST['search'])){
+				$where = 'Quelle LIKE "%' . esc_sql($_POST['search']) . '%" OR Subvocem LIKE "%' .  esc_sql($_POST['search']) . '%"';
+			}
+			else {
+				echo '[]';
+				break;
+			}
+			
+			$results = $db->get_results('SELECT Id_Lemma as id, CONCAT(Quelle, ": ", Subvocem) as text FROM Lemmata_Basistypen WHERE ' . $where . ' ORDER BY Quelle ASC, Subvocem COLLATE utf8_general_ci ASC', ARRAY_A);
+			
+			echo json_encode($results);
 			break;
 	}
 }

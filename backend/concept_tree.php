@@ -180,7 +180,7 @@ function konzeptbaum (){
 	
 	function conceptCallback (result){
 
-		var name = result["Name_D"] == ""? result["Beschreibung_D"]: result["Name_D"] + " (" + result["Beschreibung_D"] + ")";
+		var name = (result["Name_D"] == ""? result["Beschreibung_D"]: result["Name_D"] + " (" + result["Beschreibung_D"] + ")") + (result["QID"]? " (Q" + result["QID"] + ")": "");
 		var kategorieNeu = result["Id_Kategorie"];
 		//TODO maybe change color here if main category has changed
 		
@@ -275,7 +275,8 @@ function va_concept_tree_concept_by_id ($id, $lang, &$Ue, $id_cat, $id_ueber){
 			Name_$lang AS Name, 
 			Beschreibung_$lang AS Beschreibung, 
 			IF(Anzahl_Allein IS NULL, 0, Anzahl_Allein) AS Allein,
-			Id_Kategorie 
+			Id_Kategorie,
+			QID
 		FROM Konzepte LEFT JOIN A_Anzahl_Konzept_Belege USING (Id_Konzept) 
 		WHERE Id_Konzept = $id", ARRAY_A);
 
@@ -286,7 +287,8 @@ function va_concept_tree_concept_by_id ($id, $lang, &$Ue, $id_cat, $id_ueber){
 	}
 	
 	$res = '<ul><li class="' . ($conceptInfo['Id_Kategorie'] == $id_ueber? ' generalConcept' : 'specificConcept') .
-		'" data-konzept="' . $id . '">' . ($conceptInfo['Name'] == ''? ($conceptInfo['Beschreibung']): $conceptInfo['Name'] . ' (' . ($conceptInfo['Beschreibung']) . ')') . 
+	'" data-konzept="' . $id . '">' . ($conceptInfo['Name'] == ''? ($conceptInfo['Beschreibung']): $conceptInfo['Name'] . ' (' . ($conceptInfo['Beschreibung']) . ')') .  
+		($conceptInfo['QID']? ' (Q' . $conceptInfo['QID'] . ')' : '') .
 		' (' . $conceptInfo['Allein'] . ' ' . ($conceptInfo['Allein'] == '1'? $Ue['BELEG'] : $Ue['BELEGE']) . ')';
 	
 	if(!empty($children)){

@@ -1,7 +1,5 @@
 <?php
 
-use WouterJ\Peg\Definition;
-
 //Action Handler
 add_action('wp_ajax_token_ops', 'token_ops'); //TODO integrate into va_ajax
 
@@ -9,6 +7,10 @@ $mapPage = get_page_by_title('KARTE');
 global $va_map_url;
 if($mapPage != null){
 	$va_map_url = get_page_link($mapPage);
+}
+
+function va_query_log($query){
+	error_log(preg_replace('/\s+/', ' ', $query));
 }
 
 function va_get_glossary_link ($id = null){
@@ -87,7 +89,7 @@ function va_get_comments_doi_link ($version = false, $id = null){
 
 
 function va_get_doi_base_link (){
-	$res = 'http://dx.doi.org/10.5282/verba-alpina?urlappend=';
+	$res = 'https://doi.org/10.5282/verba-alpina?urlappend=';
 	
 	$blog_url = get_home_url();
 	if (preg_match('#[.]*/([a-z]{2})$#', $blog_url, $matches)){
@@ -170,7 +172,11 @@ function va_format_bibliography ($author, $title, $year, $loc, $link, $band, $in
 		return $res;
 }
 
-function va_format_base_type ($str, $uncertain = '0'){
+function va_format_base_type ($str, $lang, $uncertain = '0'){
+	
+	if ($lang)
+		$str .= ' (' . $lang . ')';
+	
 	global $Ue;
 	if(mb_strpos($str, '*') !== false){
 		return $str . ' (* = ' . $Ue['REKONSTRUIERT'] . ')';
@@ -226,9 +232,9 @@ function va_format_lex_type ($orth, $lang, $word_class, $gender, $affix, $add_qt
 	}
 	
 	if($lang && $gender)
-		 $result = $orth . ' (' . $lang . '.' . json_decode('"\u00A0"') . $gender . '.)';
+		 $result = $orth . ' (' . $lang . json_decode('"\u00A0"') . $gender . '.)';
 	else if ($lang)
-		$result = $orth . ' (' . $lang . '.)';
+		$result = $orth . ' (' . $lang . ')';
 	else if ($gender)
 		$result = $orth . ' (' . $gender . '.)';
 	else
@@ -291,7 +297,7 @@ function va_create_glossary_citation ($id, &$Ue){
 	$title = $vadb->get_var("SELECT Terminus_$lang FROM Glossar WHERE Id_Eintrag = $id");
 	$link = va_get_glossary_doi_link(substr($va_current_db_name, 3, 3), $id);
 	
- 	return	implode(' / ', $authors) . ': s.v. “' . $title . '”, in: VA-' . substr(get_locale(), 0, 2) . ' ' .
+ 	return	implode(' / ', $authors) . ': s.v. “' . $title . '”, in: VerbaAlpina-' . substr(get_locale(), 0, 2) . ' ' .
  	 	substr($va_current_db_name, 3, 2) . '/' . substr($va_current_db_name, 5) . ', ' . $Ue['METHODOLOGIE'] . ', ' . $link;
  }
  
@@ -355,7 +361,7 @@ function va_create_comment_citation ($id, &$Ue){
 
  	$link = va_get_comments_doi_link(substr($va_current_db_name, 3, 3), $id);
  
- 	return	implode(' / ', $authors) . ': s.v. “' . $title . '”, in: VA-' . substr(get_locale(), 0, 2) . ' ' .
+ 	return	implode(' / ', $authors) . ': s.v. “' . $title . '”, in: VerbaAlpina-' . substr(get_locale(), 0, 2) . ' ' .
  			substr($va_current_db_name, 3, 2) . '/' . substr($va_current_db_name, 5) . ', Lexicon alpinum, ' . $link;
 }
  
@@ -675,6 +681,8 @@ function va_replace_in_text ($pattern, $callback, $subject){
 	if ($subject == '')
 		return '';
 	
+	$subject = preg_replace('/<\!\[CDATA\[([^\]]*)\]\]>/', '$1', $subject);
+	
 	$doc = new IvoPetkov\HTML5DOMDocument();
 	$doc->loadHTML($subject);
 	
@@ -738,61 +746,62 @@ function va_get_comment_title ($id, $lang){
 	}
 }
 
-function va_create_tokenizer ($source){
+function va_get_general_beta_parser (){
+	global $general_beta_parser;
 	
-	if($source == 'ALD-I'){
-		$sourceUsed = 'ALD-II';
-	}
-	else {
-		$sourceUsed = $source;
+	if (!$general_beta_parser){
+		$general_beta_parser = new VA_BetaParser('AIS');
 	}
 	
-	global $va_xxx;
-	$spaceTypes = $va_xxx->get_col("SELECT Beta FROM Codepage_IPA WHERE Erhebung = '$sourceUsed' AND Art = 'Trennzeichen'");
-	if(!$spaceTypes){
-		$spaceTypes = [' '];
+	return $general_beta_parser;
+}
+
+function va_count_words($str){
+	return str_word_count(remove_accents(strip_tags($str)));
+}
+
+function search_va_locations ($search){
+	global $Ue;
+	global $lang;
+	
+	$db = IM_Initializer::$instance->database;
+	$query = 'SELECT
+            Id_Geo AS id,
+            Name AS text,
+            Category_Name AS description
+        FROM Z_Geo
+        WHERE Name LIKE "%'.$search.'%" AND Name NOT LIKE "%Ue[%"
+        GROUP BY Name
+        ORDER BY description ASC, text ASC';
+	
+	$names = $db->get_results($query);
+	
+	foreach ($names as $index => $name){
+		$names[$index]->description = va_sub_translate($names[$index]->description, $Ue);
+		$names[$index]->text = va_translate_extra_ling_name($names[$index]->text, $lang);
 	}
 	
-	$tokenizer = new Tokenizer([';', ',', $spaceTypes]);
-	$articlesDB = $va_xxx->get_results('SELECT Artikel, Genus, Sprache FROM Artikel', ARRAY_N);
-	$articles = [];
-	foreach ($articlesDB as $article){
-		$articles[$article[0]] = [$article[1], $article[2]];
-	}
-	$tokenizer->addData('articles', $articles);
-	$tokenizer->addData('schars', $va_xxx->get_col('SELECT Zeichen FROM Sonderzeichen'));
-	$tokenizer->addData('source', $source);
-	
-	$parser = false;
-	try {
-		$parser = new VA_BetaParser($sourceUsed);
-	}
-	catch (Exception $e){}
-	$tokenizer->addData('beta_parser', $parser);
-	
-	$tokenizer->addEscapeRegex('/\\\\\\\\([;,])/', '$1');
-	$tokenizer->addEscapeRegex('/\\\\\\\\(.)/');
-	
-	switch ($source){
-		case 'CROWD':
-			$tokenizer->addReplacementString('(', '<');
-			$tokenizer->addReplacementRegex('/(?<!;-)\)/', '>');
+	return ['results' => $names];
+}
+
+function va_translate_extra_ling_name ($name, $lang){
+	//Check potential name translations:
+	$name_list = explode('###', $name);
+	$oname = $name_list[0];
+	unset($name_list[0]);
+	foreach ($name_list as $curr_oname){
+		if($curr_oname[0] === $lang){
+			$oname = mb_substr($curr_oname, 2);
 			break;
+		}
 	}
+	return $oname;
+}
+
+function va_orcid_link ($orcid){
+	if (!$orcid)
+		return '';
 	
-	if($source == 'CROWD' || $va_xxx->get_var($va_xxx->prepare('SELECT VA_Beta FROM Bibliographie WHERE Abkuerzung = %s', $source))){
-		$tokenizer->addReplacementRegex('/\s+</', '<');
-		$tokenizer->addReplacementRegex('/>\s+/', '>');
-		
-		$tokenizer->addCopyRegex('/<.*>/U', 'notes', ' ', function ($str){return substr($str, 1, strlen($str) - 2);});
-	}
-	
-	$tokenizer->addPostProcessFunction('va_tokenize_to_db_cols');
-	$tokenizer->addPostProcessFunction('va_tokenize_split_double_genders');
-	$tokenizer->addPostProcessFunction('va_tokenize_handle_groups_and_concepts');
-	$tokenizer->addPostProcessFunction('va_tokenize_handle_source_types');
-	$tokenizer->addPostProcessFunction('va_add_original_and_ipa');
-	
-	return $tokenizer;
+	return '<a target="_BLANK" href="https://orcid.org/' . $orcid . '"><img class="orcid" src="' . VA_PLUGIN_URL . '/images/orcid.svg" /></a>';
 }
 ?>

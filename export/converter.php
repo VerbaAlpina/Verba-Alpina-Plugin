@@ -8,11 +8,12 @@ abstract class VA_Converter {
 	 * 3 => false (or missing) == element, string == attribute with this name
 	 */
 	protected static $fields = [
-		[['External_Id', 'Id_Instance'], true, true, 'id'],
+		[['CONCAT(External_Id, "_v", Version, SUBSTRING(DATABASE(), 3))', 'Id_Instance'], true, true, 'id'],
 		['Instance', true],
 		['Instance_Encoding', true],
 		['Instance_Original', true],
 		['Instance_Source', true],
+		['Stimulus', true],
 		['Id_Concept', 'concept', false],
 		[['IF(Name_D != "", CONCAT(Name_D, " (", Beschreibung_D, ")"), Beschreibung_D)', 'Concept_Description'], 'concept'],
 		[['IF(Konzepte.QID = 0, NULL, CONCAT("Q", Konzepte.QID))', 'QID'], 'concept'],
@@ -32,7 +33,7 @@ abstract class VA_Converter {
 		['Id_Base_Type', ['type', 'base_Type'], false],
 		[['Base_Type', 'Base_Type_Name'], ['type', 'base_Type']],
 		['Base_Type_Lang', ['type', 'base_Type']],
-		['Base_Type_Unsure', ['type', 'base_Type']],
+		['Base_Type_Unsure', ['type', 'base_Type']]
 	];
 	
 	protected $data;
@@ -43,6 +44,10 @@ abstract class VA_Converter {
 		$query = $this->create_query($id, $db);
 		$va_xxx->select($db);
 		$this->data = $va_xxx->get_results($query, ARRAY_A);
+		
+		if (empty($this->data)){
+			throw new ErrorException('No data for this id!');
+		}
 	}
 	
 	private function create_query ($id, $db){
@@ -54,7 +59,7 @@ abstract class VA_Converter {
 			$condition = 'Id_Community = ' . substr($id, 1);
 		}
 		else if ($id[0] == 'L'){
-			$condition = 'Id_Type = ' . substr($id, 1) . ' AND Type_Kind = "L"';
+			$condition = 'Id_Type = ' . substr($id, 1) . ' AND Type_Kind = "L" AND Source_Typing = "VA"';
 		}
 		else if ($id[0] == 'S' || $id[0] == 'G'){
 			$condition = 'External_Id = "' . $id  . '"';
@@ -63,7 +68,7 @@ abstract class VA_Converter {
 			throw new Exception('Unknown id type: ' . $id);
 		}
 	
-		$from_clause = 'FROM ' . $db . '.z_ling JOIN ' . $db . '.Orte ON Id_Community = Id_Ort JOIN Konzepte ON Id_Konzept = Id_Concept';
+		$from_clause = 'FROM ' . $db . '.z_ling LEFT JOIN ' . $db . '.Orte ON Id_Community = Id_Ort LEFT JOIN Konzepte ON Id_Konzept = Id_Concept LEFT JOIN A_Versionen ON id = External_Id LEFT JOIN Stimuli USING (Id_Stimulus)';
 		$where_clause = 'WHERE Id_Instance IN (SELECT Id_Instance FROM ' . $db . '.z_ling WHERE ' . $condition . ')';
 		$appendix = 'GROUP BY Id_Instance, Id_Concept, Id_Type, Id_Base_Type ORDER BY Id_Instance ASC, Type_Kind ASC, Id_Type ASC, Id_Base_Type ASC, Id_Concept ASC';
 											
@@ -77,9 +82,11 @@ abstract class VA_Converter {
 		}, self::$fields)) . ' ' . $from_clause . ' ' . $where_clause . ' ' . $appendix;
 	}
 	
-	public abstract function export($add_empty = true);
+	public abstract function export();
 	
 	public abstract function get_extension();
+	
+	public abstract function get_mime();
 	
 	protected static function va_lang_to_iso ($lang){
 		switch ($lang){
@@ -153,10 +160,72 @@ abstract class VA_Converter {
 	}
 }
 
-class VA_XML_Converter extends VA_Converter {
-	private $add_empty;
+class VA_CSV_Converter extends VA_Converter {
 	
 	public function __construct ($id, $db){
+		parent::__construct($id, $db);
+	}
+	
+	public function get_extension (){
+		return 'csv';
+	}
+	
+	public function get_mime (){
+		return 'text/csv';
+	}
+	
+	public function export (){
+		ob_start();
+		$out = fopen('php://output', 'w');
+		
+		$field_names = [];
+		foreach (self::$fields as $field){
+			if (is_array($field[0])){
+				$field_names[] = $field[0][1];
+			}
+			else {
+				$field_names[] = $field[0];
+			}
+		}
+		fputcsv($out, $field_names);
+		
+		foreach ($this->data as $row){
+			fputcsv($out, $row);
+		}
+		fclose($out);
+		
+		$res = ob_get_contents();
+		ob_end_clean();
+		
+		return $res;
+	}
+}
+
+class VA_JSON_Converter extends VA_Converter {
+	
+	public function __construct ($id, $db){
+		parent::__construct($id, $db);
+	}
+	
+	public function get_extension (){
+		return 'json';
+	}
+	
+	public function get_mime (){
+		return 'application/json';
+	}
+	
+	public function export (){
+		return json_encode($this->data);
+	}
+}
+
+class VA_XML_Converter extends VA_Converter {
+	private $add_empty;
+	private $url;
+	
+	public function __construct ($id, $db){
+		$this->url = get_site_url();
 		parent::__construct($id, $db);
 	}
 	
@@ -164,20 +233,19 @@ class VA_XML_Converter extends VA_Converter {
 		return 'xml';
 	}
 	
-	public function export ($add_empty = true){
+	public function get_mime (){
+		return 'text/xml';
+	}
+	
+	public function export ($add_empty = true, $validate = true){
 		
 		$this->add_empty = $add_empty;
 		
-		$xw = new XMLWriter();
-		$xw->openMemory ();
-		$xw->setIndent(true);
-		$xw->setIndentString("\t");
+		$doc = new DOMDocument('1.0', 'UTF-8');
 		
-		$xw->startDocument('1.0', 'UTF-8');
-		
-		$xw->text("\n");
-		
-		$xw->startElement('instances');
+		$instances = $doc->createElementNS($this->url, 'instances');
+		$instances->setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:xsi', 'http://www.w3.org/2001/XMLSchema-instance');
+		$instances->setAttribute('xsi:schemaLocation', $this->url . ' ' . VA_PLUGIN_URL . '/schemas/VerbaAlpina.xsd');
 		
 		$current_id = NULL;
 		$current_data = ['attributes' => []];
@@ -189,7 +257,7 @@ class VA_XML_Converter extends VA_Converter {
 			
 			if ($row['Id_Instance'] != $current_id){
 				if ($current_id != NULL){
-					$this->save_row($xw, $current_id, $current_data);
+					$instances->appendChild($this->create_row($doc, $current_id, $current_data));
 				}
 				
 				$current_id = $row['Id_Instance'];
@@ -252,86 +320,97 @@ class VA_XML_Converter extends VA_Converter {
 			}
 		}
 		
-		$this->save_row($xw, $current_id, $current_data);
+		$instances->appendChild($this->create_row($doc, $current_id, $current_data));
 		
-		$xw->endElement();
+		$doc->appendChild($instances);
 		
-		$xw->endDocument();
-		return $xw->outputMemory();
+		if ($validate){
+			libxml_use_internal_errors(true);
+
+			if (!$doc->schemaValidate(VA_PLUGIN_PATH . '/schemas/VerbaAlpina.xsd')){
+				$msg = 'XML could not be validated:';
+				$errrors = libxml_get_errors();
+				foreach ($errrors as $errror){
+					$msg .= "<br />" . $errror->message;
+				}
+				throw new ErrorException($msg);
+			}
+		}
+		
+		$doc->formatOutput = true;
+		
+		return $doc->saveXML();
 	}
 	
-	private function save_row (XMLWriter &$xw, $id, $data){
-		$xw->startElement('instance');
+	private function create_row (DOMDocument &$doc, $id, $data){
+		$instance = $doc->createElementNS($this->url, 'instance');
 		
 		foreach ($data['attributes'] as $aname => $aval){
-			$xw->startAttribute($aname);
-			$xw->text($aval);
-			$xw->endAttribute();
+			$instance->setAttribute($aname, $aval);
 		}
 		unset($data['attributes']);
 		
 		foreach ($data as $key => $val){
 			if (is_array($val)){
 				if ($this->add_empty || count($val) > 0){
-					$this->add_array($xw, $key, $val);		
+					$instance->appendChild($this->element_from_array($doc, $key, $val));		
 				}					
 			}
 			else {
 				if ($this->add_empty || ($val !== '' && $val !== null)){
-					$xw->startElement(self::underscore_to_camel($key));
+					$sub_node = $doc->createElementNS($this->url, self::underscore_to_camel($key));
 					if ($key == 'Instance_Source'){
-						self::split_source($xw, $val);
+						$this->split_source($sub_node, $doc, $val);
 					}
 					else if ($key == 'Community_Bounding_Box'){
-						self::split_bounding_box($xw, $val);
+						$this->split_bounding_box($sub_node, $doc, $val);
 					}
 					else if ($key == 'Community_Name'){
-						$this->split_comm_name($xw, $val);
+						$this->split_comm_name($sub_node, $doc, $val);
+					}
+					else if ($key == 'Instance'){
+						$this->split_instance($sub_node, $doc, $val);
 					}
 					else {
-						$xw->text($val);
+						$sub_node->nodeValue = $val;
 					}
-					$xw->endElement();
+					$instance->appendChild($sub_node);
 				}
 			}
 		}
 		
-		$xw->endElement();
+		return $instance;
 	}
 	
 	
-	private function add_array (XMLWriter &$xw, $name, $arr){
+	private function element_from_array (DOMDocument &$doc, $name, $arr){
 		
-		$xw->startElement(self::underscore_to_camel($name . 's'));
+		$node = $doc->createElementNS($this->url, self::underscore_to_camel($name . 's'));
 
 		foreach ($arr as $element){
-			$xw->startElement(self::underscore_to_camel($name));
+			$sub_node = $doc->createElementNS($this->url, self::underscore_to_camel($name));
 			
 			foreach ($element['attributes'] as $aname => $aval){
-				$xw->startAttribute($aname);
-				$xw->text($aval);
-				$xw->endAttribute();
+				$sub_node->setAttribute($aname, $aval);
 			}
 			unset($element['attributes']);
 			
 			foreach ($element as $key => $part){
 				if (is_array($part)){
 					if ($this->add_empty || count($part) > 0){
-						$this->add_array($xw, $key, $part);
+						$sub_node->appendChild($this->element_from_array($doc, $key, $part));
 					}
 				}
 				else {
 					if ($this->add_empty || ($part !== '' && $part !== null)){
-						$xw->startElement(self::underscore_to_camel($key));
-						$xw->text($part);
-						$xw->endElement();
+						$sub_node->appendChild($doc->createElementNS($this->url, self::underscore_to_camel($key), $part));
 					}
 				}
 			}
-			$xw->endElement();
+			$node->appendChild($sub_node);
 		}
 		
-		$xw->endElement();
+		return $node;
 	}
 	
 	private static function underscore_to_camel ($str){
@@ -342,31 +421,31 @@ class VA_XML_Converter extends VA_Converter {
 		}, $str);
 	}
 	
-	private static function split_source (XMLWriter &$xw, $soure_str){
+	private function split_source (DOMElement &$parent, DOMDocument &$doc, $soure_str){
 		$data = explode('#', $soure_str);
 		
-		$xw->startElement('source');
-		$xw->text($data[0]);
-		$xw->endElement();
-		
-		$xw->startElement('mapNumber');
-		$xw->text($data[1]);
-		$xw->endElement();
-		
-		$xw->startElement('subNumber');
-		$xw->text($data[2]);
-		$xw->endElement();
-		
-		$xw->startElement('informantNumber');
-		$xw->text($data[3]);
-		$xw->endElement();
-		
-		$xw->startElement('locationName');
-		$xw->text($data[4]);
-		$xw->endElement();
+		$parent->appendChild($doc->createElementNS($this->url, 'source', $data[0]));
+		$parent->appendChild($doc->createElementNS($this->url, 'mapNumber', $data[1]));
+		$parent->appendChild($doc->createElementNS($this->url, 'subNumber', $data[2]));
+		$parent->appendChild($doc->createElementNS($this->url, 'informantNumber', $data[3]));
+		$parent->appendChild($doc->createElementNS($this->url, 'locationName', $data[4]));
 	}
 	
-	private function split_comm_name (XMLWriter &$xw, $source_str){
+	private function split_instance (DOMElement &$parent, DOMDocument &$doc, $soure_str){
+		$posHashes = mb_strpos($soure_str, '###');
+		
+		if ($posHashes === false){
+			$parent->appendChild($doc->createElementNS($this->url, 'text', $soure_str));
+		}
+		else {
+			$parent->appendChild($doc->createElementNS($this->url, 'text', mb_substr($soure_str, 0, $posHashes)));
+			$parent->appendChild($doc->createElementNS($this->url, 'partOf', mb_substr($soure_str, $posHashes + 3)));
+		}
+		
+		
+	}
+	
+	private function split_comm_name (DOMElement &$parent, DOMDocument &$doc, $source_str){
 		$index = mb_strpos($source_str, '###');
 		
 		$transl = [];
@@ -382,40 +461,30 @@ class VA_XML_Converter extends VA_Converter {
 			}
 		}
 		
-		$xw->startElement('officialName');
-		$xw->text($name);
-		$xw->endElement();
+		$parent->appendChild($doc->createElementNS($this->url, 'officialName', $name));
 		
 		if ($this->add_empty || $transl){
-			$xw->startElement('translations');
+			$tnode = $doc->createElementNS($this->url, 'translations');
 			foreach ($transl as $lang => $name){
-				$xw->startElement('translation');
-				$xw->startAttribute('lang');
-				$xw->text(self::va_lang_to_iso($lang));
-				$xw->endAttribute();
-				$xw->text($name);				
-				$xw->endElement();
+				$tsub_node = $doc->createElementNS($this->url, 'translation', $name);
+				$tsub_node->setAttribute('lang', self::va_lang_to_iso($lang));			
+				$tnode->appendChild($tsub_node);
 			}
-			$xw->endElement();
+			$parent->appendChild($tnode);
 		}
 	}
 
-	private static function split_bounding_box (XMLWriter &$xw, $source_str){
+	private function split_bounding_box (DOMElement $parent, DOMDocument $doc, $source_str){
 		$source_str = substr($source_str, 9, -2);
 		$coords = explode(',', $source_str);
 		foreach ($coords as $coord){
-			$xw->startElement('point');
-			
+			$point = $doc->createElementNS($this->url, 'point');
+
 			$latlng = explode(' ', $coord);
-			$xw->startElement('latitude');
-			$xw->text($latlng[1]);
-			$xw->endElement();
+			$point->appendChild($doc->createElementNS($this->url, 'latitude', $latlng[1]));
+			$point->appendChild($doc->createElementNS($this->url, 'longitude', $latlng[0]));
 			
-			$xw->startElement('longitude');
-			$xw->text($latlng[0]);
-			$xw->endElement();
-			
-			$xw->endElement();
+			$parent->appendChild($point);
 		}
 	}
 }

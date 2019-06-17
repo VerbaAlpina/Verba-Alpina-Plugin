@@ -190,7 +190,7 @@ function addCopyButtonSupport () {
 	new Clipboard('.copyButton', {
 	    text: function(trigger) {
 	    	var regex = /<br\s*[\/]?>/gi;
-	        return jQuery(trigger).data('content').replace(regex, "\n").replace(/&nbsp;/g, " ");
+	        return jQuery(trigger).data('content').replace(regex, "\n").replace(/&nbsp;/g, " ").replace(/(<([^>]+)>)/ig,"");
 	    }
 	});
 }

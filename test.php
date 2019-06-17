@@ -210,8 +210,8 @@ function test (){
 // 	echo '</pre>';
 // 	return;
 
-	VA_Converter::random_examples('VA_XML_Converter', 'va_181', 50);
-	return;
+// 	VA_Converter::random_examples('VA_XML_Converter', 'va_181', 50);
+// 	return;
 	
 	// $conv = new VA_XML_Converter('C1', 'va_181');
 	// echo '<pre>' . htmlentities($conv->export(false)) . '</pre>';

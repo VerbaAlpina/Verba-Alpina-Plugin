@@ -54,7 +54,7 @@ function show_questionnaire_results ($attrs){
 	
 	$results = $wpdb->get_results($wpdb->prepare('
 		SELECT page, user_id, question, question_text, (
-			SELECT answer 
+			SELECT REPLACE(answer, "###", ", ")
 			FROM questionnaire_results q2 
 			WHERE q2.page = q.page and q2.user_id = q.user_id and q2.question = q.question
 			ORDER BY timestamp DESC

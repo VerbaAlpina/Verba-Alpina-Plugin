@@ -10,6 +10,7 @@ function va_todo_page ($person){
 				"action" : "va",
 				"namespace" : "util",
 				"query" : "markTodo",
+				"dbname" : "va_xxx",
 				"id" : jQuery(this).data("id"),
 				"marked" : checked? "1": "0"
 			}, function (response){

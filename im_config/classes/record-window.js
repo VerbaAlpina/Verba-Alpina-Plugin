@@ -55,6 +55,11 @@ function RecordInfoWindowContent (categoryID, elementID, overlayType, data){
 	this.communityName = data["community"];
 	
 	/**
+	 * @type {string} 
+	 */
+	this.geonamesID = data["geonames"];
+	
+	/**
 	 * @type {Array<Object>}
 	 */
 	this.tooltipApis = [];
@@ -75,10 +80,14 @@ function RecordInfoWindowContent (categoryID, elementID, overlayType, data){
 		if (this.encoding == 4){
 			crecord = escapeHtml(crecord);
 		}
+		
+		var geonames = this.geonamesID? "<a target='_BLANK' href='http://www.geonames.org/" + this.geonamesID + "'><img class='geonamesLogo' src='" + ajax_object["plugin_url"] + "/images/geonames-icon.svg' /></a>": "";
+		
 		if(crecord.substring(1,4) == "TYP"){
 			result += "<table style='width : 100%'><tr><td>" + Ue['KEIN_BELEG'] + "</td>";
-			if(index == 0 || optionManager.getOptionState("polymode") == "hex")
-				result += "<td><h2 class='community singleRecord'>" + this.communityName + "</h2></td>";
+			if(index == 0 || optionManager.getOptionState("polymode") == "hex"){
+				result += "<td><h2 class='community singleRecord'>" + this.communityName + geonames + "</h2></td>";
+			}
 			result += "</tr></table>";
 		}
 		else {
@@ -122,7 +131,7 @@ function RecordInfoWindowContent (categoryID, elementID, overlayType, data){
 			}
 			result += "</div><span>(" + Ue['EINZELBELEG'] + ")</span></td>";
 			if(index == 0  || optionManager.getOptionState("polymode") == "hex")
-				result += "<td><h2 class='community singleRecord'>" + this.communityName + "</h2></td>";
+				result += "<td><h2 class='community singleRecord'>" + this.communityName + geonames + "</h2></td>";
 			result += "</tr></table>";
 		}
 		result += "<br /><br />" + this.typeTable + "<br /><br /><table class='easy-table easy-table-default va_record_source_table'><tr><th>" + Ue["QUELLE"] + "</th><th>" + Ue["KONZEPT"] + "</th></tr>";
@@ -149,7 +158,7 @@ function RecordInfoWindowContent (categoryID, elementID, overlayType, data){
 			if(conceptName == "" || conceptName == conceptDescription)
 				result += "<tr><td class='atlasSource'>" + this.sources[i] + "</td><td>" + conceptDescription + wdataLink + "</td></tr>";
 			else
-				result += "<tr><td class='atlasSource'>" + this.sources[i] + "</td><td><span class='currentRecordWindowConcept' data-concept-descr='" + conceptDescription+ "'>" + conceptName + "</span>" + wdataLink + "</td></tr>";
+				result += "<tr><td class='atlasSource'>" + this.sources[i] + "</td><td><span class='currentRecordWindowConcept' data-concept-descr='" + conceptDescription.replace("'", "&apos;") + "'>" + conceptName + "</span>" + wdataLink + "</td></tr>";
 		}
 		
 		result += "</table>";
@@ -242,7 +251,7 @@ function RecordInfoWindowContent (categoryID, elementID, overlayType, data){
 			thisObject.tooltipApis.push(apis[i]);
 		}
 		
-		var /** Array<Object>*/ apis = addBibLikeQTips(jQuery(content).find(".va_type_table"), ["iso"], ["light"], ["ISO_"]);
+		apis = addBibLikeQTips(jQuery(content).find(".va_type_table"), ["iso"], ["light"], ["ISO_"]);
 		for (let i = 0; i < apis.length; i++){
 			thisObject.tooltipApis.push(apis[i]);
 		}

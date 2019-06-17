@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" targetNamespace="https://www.verba-alpina.gwi.uni-muenchen.de" xmlns="https://www.verba-alpina.gwi.uni-muenchen.de" elementFormDefault="qualified">
 
 	<xsd:annotation>
 		<xsd:documentation xml:lang="de">
@@ -33,6 +33,10 @@
 			<xsd:enumeration value="ger"/>
 			<xsd:enumeration value="rom"/>
 			<xsd:enumeration value="sla"/>
+			<xsd:enumeration value="romger"/>
+			<xsd:enumeration value="romsla"/>
+			<xsd:enumeration value="gersla"/>
+			<xsd:enumeration value="romgersla"/>
 		</xsd:restriction>
 	</xsd:simpleType>
 	
@@ -47,7 +51,7 @@
 	
 	<xsd:simpleType name="instanceId">
 		<xsd:restriction base="xsd:string">
-			<xsd:pattern value="(A|C|G|L|S)([0-9])+"/>
+			<xsd:pattern value="(A|C|G|L|S)([0-9])+_v[0-9]+_[0-9]{2}[1-2]"/>
 		</xsd:restriction>
 	</xsd:simpleType>
 	
@@ -86,17 +90,18 @@
 	<!-- 2. Ebene -->
 	<xsd:complexType name="instance">
 		<xsd:sequence>
-			<xsd:element name="instance" type="xsd:string" minOccurs="0"/>
+			<xsd:element name="instance" type="instanceDetail" minOccurs="0"/>
 			<xsd:element name="instanceEncoding" type="instanceEncoding" minOccurs="0"/>
 			<xsd:element name="instanceOriginal" type="xsd:string" minOccurs="0"/>
 			<xsd:element name="instanceSource" type="instanceSource"/>
-			<xsd:element name="concepts" type="concepts"/>
+			<xsd:element name="stimulus" type="xsd:string"/>
+			<xsd:element name="concepts" type="concepts" minOccurs="0"/>
 			<xsd:element name="communityName" type="communityName"/>
 			<xsd:element name="communityBoundingBox" type="communityBoundingBox"/>
 			<xsd:element name="yearPublication" type="xsd:string" minOccurs="0"/>
 			<xsd:element name="yearSurvey" type="xsd:string" minOccurs="0"/>
 			<xsd:element name="informantLang" type="informantLang"/>
-			<xsd:element name="types" type="types"/>
+			<xsd:element name="types" type="types" minOccurs="0" />
 		</xsd:sequence>
 		<xsd:attribute name="id" type="instanceId" use="required"/>
 	</xsd:complexType>
@@ -119,6 +124,13 @@
 	<xsd:complexType name="concepts">
 		<xsd:sequence>
 			<xsd:element name="concept" type="concept" minOccurs="0" maxOccurs="unbounded"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	
+	<xsd:complexType name="instanceDetail">
+		<xsd:sequence>
+			<xsd:element name="text" type="xsd:string" />
+			<xsd:element name="partOf" type="xsd:string" minOccurs="0" />
 		</xsd:sequence>
 	</xsd:complexType>
 	
@@ -194,7 +206,7 @@
 	<xsd:complexType name="baseType">
 		<xsd:sequence>
 			<xsd:element name="baseTypeName" type="xsd:string"/>
-			<xsd:element name="baseTypeLang" type="isoLang"/>
+			<xsd:element name="baseTypeLang" type="isoLang" minOccurs="0" />
 			<xsd:element name="baseTypeUnsure" type="baseTypeUnsure"/>
 		</xsd:sequence>
 	</xsd:complexType>
