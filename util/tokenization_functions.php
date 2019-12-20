@@ -336,7 +336,8 @@ function va_tokenize_for_stimulus ($id_stimulus, $preview){
 			}
 			
 			$va_xxx->query('COMMIT');
-			echo count($inserts) . ' Datensätze eingefügt!';
+			//echo count($inserts) . ' Datensätze eingefügt!';
+			echo 'Tokenisierung abgeschlossen!';
 		}
 	}
 }

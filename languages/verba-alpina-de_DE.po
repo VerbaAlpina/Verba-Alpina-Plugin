@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 17:29+0200\n"
-"PO-Revision-Date: 2019-05-13 17:29+0200\n"
+"POT-Creation-Date: 2019-06-28 14:36+0200\n"
+"PO-Revision-Date: 2019-06-28 14:36+0200\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: de_DE\n"
@@ -33,6 +33,10 @@ msgstr "Atlas wählen"
 msgid "Choose Stimulus"
 msgstr "Stimulus auswählen"
 
+#: backend/typification/lex.php:119
+msgid "Choose type"
+msgstr "Typ auswählen"
+
 #: backend/typification/lex.php:128
 msgid "Assign type"
 msgstr "Typ zuweisen"
@@ -40,6 +44,10 @@ msgstr "Typ zuweisen"
 #: backend/typification/lex.php:129
 msgid "Create new type"
 msgstr "Neuen Typ erstellen"
+
+#: backend/typification/lex.php:137
+msgid "Choose concept"
+msgstr "Konzept auswählen"
 
 #: backend/typification/lex.php:146
 msgid "Assign concept"
@@ -101,28 +109,28 @@ msgstr "Konzept(e) auswählen"
 msgid "Remove&nbsp;row"
 msgstr "Zeile&nbsp;entfernen"
 
-#: va.php:709
+#: va.php:712
 msgid ""
 "Adds a marker to the data base that there are no attestations for this "
 "informant."
 msgstr ""
 "Markiert in der Datenbank, dass es für diesen Informanten keine Belege gibt."
 
-#: va.php:712 va.php:713
+#: va.php:715 va.php:716
 msgid "Concept does not exist"
 msgstr "Konzept nicht vorhanden"
 
-#: va.php:714
+#: va.php:717
 msgid ""
 "Adds a marker to the data base that this concept is not known at this place."
 msgstr ""
 "Markiert in der Datenbank, dass dieses Konzept an diesem Ort unbekannt ist."
 
-#: va.php:717 va.php:718
+#: va.php:720 va.php:721
 msgid "Term not known"
 msgstr "Bezeichnung nicht bekannt"
 
-#: va.php:719
+#: va.php:722
 msgid ""
 "Adds a marker to the data base that this concept is known at this place, but "
 "the informant does not know a term for it."
@@ -130,15 +138,15 @@ msgstr ""
 "Markiert in der Datenbank, dass das Konzept an diesem Ort bekannt ist, aber "
 "der Informant keine Bezeichnung dafür kennt."
 
-#: va.php:721
+#: va.php:724
 msgid "Only within alpine convention"
 msgstr "Nur innerhalb der Alpenkonvention"
 
-#: va.php:886
+#: va.php:890
 msgid "Typification"
 msgstr "Typisierung"
 
-#: va.php:906
+#: va.php:911
 msgid "Data base"
 msgstr "Datenbank"
 

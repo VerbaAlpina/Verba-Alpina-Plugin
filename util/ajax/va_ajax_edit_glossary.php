@@ -42,7 +42,9 @@ function va_ajax_edit_glossary ($db){
 					break;
 				}
 				
-				$query = $db->prepare("UPDATE Glossar set Erlaeuterung_D = %s, Fertig = %d, Intern = %s, Erlaeuterung_$lang = %s, Terminus_$lang = %s where Id_Eintrag = %d", stripslashes($_POST['content']), $_POST['ready'], $_POST['internal'], stripslashes($_POST['erlaeuterung']), stripslashes($_POST['terminus']), $_POST['id']);
+				$old_transl_name = $db->get_var($db->prepare("SELECT Terminus_$lang FROM Glossar WHERE Id_Eintrag = %d", $_POST['id']));
+				
+				$translation_changed = $db->update('Glossar', ['Erlaeuterung_'.$lang => stripslashes($_POST['erlaeuterung']), 'Terminus_'.$lang => stripslashes($_POST['terminus'])], ['Id_Eintrag' => $_POST['id']]);
 				
 				$db->delete('VTBL_Eintrag_Autor', array('Id_Eintrag' => $_POST['id'], 'Aufgabe' => 'trad', Sprache => $lang), array ('%d', '%s', '%s'));
 				if($_POST['translators']){
@@ -58,11 +60,8 @@ function va_ajax_edit_glossary ($db){
 					}
 				}
 			}
-			else {
-				$query = $db->prepare('UPDATE Glossar set Erlaeuterung_D = %s, Fertig = %d, Intern = %s where Id_Eintrag = %d', stripslashes($_POST['content']), $_POST['ready'], $_POST['internal'], $_POST['id']);
-			}
 			
-			$db->query($query);
+			$german_changed = $db->update('Glossar', ['Erlaeuterung_D' => stripslashes($_POST['content']), 'Fertig' => $_POST['ready'], 'Intern' => $_POST['internal']], ['Id_Eintrag' => $_POST['id']]);
 			
 			$db->delete('VTBL_Eintrag_Tag', array('Id_Eintrag' => $_POST['id']), array ('%d'));
 			if($_POST['tags']){
@@ -76,6 +75,17 @@ function va_ajax_edit_glossary ($db){
 				foreach ($_POST['authors'] as $author){
 					$db->insert('VTBL_Eintrag_Autor', array ('Id_Eintrag' => $_POST['id'], 'Kuerzel' => $author, 'Aufgabe' => 'auct', 'Sprache' => 'D'), array ('%d', '%s', '%s', '%s'));
 				}
+			}
+			
+			global $va_next_db_name;
+			if ($german_changed){
+				$db->update('Glossar', ['geaendert_D' => $va_next_db_name], ['Id_Eintrag' => $_POST['id']]);
+			}
+			if ($translation_changed){
+				$db->update('Glossar', ['geaendert_'.$lang => $va_next_db_name], ['Id_Eintrag' => $_POST['id']]);
+			}
+			if (isset($_POST['language']) && !$old_transl_name){
+				$db->update('Glossar', ['angelegt_'.$lang => $va_next_db_name], ['Id_Eintrag' => $_POST['id']]);
 			}
 			
 			echo '1';

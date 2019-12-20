@@ -533,7 +533,7 @@ function getConceptSearchDefaults (){
 			results.sort(function (a, b){
 				var t1 = a.text.toUpperCase();
 				var t2 = b.text.toUpperCase();
-
+				
 				var diff = t1.indexOf(currentSearchTerm) - t2.indexOf(currentSearchTerm);
 				if(diff == 0){
 					return t1.localeCompare(t2);
@@ -548,10 +548,38 @@ function getConceptSearchDefaults (){
 	
 	res["language"] = {};
 	res["language"]["searching"] = function (params){
-		currentSearchTerm = params["term"];
+		currentSearchTerm = params["term"]? params["term"].toUpperCase(): "";
 		return "Searching...";
 	}
 	
+	res["minimumInputLength"] = 2;
+	
 	return res;
+}
+
+function addCitations (copyName){
+	jQuery(".quote").each(function (){
+		jQuery(this).qtip({
+			"show" : "click",
+			"hide" : "unfocus",
+			"content" : {
+				"text" : function (){
+					var result = "<div class='divPlain'>" + jQuery(this).data("plain").replace(/(http[^ ]*)/, "<a href='$1'>$1</a>") + "</div><br />";
+					result += "<input class='copyButton buttonPlain' style='display: block; margin: auto;' type='button' value='" + copyName + "' /><br /><br />";
+					result += "<div class='divBibtex'>" + jQuery(this).data("bibtex") + "</div><br />";
+					result += "<input class='copyButton buttonBibtex' style='display: block; margin: auto;' type='button' value='" + copyName + "' />";
+					return result;
+				}
+			},
+			"events" : {
+				"visible": function (event, api){
+					jQuery(event.target).find(".buttonPlain").data("content", jQuery(event.target).find(".divPlain").html());
+					jQuery(event.target).find(".buttonBibtex").data("content", jQuery(event.target).find(".divBibtex").html());
+				}
+			}
+		});
+	});
+
+	addCopyButtonSupport();
 }
 

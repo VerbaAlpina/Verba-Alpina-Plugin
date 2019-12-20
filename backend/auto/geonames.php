@@ -83,6 +83,13 @@ function va_contry_tag_to_iso3166 ($val){
 	switch ($val){
 		case 'ita': return ['it', 3];
 		case 'fra': return ['fr', 4];
+		case 'smr': return ['sm', 1];
+		case 'deu': return ['de', 4];
+		case 'che': return ['ch', 3];
+		case 'lie': return ['li', 1];
+		case 'aut': return ['at', 3];
+		case 'svn': return ['si', 1];
+		case 'hrv': return ['hr', 2];
 		default: throw new Exception('Unknown country tag: ' . $val);
 	}
 }
@@ -95,7 +102,14 @@ function va_load_geonames_ids ($limit){
 	try {
 		foreach ($communities as $community){
 			list ($lang, $depth) = va_contry_tag_to_iso3166($community[2]);
-			$api_url = 'http://api.geonames.org/search?username=fzacherl&name_equals=' . urlencode($community[1]) . '&country=' . $lang . '&featureCode=ADM' . $depth;
+			
+			$name = $community[1];
+			if (preg_match('/[^(]+\([^)]+\)/', $name)){
+			    $name = mb_substr($name, 0, mb_strpos($name, ' ('));
+			}
+			
+			//+ H für historical
+			$api_url = 'http://api.geonames.org/search?username=fzacherl&name_equals=' . urlencode($name) . '&country=' . $lang . '&featureCode=ADM' . $depth /*. 'H'*/;
 			
 			$curl = curl_init($api_url);
 			curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
@@ -110,8 +124,24 @@ function va_load_geonames_ids ($limit){
 			
 			$id_element = $xml->xpath('geoname/geonameId');
 			
-			if (!$id_element || count($id_element) > 1){
+			if (!$id_element){
 				$id = 0;
+			}
+			else if (count($id_element) > 1){
+			    $lats = $xml->xpath('geoname/lat');
+			    $lngs = $xml->xpath('geoname/lng');
+			    
+			    for ($i = 0; $i < count($id_element); $i++){
+			        $found = $va_xxx->get_var('SELECT WITHIN(GeomFromText("POINT(' . $lngs[$i] . ' ' . $lats[$i] . ')"), Geodaten) FROM Orte WHERE Id_Ort = ' . $community[0]);
+			        if ($found)
+			             break;
+			    }
+			    if ($found){
+			        $id = $id_element[$i];
+			    }
+			    else {
+			        $id = 0;
+			    }
 			}
 			else {
 				$id = $id_element[0]->__toString();

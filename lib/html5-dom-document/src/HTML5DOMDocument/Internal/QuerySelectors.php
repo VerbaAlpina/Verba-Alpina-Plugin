@@ -2,6 +2,8 @@
 
 namespace IvoPetkov\HTML5DOMDocument\Internal;
 
+use DOMNodeList;
+
 trait QuerySelectors
 {
 

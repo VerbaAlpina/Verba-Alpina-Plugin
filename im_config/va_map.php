@@ -17,7 +17,7 @@ $concepts = IM_Initializer::$instance->database->get_results("
 									Beschreibung_$lang AS Beschreibung, 
 									kk.Hauptkategorie,
 									kk.Kategorie, 
-									Name_$lang != '' OR a1.Id_Ueberkonzept = 707 AS Anzeige,
+									(Name_$lang != '' OR a1.Id_Ueberkonzept = 707) AND Relevanz AS Anzeige,
 									a1.Anzahl_Allein AS Anzahl_Belege,
 									a1.Anzahl_Allein_AK AS Anzahl_Belege_AK,
 									a1.Dateiname,
@@ -100,6 +100,8 @@ wp_localize_script ('im_map_script', 'TypeGenders', va_two_dim_to_assoc($typeGen
 wp_localize_script ('im_map_script', 'QIDS', va_two_dim_to_assoc($qids));
 wp_localize_script ('im_map_script', 'TypeOccs', $type_occs);
 
+$show_legend = isset($_REQUEST['tk']) || isset($_REQUEST['single']);
+
 ?>
 <style type="text/css">
 .search_container input{
@@ -123,12 +125,12 @@ wp_localize_script ('im_map_script', 'TypeOccs', $type_occs);
 				         		<select multiple="multiple" class="global_search"></select> <?php //TODO move to im?>
 				         	</div>
 
-					<div id="trSelectionBar" class="menu_grp active">
+					<div id="trSelectionBar" class="menu_grp<?php echo (!$show_legend? ' active': '')?>">
 					
 				      <h2 style="padding-top: 13px;" class="menu_heading" id="selection_heading">
 
 
-						    <i class="fa fa-caret-down menu_caret" aria-hidden="true"></i>
+						    <i class="fa fa-caret-<?php echo ($show_legend? 'right': 'down')?> menu_caret" aria-hidden="true"></i>
 								<?php echo ucfirst($Ue['KARTOGRAPHISCH']);?>
 
 							
@@ -150,12 +152,12 @@ wp_localize_script ('im_map_script', 'TypeOccs', $type_occs);
 							
 
 						
-				     <div class="menu_collapse collapse_p active">
+				     <div class="menu_collapse collapse_p<?php echo ($show_legend? '': ' active')?>" <?php echo ($show_legend? ' style="display: none"': '')?>>
 
  
 				     		<!-- <div><i class="fas fa-search"></i>Search...</div> -->
 
-							<h6 class="VA_Map_Subhead search_language_data search"><?php echo ucfirst($Ue['SPRACHDATEN']); ?></h6>
+							<h6 class="VA_Map_Subhead search_language_data search"><?php echo ucfirst($Ue['SPRACHDATEN']); ?> <span class="sql-query-btn">SQL Query</span></h6>
 
 							<div class="va_select_container">
 
@@ -207,24 +209,24 @@ wp_localize_script ('im_map_script', 'TypeOccs', $type_occs);
 
 						    </div>		
 								
-								<div class="va_select_container">
-									<?php
+								<!-- <div class="va_select_container"> -->
+									<!-- <?php 
 
-
-								echo im_table_select('Z_Ling', array('Id_Type'), array('Type'), 'phonTypeSelect', array(
-										'placeholder' => ucfirst($Ue['PHON_TYP_PLURAL']),
-										'width' => '90%',
-										'filter' => "Type_Kind = 'P' AND Source_Typing = 'VA'",
-										'costum_attribute_function' => function ($val, $name) use ($type_occs){
-											return 'data-in-ak=' . $type_occs['P' . $val];
-										}
-								));
-								echo va_get_mouseover_help($Ue['HILFE_PHON'], $Ue, IM_Initializer::$instance->database, $lang, 58);
+									//Phonetic types
+								// echo im_table_select('Z_Ling', array('Id_Type'), array('Type'), 'phonTypeSelect', array(
+								// 		'placeholder' => ucfirst($Ue['PHON_TYP_PLURAL']),
+								// 		'width' => '90%',
+								// 		'filter' => "Type_Kind = 'P' AND Source_Typing = 'VA'",
+								// 		'costum_attribute_function' => function ($val, $name) use ($type_occs){
+								// 			return 'data-in-ak=' . $type_occs['P' . $val];
+								// 		}
+								// ));
+								// echo va_get_mouseover_help($Ue['HILFE_PHON'], $Ue, IM_Initializer::$instance->database, $lang, 58);
 									
 							
 
-									?>
-							    </div>	
+								   ?> -->
+							    <!-- </div>	 -->
 
 							
 								<?php
@@ -270,7 +272,8 @@ wp_localize_script ('im_map_script', 'TypeOccs', $type_occs);
 								
 								?>
 
-							<div class="va_select_container">
+
+							<div class="va_select_container" style="margin-top: 15px;">
 
 								<div style="display: inline-block; width: 90%">
 								<?php
@@ -361,14 +364,14 @@ wp_localize_script ('im_map_script', 'TypeOccs', $type_occs);
 					      </div>
 					</div>
 					
-					<div class="menu_grp">
+					<div class="menu_grp<?php echo ($show_legend? ' active': '')?>">
 
 						<h2 class="menu_heading" id="legend_heading">
-							<i class="fa fa-caret-right menu_caret" aria-hidden="true"></i>
+							<i class="fa fa-caret-<?php echo ($show_legend? 'down': 'right')?> menu_caret" aria-hidden="true"></i>
 							<?php echo ucfirst($Ue['LEGEND']);?> 
 						</h2>
 
-						 <div class="menu_collapse" style="display: none">
+						 <div class="menu_collapse<?php echo ($show_legend? ' active': '')?>" <?php echo ($show_legend? '': ' style="display: none"')?>>
 							<?php im_create_legend(); ?>
 						</div>
 						
@@ -377,10 +380,10 @@ wp_localize_script ('im_map_script', 'TypeOccs', $type_occs);
 					<div class="menu_grp">
 						
 						<h2 class="menu_heading" id="syn_heading">
-						    <i class="fa fa-caret-right menu_caret" aria-hidden="true"></i>
+						    <i class="fa fa-caret-<?php echo ($show_legend? 'down': 'right')?> menu_caret" aria-hidden="true"></i>
 							 <?php echo ucfirst($Ue['SYN_MAPS_MENU']);?> 
 						</h2>
-							<div class="menu_collapse collapse_p" style="display: none;">
+							<div class="menu_collapse collapse_p" style="display: none">
 							<?php 
 							$syn_readonly = $va_current_db_name === 'va_xxx' && !$va_mitarbeiter;
 							IM_Initializer::$instance->database->select('va_xxx');
@@ -482,7 +485,9 @@ function va_create_sql_help_text ($Ue){
 			$res .= '</table></td><td style="padding-left: 20px;"><table>';
 		}
 	}
-	$res .= '</table></td></tr></table>';
+	$res .= '</table></td></tr></table><br /><br />';
+	
+	$res .= '<a href="' . get_page_link(get_page_by_title('DATENBANK-DOKU')) . '#tabSchnittstelle" target="_BLANK">' . $Ue['DATENBANK_VERWEIS'] . '</a>';
 	
 	echo '<div id="va_sql_help_div" style="display: none;">' . $res . '</div>';
 }

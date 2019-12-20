@@ -37,7 +37,7 @@ function va_graph_page (){
 				Wert,
 				count(*) AS COUNT_Comm
 			FROM Aeusserungen JOIN Informanten USING (Id_Informant) JOIN Orte ON Id_Ort = Id_Gemeinde JOIN Orte_Tags USING (Id_Ort)
-			WHERE Id_Stimulus = 90322 AND Tag = 'LAND' AND Erfasst_Am > '$start_date'
+			WHERE Id_Stimulus IN (SELECT Id_Stimulus FROM Stimuli WHERE Erhebung = 'CROWD') AND Tag = 'LAND' AND Erfasst_Am > '$start_date'
 			GROUP BY DATE(Erfasst_Am), Id_Gemeinde) c
 			GROUP BY Date
 			ORDER BY Date ASC", ARRAY_A);
@@ -312,7 +312,7 @@ function commWindow (str){
 <br />
 <br />
 
-Gesamteintragungen: <?php echo $va_xxx->get_var('SELECT COUNT(*) FROM Aeusserungen WHERE Id_Stimulus = 90322');?>
+Gesamteintragungen: <?php echo $va_xxx->get_var('SELECT COUNT(*) FROM Aeusserungen WHERE Id_Stimulus IN (SELECT Id_Stimulus FROM Stimuli WHERE Erhebung = "CROWD")');?>
 <br />
 <br />
 <div class="entry-content">

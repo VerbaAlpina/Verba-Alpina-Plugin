@@ -8,11 +8,14 @@
 function glossar (){
 	
 	global $va_xxx;
+	global $va_next_db_name;
 
 	echo im_table_entry_box ('addGlossaryEntry', new IM_Row_Information('Glossar', array (
 			new IM_Field_Information('Terminus_D', 'V', true),
 			new IM_Field_Information('Kategorie', 'E', false),
-			new IM_Field_Information('Intern', 'B', false)
+			new IM_Field_Information('Intern', 'B', false),
+			new IM_Field_Information('angelegt_D', 'H', true, false, $va_next_db_name),
+			new IM_Field_Information('geaendert_D', 'H', true, false, $va_next_db_name)
 	)));
 
 	if (isset($_GET['entry'])){

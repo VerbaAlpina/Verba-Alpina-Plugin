@@ -138,7 +138,7 @@
 		<xsd:sequence>
 			<xsd:element name="source" type="xsd:string"/>
 			<xsd:element name="mapNumber" type="xsd:string"/>
-			<xsd:element name="subNumber" type="xsd:nonNegativeInteger"/>
+			<xsd:element name="subNumber" type="xsd:string"/>
 			<xsd:element name="informantNumber" type="xsd:string"/>
 			<xsd:element name="locationName" type="xsd:string" minOccurs="0"/>
 		</xsd:sequence>

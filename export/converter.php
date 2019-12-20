@@ -265,7 +265,6 @@ class VA_XML_Converter extends VA_Converter {
 				$newInstance = true;
 			}
 			
-			$first = true;
 			foreach (self::$fields as $field){
 				$field_name = is_string($field[0])? $field[0]: $field[0][1];
 				
@@ -403,7 +402,7 @@ class VA_XML_Converter extends VA_Converter {
 				}
 				else {
 					if ($this->add_empty || ($part !== '' && $part !== null)){
-						$sub_node->appendChild($doc->createElementNS($this->url, self::underscore_to_camel($key), $part));
+						$this->append_text_element($sub_node, $doc, self::underscore_to_camel($key), $part);
 					}
 				}
 			}
@@ -424,25 +423,38 @@ class VA_XML_Converter extends VA_Converter {
 	private function split_source (DOMElement &$parent, DOMDocument &$doc, $soure_str){
 		$data = explode('#', $soure_str);
 		
-		$parent->appendChild($doc->createElementNS($this->url, 'source', $data[0]));
-		$parent->appendChild($doc->createElementNS($this->url, 'mapNumber', $data[1]));
-		$parent->appendChild($doc->createElementNS($this->url, 'subNumber', $data[2]));
-		$parent->appendChild($doc->createElementNS($this->url, 'informantNumber', $data[3]));
-		$parent->appendChild($doc->createElementNS($this->url, 'locationName', $data[4]));
+		$this->append_text_element($parent, $doc, 'source', $data[0]);
+		$this->append_text_element($parent, $doc, 'mapNumber', $data[1]);
+		$this->append_text_element($parent, $doc, 'subNumber', $data[2]);
+		$this->append_text_element($parent, $doc, 'informantNumber', $data[3]);
+		$this->append_text_element($parent, $doc, 'locationName', $data[4]);
 	}
 	
-	private function split_instance (DOMElement &$parent, DOMDocument &$doc, $soure_str){
-		$posHashes = mb_strpos($soure_str, '###');
+	private function split_instance (DOMElement &$parent, DOMDocument &$doc, $source_str){
+		$posHashes = mb_strpos($source_str, '###');
 		
 		if ($posHashes === false){
-			$parent->appendChild($doc->createElementNS($this->url, 'text', $soure_str));
+			$this->append_text_element($parent, $doc, 'text', $source_str);
 		}
 		else {
-			$parent->appendChild($doc->createElementNS($this->url, 'text', mb_substr($soure_str, 0, $posHashes)));
-			$parent->appendChild($doc->createElementNS($this->url, 'partOf', mb_substr($soure_str, $posHashes + 3)));
+			$this->append_text_element($parent, $doc, 'text', mb_substr($source_str, 0, $posHashes));
+			$this->append_text_element($parent, $doc, 'partOf', mb_substr($source_str, $posHashes + 3));
 		}
 		
 		
+	}
+	
+	private function append_text_element (DOMElement &$parent, DOMDocument &$doc, $name, $str, $attributes = []){
+		//Used since the createElmentNS with a third parameter does not escape e.g. ?
+		$textNode = $doc->createTextNode($str);
+		$elementNode = $doc->createElementNS($this->url, $name);
+		$elementNode->appendChild($textNode);
+		
+		foreach ($attributes as $key => $val){
+			$elementNode->setAttribute($key, $val);
+		}
+		
+		$parent->appendChild($elementNode);
 	}
 	
 	private function split_comm_name (DOMElement &$parent, DOMDocument &$doc, $source_str){
@@ -461,14 +473,12 @@ class VA_XML_Converter extends VA_Converter {
 			}
 		}
 		
-		$parent->appendChild($doc->createElementNS($this->url, 'officialName', $name));
+		$this->append_text_element($parent, $doc, 'officialName', $name);
 		
 		if ($this->add_empty || $transl){
 			$tnode = $doc->createElementNS($this->url, 'translations');
-			foreach ($transl as $lang => $name){
-				$tsub_node = $doc->createElementNS($this->url, 'translation', $name);
-				$tsub_node->setAttribute('lang', self::va_lang_to_iso($lang));			
-				$tnode->appendChild($tsub_node);
+			foreach ($transl as $lang => $tname){
+				$this->append_text_element($tnode, $doc, 'translation', $tname, ['lang' => self::va_lang_to_iso($lang)]);
 			}
 			$parent->appendChild($tnode);
 		}
@@ -481,8 +491,8 @@ class VA_XML_Converter extends VA_Converter {
 			$point = $doc->createElementNS($this->url, 'point');
 
 			$latlng = explode(' ', $coord);
-			$point->appendChild($doc->createElementNS($this->url, 'latitude', $latlng[1]));
-			$point->appendChild($doc->createElementNS($this->url, 'longitude', $latlng[0]));
+			$this->append_text_element($point, $doc, 'latitude', $latlng[1]);
+			$this->append_text_element($point, $doc, 'longitude', $latlng[0]);
 			
 			$parent->appendChild($point);
 		}

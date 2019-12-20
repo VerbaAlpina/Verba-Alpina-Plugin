@@ -26,7 +26,7 @@ function wissPub (){
 					$link = add_query_arg('db', substr($va_current_db_name, 3), $link);
 					$pos_host = strpos($link, $parts['host']);
 					$app = substr($link, $pos_host + strlen($parts['host']));
-					$link = va_get_doi_base_link() . urlencode($app);
+					$link = va_get_doi_base_link(true) . urlencode($app);
 					$container = '';
 				}
 				

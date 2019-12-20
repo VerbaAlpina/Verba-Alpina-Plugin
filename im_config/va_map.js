@@ -34,9 +34,9 @@ jQuery(function (){
 	addMouseOverHelp(jQuery("#trSelectionBar"));
 	bindMenuSlide();
 	
-	if (PATH["tk"] != undefined || PATH["single"] != undefined){
-		jQuery('#legend_heading').trigger('click');
-	}
+//	if (PATH["tk"] != undefined || PATH["single"] != undefined){
+//		jQuery('#legend_heading').trigger('click');
+//	}
 });
 
 /**
@@ -157,6 +157,10 @@ function bindMenuSlide(){
 					}
 				}
 			});
+			
+			if(id=="selection_heading"){
+				jQuery("#trSelectionBar .im_table_select:visible").val("").chosen(chosenSettings);
+			}
 		}
 	});
 	
@@ -390,12 +394,24 @@ jQuery(document).on("im_map_initialized", function (){
 	commentManager.commentTabOpened = /** @param {jQuery} element */ function (element){
 		try {
 			addBiblioQTips(element);
-			element.find(".quote").qtip({
+
+			var old = jQuery("#commentTitle").find(".quote");
+			old.qtip("destroy", true);
+			old.remove();
+			jQuery("#commentTitle").find(".quote_space").remove();
+			
+			element.find(".quote").toggle(false);
+			
+			jQuery("#commentTitle").append("<span class='quote_space'>&nbsp;</span>");
+			var copy = element.find(".quote").clone();
+			jQuery("#commentTitle").append(copy);
+			
+			copy.toggle(true);
+			
+			copy.qtip({
 				"show" : "click",
 				"hide" : "unfocus"
 			});
-			jQuery("#commentTitle").append("&nbsp;");
-			jQuery("#commentTitle").append(element.find(".quote"));
 		}
 		catch (/** @type{string} */ e){
 			console.log(e);
@@ -504,11 +520,11 @@ jQuery(document).on("im_add_options", function (){
 		}, true));
 	}
 	
-	if(ajax_object.va_staff == "1") {
-		optionManager.addOption("sql", new ClickOption("SQL Query", function (){
-			categoryManager.showFilterScreen(categories.Custom, "SQL");
-		}));
-	}
+//	if(ajax_object.va_staff == "1") {
+//		optionManager.addOption("sql", new ClickOption("SQL Query", function (){
+//			categoryManager.showFilterScreen(categories.Custom, "SQL");
+//		}));
+//	}
 	
 	if(ajax_object.va_staff == "1") {
 		var /** BoolOption */ printOption = new BoolOption(false, TRANSLATIONS["DRUCKFASSUNG"], function (val, details){
@@ -565,6 +581,10 @@ jQuery(document).on("im_show_edit_mode",
 		paramObject.result = ajax_object.db == "xxx";
 	}
 );
+
+jQuery(".sql-query-btn").click(function (){
+	categoryManager.showFilterScreen(categories.Custom, "SQL");
+});
 	
 jQuery(document).on("im_legend_element_created", 
 	/**

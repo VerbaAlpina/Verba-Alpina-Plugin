@@ -56,6 +56,7 @@ function va_show_DB_description (){
 	global $va_xxx;
 	global $admin;
 	global $va_mitarbeiter;
+	global $Ue;
 	
 	if(current_user_can('va_full_database_documentation')){
 		$tables = $va_xxx->get_results('SELECT * FROM admin ORDER BY Art ASC, Tabelle ASC', ARRAY_A);
@@ -79,7 +80,7 @@ function va_show_DB_description (){
 			if($admin || $va_mitarbeiter){
 			?>
 			<li>
-				<a href="#tabEmpty">(Ohne Kategorie)</a>
+				<a href="#tabEmpty">(<?php echo $Ue['OHNE_KATEGORIE']; ?>)</a>
 			</li>
 			<?php 
 			}
@@ -89,7 +90,7 @@ function va_show_DB_description (){
 			foreach($kinds as $kind){
 			?>
 			<li>
-				<a href="#tab<?php echo str_replace(' ', '_', $kind);?>"><?php echo $kind;?></a>
+				<a href="#tab<?php echo str_replace(' ', '_', $kind);?>"><?php echo $Ue['KAT_' . mb_strtoupper(str_replace(' ', '_', $kind))]; ?></a>
 			</li>
 			<?php
 			}

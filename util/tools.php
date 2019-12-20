@@ -63,6 +63,19 @@ function va_get_glossary_doi_link ($version = false, $id = null){
 	return $link . urlencode($append);
 }
 
+function va_get_post_doi_link ($version = false, $id){
+	
+	$link = va_get_doi_base_link();
+	$params = ['p=' . $id];
+	
+	if($version !== false){
+		$params[] = 'db=' . $version;
+	}
+	
+	$append = '?' . implode('&', $params);
+	return $link . urlencode($append);
+}
+
 function va_get_comments_doi_link ($version = false, $id = null){
 	$commentsPage = get_page_by_title('KOMMENTARE');
 	
@@ -88,12 +101,15 @@ function va_get_comments_doi_link ($version = false, $id = null){
 }
 
 
-function va_get_doi_base_link (){
+function va_get_doi_base_link ($only_german = false){
 	$res = 'https://doi.org/10.5282/verba-alpina?urlappend=';
 	
-	$blog_url = get_home_url();
-	if (preg_match('#[.]*/([a-z]{2})$#', $blog_url, $matches)){
-		$res .= urlencode('/' . $matches[1]);
+	if (!$only_german){
+		$blog_url = get_home_url();
+		$matches = NULL;
+		if (preg_match('#[.]*/([a-z]{2})$#', $blog_url, $matches)){
+			$res .= urlencode('/' . $matches[1]);
+		}
 	}
 	
 	return $res;
@@ -294,11 +310,39 @@ function va_create_glossary_citation ($id, &$Ue){
  	global $va_current_db_name;
  	
  	$authors = $vadb->get_col("SELECT CONCAT(Name, ', ', SUBSTR(Vorname, 1, 1), '.') FROM VTBL_Eintrag_Autor JOIN Personen USING (Kuerzel) WHERE Aufgabe = 'auct' AND Id_Eintrag = $id ORDER BY Name ASC, Vorname ASC");
-	$title = $vadb->get_var("SELECT Terminus_$lang FROM Glossar WHERE Id_Eintrag = $id");
+	$data = $vadb->get_row("SELECT Terminus_$lang, angelegt_$lang, geaendert_$lang FROM Glossar WHERE Id_Eintrag = $id", ARRAY_N);
 	$link = va_get_glossary_doi_link(substr($va_current_db_name, 3, 3), $id);
+
+	$vyear = substr($va_current_db_name, 3, 2);
+	$vnumber = substr($va_current_db_name, 5);
 	
- 	return	implode(' / ', $authors) . ': s.v. “' . $title . '”, in: VerbaAlpina-' . substr(get_locale(), 0, 2) . ' ' .
- 	 	substr($va_current_db_name, 3, 2) . '/' . substr($va_current_db_name, 5) . ', ' . $Ue['METHODOLOGIE'] . ', ' . $link;
+	$res = implode(' / ', $authors) . ': s.v. “' . $data[0] . '”, in: VerbaAlpina-' . substr(get_locale(), 0, 2) . ' '
+ 	 . $vyear . '/' . $vnumber;
+	
+	$pub_data = [];
+	if ($data[1] != $vyear . $vnumber){
+		$pub_data[] = $Ue['ERSTELLT'] . ': ' . substr($data[1], 0, 2) . '/' . substr($data[1], 2);
+	}
+ 	
+ 	if ($data[2] != $vyear . $vnumber){
+ 		$pub_data[] = $Ue['LETZTE_AENDERUNG'] . ': ' . substr($data[2], 0, 2) . '/' . substr($data[2], 2);
+ 	}
+ 	
+ 	if ($pub_data){
+ 		$res .= ' (';
+ 		foreach ($pub_data as $i => $pd){
+ 			if ($i > 0){
+ 				$pd = lcfirst($pd);
+ 				$res .= ', ';
+ 			}
+ 			$res .= $pd;
+ 		}
+ 		$res .= ')';
+ 	}
+	
+	$res .= ', ' . $Ue['METHODOLOGIE'] . ', ' . $link;
+	
+ 	return $res;
  }
  
 function va_create_glossary_bibtex ($id, &$Ue, $html = false){
@@ -307,11 +351,11 @@ function va_create_glossary_bibtex ($id, &$Ue, $html = false){
 	global $va_current_db_name;
 	
 	$authors = $vadb->get_results("SELECT Name, Vorname FROM VTBL_Eintrag_Autor JOIN Personen USING (Kuerzel) WHERE Aufgabe = 'auct' AND Id_Eintrag = $id ORDER BY Name ASC, Vorname ASC", ARRAY_A);
-	$title = $vadb->get_var("SELECT Terminus_$lang FROM Glossar WHERE Id_Eintrag = $id");
-	$year = '20' . substr($va_current_db_name, 3, 2);
+	$data = $vadb->get_row("SELECT Terminus_$lang, geaendert_$lang FROM Glossar WHERE Id_Eintrag = $id", ARRAY_N);
+	$year = '20' . substr($data[1], 0, 2);
 	$shortcode = implode('', array_map(function ($e) {return strtolower(remove_accents($e['Name']));}, $authors)) 
 		. $year 
-		. str_replace(' ', '', substr(strtolower(remove_accents($title)), 0, 15));
+		. va_shortcode_title_part($data[0]);
 	$link = va_get_glossary_doi_link(substr($va_current_db_name, 3, 3), $id);
 	
 	$tab = $html? '&nbsp;&nbsp;&nbsp;': "\t";
@@ -320,7 +364,7 @@ function va_create_glossary_bibtex ($id, &$Ue, $html = false){
 	$res = '@incollection{' . $shortcode . ',' . $newline .
 	$tab . 'author={' . implode(' and ', array_map(function ($e) {return $e['Name'] . ', ' . $e['Vorname'];}, $authors)) . '},' . $newline .
 	$tab . 'year={' . $year . '},' . $newline .
-	$tab . 'title={' . $title. '},' . $newline .
+	$tab . 'title={' . $data[0] . '},' . $newline .
 	$tab . 'publisher={VerbaAlpina-' . substr(get_locale(), 0, 2) . ' ' . va_format_version_number(substr($va_current_db_name, 3)) . '},' . $newline .
 	$tab . 'booktitle={'. $Ue['METHODOLOGIE']. '},' . $newline .
 	$tab . 'url={' . $link. '}' . $newline . '}';
@@ -331,8 +375,105 @@ function va_create_glossary_bibtex ($id, &$Ue, $html = false){
 	return $res;
  }
  
+ function va_create_post_citation ($id, &$Ue){
+ 	global $va_current_db_name;
+ 	
+ 	$authors = get_field('autoren');
+ 	if ($authors){
+ 		$authors = array_map('trim', explode(',', $authors));
+ 	}
+ 	else {
+ 		$authors = [];
+ 	}
+ 	
+ 	$link = va_get_post_doi_link(substr($va_current_db_name, 3, 3), get_the_ID());
+ 	
+ 	$vyear = substr($va_current_db_name, 3, 2);
+ 	$vnumber = substr($va_current_db_name, 5);
+ 	
+ 	$res = implode(' / ', $authors) . ': “' . get_the_title($id) . '”, in: VerbaAlpina-' . substr(get_locale(), 0, 2) . ' '
+ 			. $vyear . '/' . $vnumber;
+ 	
+ 	global $wpdb;
+ 	global $va_xxx;
+ 	$first = $wpdb->get_var($wpdb->prepare('SELECT post_date FROM ' . va_get_post_table() . ' WHERE ID = %d', get_the_ID()));
+ 	$first_version = $va_xxx->get_var($va_xxx->prepare('SELECT Nummer FROM Versionen WHERE Erstellt_Am > %s ORDER BY Erstellt_Am ASC', $first));
+ 	$last = $wpdb->get_var($wpdb->prepare('SELECT post_date FROM ' . va_get_post_table() . ' WHERE ID = %d', $id));
+ 	$last_version = $va_xxx->get_var($va_xxx->prepare('SELECT Nummer FROM Versionen WHERE Erstellt_Am > %s ORDER BY Erstellt_Am ASC', $last));
+ 			
+ 	$pub_data = [];
+ 	if ($first_version != $vyear . $vnumber){
+ 		$pub_data[] = $Ue['ERSTELLT'] . ': ' . substr($first_version, 0, 2) . '/' . substr($first_version, 2);
+ 	}
+ 			
+ 	if ($last_version != $vyear . $vnumber){
+ 		$pub_data[] = $Ue['LETZTE_AENDERUNG']. ': ' . substr($last_version, 0, 2) . '/' . substr($last_version, 2);
+ 	}
+ 			
+ 	if ($pub_data){
+ 		$res .= ' (';
+ 		foreach ($pub_data as $i => $pd){
+ 			if ($i > 0){
+ 				$pd = lcfirst($pd);
+ 				$res .= ', ';
+ 			}
+ 			$res .= $pd;
+ 		}
+ 		$res .= ')';
+ 	}
+ 			
+ 	$res .= ', ' . $link;
+ 			
+ 	return $res;
+ }
+ 
+ function va_create_post_bibtex ($id, &$Ue, $html = false){
+ 	global $va_current_db_name;
+ 	
+ 	$authors = get_field('autoren');
+ 	if ($authors){
+ 		$authors = array_map('trim', explode(',', $authors));
+ 	}
+ 	else {
+ 		$authors = [];
+ 	}
+ 	
+ 	$link = va_get_post_doi_link(substr($va_current_db_name, 3, 3), get_the_ID());
+ 	$title = get_the_title($id);
+ 	
+ 	global $wpdb;
+ 	global $va_xxx;
+ 	$last = $wpdb->get_var($wpdb->prepare('SELECT post_date FROM ' . va_get_post_table() . ' WHERE ID = %d', $id));
+ 	$last_version = $va_xxx->get_var($va_xxx->prepare('SELECT Nummer FROM Versionen WHERE Erstellt_Am > %s ORDER BY Erstellt_Am ASC', $last));
+ 	
+ 	$year = '20' . substr($last_version, 0, 2);
+ 	$shortcode = implode('', array_map(function ($e) {return strtolower(remove_accents(mb_substr($e, mb_strpos($e, ' ') + 1)));}, $authors))
+ 	. $year
+ 	. va_shortcode_title_part($title);
+ 	$link = va_get_post_doi_link(substr($va_current_db_name, 3, 3), get_the_ID());
+ 	
+ 	$tab = $html? '&nbsp;&nbsp;&nbsp;': "\t";
+ 	$newline = $html? '<br />' : "\n";
+ 	
+ 	$res = '@article{' . $shortcode . ',' . $newline .
+ 	$tab . 'author={' . implode(' and ', $authors) . '},' . $newline .
+ 	$tab . 'year={' . $year . '},' . $newline .
+ 	$tab . 'title={' . $title . '},' . $newline .
+ 	$tab . 'publisher={VerbaAlpina-' . substr(get_locale(), 0, 2) . ' ' . va_format_version_number(substr($va_current_db_name, 3)) . '},' . $newline .
+ 	$tab . 'url={' . $link. '}' . $newline . '}';
+ 	
+ 	if($html)
+ 		$res = htmlentities($res);
+ 		
+ 		return $res;
+ }
+ 
+ function va_shortcode_title_part ($title){
+ 	return str_replace(' ', '', mb_substr(mb_strtolower(va_remove_special_chars($title)), 0, 15));
+ }
+ 
 function va_remove_special_chars ($str){
- 	return preg_replace('/[^a-zA-Z0-9]/', '', remove_accents($str));
+ 	return preg_replace('/[^a-zA-Z0-9]/u', '', remove_accents($str));
 }
  
 function va_create_comment_citation ($id, &$Ue){
@@ -377,6 +518,32 @@ function va_create_comment_citation ($id, &$Ue){
  	$num_newer = substr($version, 3);
 
  	return $num_curr > $num_newer;
+ }
+ 
+ function va_get_post_version_id ($post_id){
+	global $va_current_db_name;
+ 	if ($va_current_db_name === 'va_xxx'){
+ 		return $post_id;
+ 	}
+ 	else {
+ 		global $wpdb;
+ 		global $va_xxx;
+ 		$version_created = $va_xxx->get_var($va_xxx->prepare('SELECT Erstellt_Am FROM Versionen WHERE Nummer = %s', substr($va_current_db_name, 3)));
+
+ 		$last_rev_in_version = $wpdb->get_var($wpdb->prepare('SELECT ID FROM ' . va_get_post_table() . ' WHERE post_parent = %d and post_type ="revision" and post_date <= %s ORDER BY post_date DESC LIMIT 1', $post_id, $version_created));
+ 		return $last_rev_in_version;
+ 	}
+ }
+ 
+ function va_get_post_table (){
+ 	$blog_id = get_current_blog_id();
+ 	
+ 	if ($blog_id === 1){
+ 		return 'wp_posts';
+ 	}
+ 	else {
+ 		return 'wp_' . $blog_id . '_posts';
+ 	}
  }
  
  //Php ??
@@ -621,8 +788,6 @@ function va_array_to_html_string ($arr, $showLevel = 1, $recLevel = 0){
 	
 	$assoc = count(array_filter(array_keys($arr), 'is_string')) > 0;
 	
-	$res = '';
-	$first = true;
 	$vals = [];
 	
 	foreach ($arr as $key => $val){
@@ -803,5 +968,24 @@ function va_orcid_link ($orcid){
 		return '';
 	
 	return '<a target="_BLANK" href="https://orcid.org/' . $orcid . '"><img class="orcid" src="' . VA_PLUGIN_URL . '/images/orcid.svg" /></a>';
+}
+
+function va_version_list ($params){
+	global $va_xxx;
+	
+	$versions = $va_xxx->get_col('SELECT Nummer FROM versionen WHERE Website ORDER BY Nummer DESC');
+	
+	$format = 'simple';
+	
+	if (isset($params['format'])){
+		$format = $params['format'];
+	}
+	
+	switch ($format){
+		case 'simple':
+			return implode(', ', $versions);
+		default:
+			return 'Invalid format';
+	}
 }
 ?>

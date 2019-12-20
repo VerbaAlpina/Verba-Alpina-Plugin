@@ -6,6 +6,9 @@ var /** boolean */ shiftPressed = false;
 
 jQuery(function() {
 	
+	jQuery("#morphTypenAuswahl").val("");
+	jQuery("#konzeptAuswahl").val("");
+	
 	addNewEnumValueScript(undefined, undefined, dbname);
 	
 	jQuery(".chosenSelect").chosen({"normalize_search_text" : removeDiacritics});
@@ -59,7 +62,7 @@ jQuery(function() {
 				jQuery('#keinTypAuswahl').append("<option value='" + data["id"] + "'>" + data["Beschreibung_D"] + "</option>").trigger("chosen:updated");
 			}
 			if(data["Relevanz"] == "1"){
-				jQuery('#konzeptAuswahl').append("<option value='" + data["id"] + "'>" + (data["Name_D"] != ""? data["Name_D"]: data["Beschreibung_D"]) + "</option>").trigger("chosen:updated");
+				jQuery('#konzeptAuswahl').append("<option value='" + data["id"] + "'>" + (data["Name_D"] != ""? data["Name_D"]: data["Beschreibung_D"]) + "</option>").val(data["id"]).trigger("chosen:updated");
 			}
 		}, selectModes.Chosen, dbname);
 	});
@@ -384,6 +387,11 @@ function addRowEventListeners (){
 
 function typify (){
 	
+	if (!jQuery("#morphTypenAuswahl").val()){
+		alert("Wähle einen Typ!");
+		return;
+	}
+	
 	var selectedIds = jQuery("#tokenAuswahlLex").getSelectionOrder();
 	if(selectedIds.length == 0){
 		alert("Keine Belege ausgewählt!");
@@ -452,9 +460,14 @@ function typify (){
 
 function assignConcept (){
 	
+	if (this.id == "assignConcept" && !jQuery("#konzeptAuswahl").val()){
+		alert("Wähle ein Konzept!");
+		return;
+	}
+	
 	var selectedIds = jQuery("#tokenAuswahlLex").getSelectionOrder();
 	if(selectedIds.length == 0){
-		alert("Keine Belege ausgewÃ¤hlt!");
+		alert("Keine Belege ausgewählt!");
 		return;
 	}
 	
@@ -592,7 +605,7 @@ function saveMorphType (){
 			else {
 				var optionHtml = "<option value='" + typeInfo['Id'] + "'>" + typeInfo['Name']  + "</option>";
 				jQuery("#auswahlBestandteile").append(optionHtml).trigger("chosen:updated");
-				jQuery("#morphTypenAuswahl").append(optionHtml).trigger("chosen:updated");
+				jQuery("#morphTypenAuswahl").append(optionHtml).val(typeInfo['Id']).trigger("chosen:updated");
 			}
 		}
 		catch (e) {
@@ -633,6 +646,12 @@ function saveBaseType (){
 }
 
 function editMorphType (){
+	
+	if (!jQuery("#morphTypenAuswahl").val()){
+		alert("Wähle einen Typ!");
+		return;
+	}
+	
 	var caller = this;
 	var data = {
 		"action" : "va",

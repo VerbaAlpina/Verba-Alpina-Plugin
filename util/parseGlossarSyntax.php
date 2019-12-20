@@ -158,6 +158,7 @@ function parseSyntax(&$value, $replaceNewlines = false, $intern = false, $mode =
 		// SQL
 		$value = preg_replace_callback ('/(?<!-)\[\[SQL:(.*)((?:\|(?:db|width|height|id)=.*)*)\]\]/sU', function ($treffer) {
 			global $va_current_db_name;
+			$atts = [];
 			$atts['db'] = $va_current_db_name;
 			$atts['query'] = str_replace('<br />', '', $treffer[1]);
 			$atts['login'] = 'va_wordpress';
@@ -170,6 +171,12 @@ function parseSyntax(&$value, $replaceNewlines = false, $intern = false, $mode =
 					}
 				}
 			}
+			
+			if (isset($_REQUEST['action']) && $_REQUEST['action'] == 'va_protocols' && isset($_REQUEST['query']) && ($_REQUEST['query'] == 'get' || $_REQUEST['query'] == 'update')){
+				//Reloading protocol
+				$atts['lazy'] = false;
+			}
+			
 			return sth_parseSQL ($atts);
 		}, $value);
 		

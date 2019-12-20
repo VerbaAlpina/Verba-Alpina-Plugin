@@ -347,3 +347,21 @@ img.orcid {
 	border: 0px;
 	box-shadow: none;
 }
+
+.entry-content table.ruleTable {
+	width: initial;
+}
+
+.entry-content table.ruleTable td.imageTranscriptionRule{
+	font-size: 300%;
+	font-family: arial unicode;
+	padding: 0px;
+}
+
+.entry-content table.ruleTable tr{
+	line-height: 1;
+}
+
+.entry-content table.ruleTable td.imageTranscriptionRule img{
+	height: 1em;
+}

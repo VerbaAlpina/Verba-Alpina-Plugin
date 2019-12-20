@@ -103,8 +103,8 @@
 				break;
 				
 				case 1: //Concept
-					global $time;
-					$time = microtime(true);
+					//global $time;
+					//$time = microtime(true);
 					//error_log('Start');
 					
 					if($_POST['filter']['conceptIds'] == 'ALL'){
@@ -325,7 +325,7 @@
 						return new IM_Error_Result('No semicolons permitted!');
 					}
 					
-					$max_points = 2000;
+					$max_points = 5000;
 					
 					$db->hide_errors();
 					
@@ -1200,12 +1200,32 @@ function get_va_location ($id){
 	$db = IM_Initializer::$instance->database;
 	$query = 'SELECT 
                 ST_AsText(ST_Envelope(IFNULL(Center, Geo_Data))) AS point, 
-                Name, Description
+                Name, Description, Id_Category
             From Z_Geo WHERE Id_Geo = %f';
 	
 	$result = $db->get_row($db->prepare($query, $id), ARRAY_A);
 	parseSyntax($result['Description'], true);
 	$text = '<h1>' . va_translate_extra_ling_name($result['Name'], $lang) . '</h1>' . $result['Description'];
+	
+	if ($result['Id_Category'] == 62){
+	    //Community => show API link if there are records
+	    
+	    $records_exist = $db->get_var($db->prepare('SELECT Id_Community FROM z_ling WHERE Id_Community = %d LIMIT 1', $id));
+	    if ($records_exist){
+	       global $Ue;
+	       global $va_current_db_name;
+	       
+	       $dbname = substr($va_current_db_name, 3);
+	       if ($dbname === 'xxx'){
+	           $dbname = $db->get_var('SELECT MAX(Nummer) FROM Versionen');
+	       }
+	       
+	       $base_link = site_url() . '?api=1&action=getRecord&id=A' . $id . '&version=' . $dbname;
+	       //19308
+	       
+	       $text .= '<br /><br /><a href="' . $base_link . '" style="margin: 5px;"><i class="list_export_icon fas fa-file-download" title="' . $Ue['API_LINK'] .'"></i></a>';
+	    }
+	}
 	
 	return ['point' => $result['point'], 'text' => $text];
 }

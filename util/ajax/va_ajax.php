@@ -164,7 +164,7 @@ function va_ajax_handler (){
 				case 'update':
 					if($db->update('Uebersetzungen', 
 						array(
-							'Begriff_' . $_REQUEST['lang'] => $_REQUEST['value']
+							'Begriff_' . $_REQUEST['lang'] => stripslashes($_REQUEST['value'])
 						),
 						array(
 							'Schluessel' => $_REQUEST['key']
@@ -214,7 +214,7 @@ function va_ajax_handler (){
 						$akzentExplizit = false;
 						$indexLastVowel = false;
 						
-						foreach ($token as $index => $character) {
+						foreach ($token as $character) {
 							foreach ($akzente as $akzent) {
 								$ak_qu = preg_quote($akzent[0], '/');
 								$character = preg_replace_callback('/([' . $vokale . '][^' . $ak_qu . 'a-zA-Z]*)' . $ak_qu . '/', 
@@ -359,7 +359,7 @@ function va_ajax_handler (){
 				 	break;
 				 	
 				 case 'get_community_name':
-				 	echo $commName = $db->get_var($db->prepare('SELECT Name FROM Orte WHERE Id_Kategorie = 62 AND ST_WITHIN(GeomFromText(%s), Geodaten)', $_POST['point']));
+				 	echo $db->get_var($db->prepare('SELECT Name FROM Orte WHERE Id_Kategorie = 62 AND ST_WITHIN(GeomFromText(%s), Geodaten)', $_POST['point']));
 				 	break;
 				 	
 				 case 'search_locations':

@@ -87,6 +87,20 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 	add_action('init', 'va_includes', 11);
 	add_action('init', 'va_check_api_call', 12);
 	
+// 	add_filter('tt_get_rules_text', function ($false, $lang){
+// 		global $va_xxx;
+		
+// 		error_log($lang);
+// 		$lang_short = substr($lang, 0, 1);
+// 		$texts = $va_xxx->get_row('SELECT Terminus_E, Erlaeuterung_E, Terminus_' . $lang_short . ', Erlaeuterung_' . $lang_short . ' FROM Glossar WHERE Id_Eintrag = 150', ARRAY_N);
+		
+// 		if ($texts[2] && $texts[3]){
+// 			return '<h1 style="text-align: center">' . $texts[2] . '</h1>' . $texts[3];
+// 		}
+		
+// 		return '<h1 style="text-align: center">' . $texts[0] . '</h1>' . $texts[1];
+// 	});
+	
 	//Scripts
 	add_action( 'wp_enqueue_scripts', 'scripts_fe' ); //Skripte für das Frontend einbinden
 	add_action( 'admin_enqueue_scripts', 'scripts_be' ); //Skripte für das Backend einbinden
@@ -312,7 +326,7 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 	
 	function parse_syntax_for_posts ($content){
 		$type = get_post_type();
-		if($type === 'post' || $type === 'page'){
+		if($type === 'post' || $type === 'page' || $type === 'revision'){
 			global $va_mitarbeiter;
 			global $admin;
 			parseSyntax($content, false, $va_mitarbeiter || $admin);
@@ -400,7 +414,7 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 			else if($post->post_title == 'KOMMENTARE'){
 				wp_enqueue_script('clipboard', VA_PLUGIN_URL . '/lib/clipboard.min.js');
 			}
-			else if($post->post_title == 'Datenbank-Dokumentation'){
+			else if($post->post_title == 'DATENBANK-DOKU'){
 				va_enqueue_tabs();
 			}
 			else if ($post->post_title == 'Todos'){
@@ -412,6 +426,9 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 			}
 			else if ($post->post_type == 'fragebogen'){
 				IM_Initializer::$instance->enqueue_select2_library();
+			}
+			else if ($post->post_type == 'post'){
+				wp_enqueue_script('clipboard', VA_PLUGIN_URL . '/lib/clipboard.min.js');
 			}
 		}	
 	}
@@ -668,6 +685,13 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 			//Always get the synoptic map outline data from the xxx version:
 			IM_Initializer::$instance->database = $va_xxx;
 		}
+		else if (isset($_POST['action']) && $_POST['action'] == 'im_a' && isset($_POST['namespace']) && $_POST['namespace'] == 'load_data'){
+		    $dbuser_ro = $login_data[3];
+		    $dbpassw_ro = $login_data[4];
+		    
+		    $va_ro = new wpdb($dbuser_ro, $dbpassw_ro, $va_current_db_name, $dbhost);
+		    IM_Initializer::$instance->database = $va_ro;
+		}
 		else {
 			IM_Initializer::$instance->database = $vadb;
 		}
@@ -688,7 +712,12 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 			$mappings = [];
 			
 			$mappings['codepage_original'] = new TableMapping('tcodepage_original');
-			$mappings['transcription_rules'] = new TableMapping(get_user_locale() == 'de_DE'? 'trules': 'trules_e');
+			if (is_admin()){
+				$mappings['transcription_rules'] = new TableMapping(get_user_locale() == 'de_DE'? 'trules': 'trules_e');
+			}
+			else {
+				$mappings['transcription_rules'] = new TableMapping(get_locale() == 'de_DE'? 'trules': 'trules_e');
+			}
 			$mappings['stimuli'] = new TableMapping('tstimuli');
 			$mappings['informants'] = new TableMapping('tinformants');
 			$mappings['locks'] = new TableMapping('locks', ['Context' => 'Tabelle', 'Value' => 'Wert', 'Locked_By' => 'Gesperrt_Von', 'Time' => 'Zeit']);
@@ -727,7 +756,7 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 			'/dokumente/scans/',
 			$va_xxx,
 			$va_xxx->get_col('SELECT DISTINCT Erhebung FROM Stimuli JOIN Bibliographie ON Abkuerzung = Erhebung WHERE VA_Beta'),
-			$va_xxx->get_results("SELECT Id_Konzept AS id, IF(Name_D != '', Name_D, Beschreibung_D) as text FROM Konzepte ORDER BY Text ASC", ARRAY_A),
+			$va_xxx->get_results("SELECT Id_Konzept AS id, IF(Name_D != '' AND Name_D != Beschreibung_D, CONCAT(Name_D, ' (', Beschreibung_D, ')'), Beschreibung_D) as text FROM Konzepte ORDER BY Text ASC", ARRAY_A),
 			$mappings
 			);
 		}
@@ -752,6 +781,7 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 		add_shortcode('showBib', 'show_bib_page');//pages/bib.php
 		add_shortcode('showConceptIllustrations', 'show_concept_images'); //pages/concept_images.php
 		add_shortcode('normPage', 'va_norm_page'); //pages/norm.php
+		add_shortcode('version_list', 'va_version_list'); //util/tools.php
 		
 		add_shortcode('callList', 'va_call_list'); //pages/calls.php 
 		
@@ -1118,10 +1148,10 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 			));
 			echo 'Kontakt<br />';
 		}
-		$page = get_page_by_title('Datenbank-Dokumentation');
+		$page = get_page_by_title('DATENBANK-DOKU');
 		if($page == null){
 			wp_insert_post(array (
-					'post_title' => 'Datenbank-Dokumentation',
+					'post_title' => 'DATENBANK-DOKU',
 					'post_content' => '[dbdescription]',
 					'post_status' => 'publish',
 					'post_type' => 'page',

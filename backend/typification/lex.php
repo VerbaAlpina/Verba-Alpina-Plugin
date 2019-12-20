@@ -116,7 +116,7 @@ $can_write = current_user_can('va_typification_tool_write');
 			
 			<h3>VA-Typ zuweisen</h3>
 			
-			<select id="morphTypenAuswahl" class="chosenSelect">
+			<select id="morphTypenAuswahl" class="chosenSelect" data-placeholder="<?php _e('Choose type', 'verba-alpina');?>">
 				<?php
 				$typenVA = $db->get_results("SELECT Id_morph_Typ, lex_unique(Orth, Sprache, Genus) as Orth FROM morph_Typen WHERE Quelle = 'VA' ORDER BY Orth ASC", ARRAY_A);
 		
@@ -134,7 +134,7 @@ $can_write = current_user_can('va_typification_tool_write');
 			
 			<h3>Konzept zuweisen</h3>
 			
-			<select id="konzeptAuswahl" class="chosenSelect">
+			<select id="konzeptAuswahl" class="chosenSelect" data-placeholder="<?php _e('Choose concept', 'verba-alpina');?>">
 				<?php
 				$conceptsVA = $db->get_results("SELECT Id_Konzept, IF(Name_D != '', Name_D, Beschreibung_D) as Name FROM Konzepte WHERE NOT Grammatikalisch ORDER BY Name ASC", ARRAY_A);
 		

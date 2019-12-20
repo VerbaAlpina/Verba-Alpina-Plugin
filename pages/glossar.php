@@ -26,29 +26,7 @@ function ladeGlossar (){
 	jQuery(function() {
 		addBiblioQTips(jQuery(".entry-content"));
 
-		jQuery(".quote").each(function (){
-			jQuery(this).qtip({
-				"show" : "click",
-				"hide" : "unfocus",
-				"content" : {
-					"text" : function (){
-						var result = "<div class='divPlain'>" + jQuery(this).data("plain").replace(/(http[^ ]*)/, "<a href='$1'>$1</a>") + "</div><br />";
-						result += "<input class='copyButton buttonPlain' style='display: block; margin: auto;' type='button' value='<?php echo $Ue['KOPIEREN']; ?>' /><br /><br />";
-						result += "<div class='divBibtex'>" + jQuery(this).data("bibtex") + "</div><br />";
-						result += "<input class='copyButton buttonBibtex' style='display: block; margin: auto;' type='button' value='<?php echo $Ue['KOPIEREN']; ?>' />";
-						return result;
-					}
-				},
-				"events" : {
-					"visible": function (event, api){
-						jQuery(event.target).find(".buttonPlain").data("content", jQuery(event.target).find(".divPlain").html());
-						jQuery(event.target).find(".buttonBibtex").data("content", jQuery(event.target).find(".divBibtex").html());
-					}
-				}
-			});
-		});
-
-		addCopyButtonSupport();
+		addCitations("<?php echo $Ue['KOPIEREN'] ?>");
 
 		jQuery("#sorting").val("<?php echo $mode;?>");
 		
@@ -362,6 +340,13 @@ function ladeGlossar (){
 			foreach ($result as &$row){
 				if($row['Id_Eintrag'] == 61 /*Versionierung*/){
 					$row['Text'] .= va_add_image_gallery();
+				}
+				
+				if($row['Id_Eintrag'] == 150 /*Transkriptionsregeln*/){
+					ob_start();
+					TranscriptionTool::print_rule_table(false);
+					$row['Text'] .= '<br /><br />' . ob_get_contents();
+					ob_end_clean();
 				}
 				
 				$ctags = $vadb->get_results("SELECT Id_Tag, Tag FROM Tags JOIN VTBL_Eintrag_Tag USING (Id_Tag) WHERE Id_Eintrag = {$row['Id_Eintrag']}", ARRAY_N);

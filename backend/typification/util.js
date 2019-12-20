@@ -351,7 +351,7 @@ function getBaseTypeData (id){
 	return data;
 }
 
-function openMorphTypeDialog(){
+function openMorphTypeDialog (){
 	jQuery("#saveCaller").val(this.id);
 	var e = document.forms["eingabeMorphTyp"].elements;
 	for (var i = 0; i < e.length; i++){
