@@ -28,9 +28,20 @@ Zeichen
   / b : Basiszeichen d: Diakritikum* "0" d2: Diakritikum* {return "<sup>" + b + d.join("") + d2.join("") + "</sup>";}
   / b : Basiszeichen d: Diakritikum* "8" d2: Diakritikum* {return "<small>" + b + d.join("")  + d2.join("") + "</small>";}
   / b : Basiszeichen d: Diakritikum* "9" d2: Diakritikum* {return "<sub>" + b + d.join("") + d2.join("") + "</sub>";}
-  / b : Basiszeichen d: Diakritikum* "[?]" d2 : Diakritikum* {return "<sub style='font-size:30%;'>(</sub>" + b + d.join("") + "x0323" + d2.join("") + "<sub style='font-size:30%;'>)</sub>";}
-  / b : Basiszeichen d: Diakritikum* "[-]" d2 : Diakritikum* {return "<sup style='font-size:30%;'>(</sup>" + b + d.join("") + "x0304" + d2.join("") + "<sup style='font-size:30%;'>)</sup>";}
-  / b : Basiszeichen d: Diakritikum* "[@]" d2 : Diakritikum* {return "<sub style='font-size:30%;'>(</sub>" + b + d.join("") + "x032F" + d2.join("") + "<sub style='font-size:30%;'>)</sub>";}
+  / b : Basiszeichen d: Diakritikum* "[?]" d2 : Diakritikum* 
+	{return "<sub style='font-size:30%;'>(</sub>" + b + d.join("") + "x0323" + d2.join("") + "<sub style='font-size:30%;'>)</sub>";}
+  / b : Basiszeichen d: Diakritikum* "[--]" d2 : Diakritikum* 
+	{return "<sup style='font-size:30%;'>(</sup>" + b + d.join("") + "x0304" + d2.join("") + "<sup style='font-size:30%;'>)</sup>";}
+  / b : Basiszeichen d: Diakritikum* "[@]" d2 : Diakritikum* 
+	{return "<sub style='font-size:30%;'>(</sub>" + b + d.join("") + "x032F" + d2.join("") + "<sub style='font-size:30%;'>)</sub>";}
+  / b : Basiszeichen d: Diakritikum* "[(]" d2 : Diakritikum* 
+	{return "<sub style='font-size:30%;'>(</sub>" + b + d.join("") + "x031C" + d2.join("") + "<sub style='font-size:30%;'>)</sub>";}
+  / b : Basiszeichen d: Diakritikum* "[(1]" d2 : Diakritikum* 
+	{return "<sub style='font-size:30%;'>(</sub>" + b + d.join("") + "x1AB8" + d2.join("") + "<sub style='font-size:30%;'>)</sub>";}
+  / b : Basiszeichen d: Diakritikum* "[:]" d2 : Diakritikum* 
+	{return "<sup style='font-size:30%;'>(</sup>" + b + d.join("") + "x0308" + d2.join("") + "<sup style='font-size:30%;'>)</sup>";}
+  / b : Basiszeichen d: Diakritikum* "[:1]" d2 : Diakritikum* 
+	{return "<sub style='font-size:30%;'>(</sub>" + b + d.join("") + "x0324" + d2.join("") + "<sub style='font-size:30%;'>)</sub>";}
   / "[" b1 : Basiszeichen d1 : Diakritikum* b2 : Basiszeichen d2 : Diakritikum* "]%" {return b1 + d1.join("") + "x0361" + b2 + d2.join("");}
   / "[" b1 : Basiszeichen d1 : Diakritikum* b2 : Basiszeichen d2 : Diakritikum* "]~" {return b1 + d1.join("") + "x0360" + b2 + d2.join("");}
   / "[" b1 : Basiszeichen d1 : Diakritikum* b2 : Basiszeichen d2 : Diakritikum* "]@1" {return b1 + d1.join("") + "x035c" + b2 + d2.join("");}
@@ -72,11 +83,13 @@ Basiszeichen2
   / "c1" {return "x03C7";}
   / "c2" {return "x0481";}
   / "c3" {return "<strike>c</strike>";}
+  / "c4" {return "x0255";}
   / "i1" {return "x0069x0337";}
   / "i2" {return "x0131";}
   / "i3" {return "x0268";}
   / "l1" {return "x0142";}
   / "l2" {return "x026B";}
+  / "l5" {return "x028E";}
   / "r1" {return "x0280";}
   / "p1" {return "x03C0";}
   / "e10" {return "x1D4A";} // Needed for e1 in squared brackets
@@ -95,9 +108,7 @@ Basiszeichen2
   / "t1" {return "x03D1";}
   / "u1" {return "x1D462";}
   / "z1" {return "x0292";}
-  / "'1" {return "x07F5";}
-  / "'2" {return "x02C8";}
-  / "'" {return "x0027";}
+  / "z2" {return "x0291";}
   / "aa" {return "aa";}
   / "ee" {return "ee";}
   / "ii" {return "ii";}
@@ -187,6 +198,7 @@ Diakritikum
   / "^2" {return "x032D";}
   / "^3" {return "x032C";}
   / "^" {return "x030C";}
+  / "_1" {return "x0333";}
   / "_" {return "x0331";}
   / "-2" {return "x0304x0304";}
   / "-" {return "x0304";}
@@ -203,3 +215,6 @@ Diakritikum
   / ">" {return "x0350";}
   / "+" {return "x0330";}
   / "&" {return "x0325";}
+  / "'1" {return "x07F5";}
+  / "'2" {return "x02C8";}
+  / "'" {return "x0027";}

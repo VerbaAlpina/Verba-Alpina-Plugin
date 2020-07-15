@@ -200,6 +200,9 @@ function test_wiki (){
 
 function test (){
 	
+	// phpinfo();
+	// die;
+	
 // 	$parser = new VA_BetaParser('AIS');
 // 	$file = file_get_contents(plugin_dir_path(__FILE__) . '/backend/auto/lei.txt');
 // 	$letters = explode("\r\n", $file);

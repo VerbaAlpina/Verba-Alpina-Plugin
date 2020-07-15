@@ -46,14 +46,14 @@ function va_ajax_edit_glossary ($db){
 				
 				$translation_changed = $db->update('Glossar', ['Erlaeuterung_'.$lang => stripslashes($_POST['erlaeuterung']), 'Terminus_'.$lang => stripslashes($_POST['terminus'])], ['Id_Eintrag' => $_POST['id']]);
 				
-				$db->delete('VTBL_Eintrag_Autor', array('Id_Eintrag' => $_POST['id'], 'Aufgabe' => 'trad', Sprache => $lang), array ('%d', '%s', '%s'));
+				$db->delete('VTBL_Eintrag_Autor', array('Id_Eintrag' => $_POST['id'], 'Aufgabe' => 'trad', 'Sprache' => $lang), array ('%d', '%s', '%s'));
 				if($_POST['translators']){
 					foreach ($_POST['translators'] as $translator){
 						$db->insert('VTBL_Eintrag_Autor', array ('Id_Eintrag' => $_POST['id'], 'Kuerzel' => $translator, 'Aufgabe' => 'trad', 'Sprache' => $lang), array ('%d', '%s', '%s', '%s'));
 					}
 				}
 				
-				$db->delete('VTBL_Eintrag_Autor', array('Id_Eintrag' => $_POST['id'], 'Aufgabe' => 'corr', Sprache => $lang), array ('%d', '%s', '%s'));
+				$db->delete('VTBL_Eintrag_Autor', array('Id_Eintrag' => $_POST['id'], 'Aufgabe' => 'corr', 'Sprache' => $lang), array ('%d', '%s', '%s'));
 				if($_POST['correctors']){
 					foreach ($_POST['correctors'] as $corrector){
 						$db->insert('VTBL_Eintrag_Autor', array ('Id_Eintrag' => $_POST['id'], 'Kuerzel' => $corrector, 'Aufgabe' => 'corr', 'Sprache' => $lang), array ('%d', '%s', '%s', '%s'));
@@ -108,10 +108,10 @@ function va_ajax_edit_glossary ($db){
 		case 'updateList':
 		
 			if(strpos($_POST['filter'], 'MISSING_') === 0){
-				$entries = $db->get_results('select Id_Eintrag, Terminus_D from glossar WHERE Erlaeuterung_' . substr($_POST['filter'], 8, 1) . " = '' AND Intern = '0' AND Fertig AND Kategorie = 'Methodologie'", ARRAY_A);
+				$entries = $db->get_results('select Id_Eintrag, Terminus_D from glossar WHERE Erlaeuterung_' . substr($_POST['filter'], 8, 1) . " = '' AND Intern = '0' AND Fertig", ARRAY_A);
 			}
 			else if(strpos($_POST['filter'], 'NCORRECT_') === 0){
-				$entries = $db->get_results("select g.Id_Eintrag, Terminus_D from glossar g left join vtbl_eintrag_autor v on v.Id_Eintrag = g.Id_Eintrag and Aufgabe = 'corr' WHERE Erlaeuterung_" . substr($_POST['filter'], 9, 1) . " != '' AND Intern = '0' AND Fertig AND Kategorie = 'Methodologie' and Kuerzel is null", ARRAY_A);
+				$entries = $db->get_results("select g.Id_Eintrag, Terminus_D from glossar g left join vtbl_eintrag_autor v on v.Id_Eintrag = g.Id_Eintrag and Aufgabe = 'corr' WHERE Erlaeuterung_" . substr($_POST['filter'], 9, 1) . " != '' AND Intern = '0' AND Fertig and Kuerzel is null", ARRAY_A);
 			}
 			else {
 				$entries = $db->get_results('select Id_Eintrag, Terminus_D from glossar', ARRAY_A);

@@ -24,7 +24,13 @@
 												Beginn,
 												next_person (DATE_ADD(Datum,  INTERVAL 7 DAY), Protokollant) as Protokollant
 											FROM Protokolle WHERE Id_Protokoll = (SELECT max(Id_Protokoll) FROM Protokolle)', ARRAY_A, 0);
-				$va_xxx->insert('Protokolle', $time, array('%s', '%s'));
+				
+				$default_link = 'https://lmu-munich.zoom.us/j/95275082216?pwd=TTlnbDdqY3l4N21LMnVxdVZ1d2pWQT09';
+				if ($default_link){
+					$time['link'] = $default_link;
+				}
+											
+				$va_xxx->insert('Protokolle', $time);
 				$id_new = $va_xxx->insert_id;
 				$va_xxx->query("INSERT INTO VTBL_Protokolle_Teilnehmer (Id_Protokoll, Person, Anwesend, Kommentar) 
 									SELECT " . $id_new . ", Kuerzel, 0, IF(Art = 'hk', 'Teilnahme nicht obligat.', '') 
@@ -53,6 +59,9 @@
 				}
 				else if($_POST['id'] == "protocolWriter"){
 					$result = $va_xxx->update('Protokolle', array('Protokollant' => $_POST['value']), array('Id_Protokoll' => $_POST['pid']), array ('%s'));
+				}
+				else if($_POST['id'] == "protocolLink"){
+					$result = $va_xxx->update('Protokolle', array('Link' => $_POST['value']), array('Id_Protokoll' => $_POST['pid']), array ('%s'));
 				}
 				else if(substr($_POST['id'], 0, 16) == "protocolAttended"){
 					$person = substr($_POST['id'], 16);
@@ -243,7 +252,7 @@
 				var endStr = jQuery("#protocol_end_td").text().trim();
 				endStr = endStr.substring(0, endStr.indexOf(" "));
 				var end;
-				if(endStr == "0:00"){
+				if(endStr == ""){
 					end = [23, 59];
 				}
 				else {
@@ -617,12 +626,17 @@
 				<td id="protocol_end_td">
 					<?php 
 					if($editMode){
-						echo inputField(2, 2, 'protocolHoursEnd', date('G', strtotime($row['Ende']))) . ' : ' . inputField(2, 2, 'protocolMinutesEnd', date('i', strtotime($row['Ende'])));
+					    if ($row['Ende'] === null){
+					        echo inputField(2, 2, 'protocolHoursEnd', '') . ' : ' . inputField(2, 2, 'protocolMinutesEnd', '');
+					    }
+					    else {
+						  echo inputField(2, 2, 'protocolHoursEnd', date('G', strtotime($row['Ende']))) . ' : ' . inputField(2, 2, 'protocolMinutesEnd', date('i', strtotime($row['Ende'])));
+					    }
 					}
 					else
 					{
-						echo date('G:i', strtotime($row['Ende']));
-					}?> Uhr
+					    echo $row['Ende'] === null? '': date('G:i', strtotime($row['Ende'])) . ' Uhr';
+					}?>
 				</td>
 			</tr>
 			<tr>
@@ -645,6 +659,14 @@
 					}
 					?>
 				</td>
+				<?php
+				if($editMode){
+					echo '<tr><td>Link</td><td>' . inputField (62, 500, 'protocolLink', $row['link']) . '</td>';
+				}
+				else if (isset($row['link'])){
+					echo '<tr><td>Link</td><td><a href="' . $row['link'] . '">' . $row['link'] . '</a></td>';
+				}
+				?>
 			</tr>
 		</table>
 		

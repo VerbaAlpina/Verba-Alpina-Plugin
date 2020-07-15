@@ -1,7 +1,6 @@
 "use strict";
 
 var /** DescriptionList*/ descriptionList;
-var /** jQuery */ currentStimulusList;
 var /** boolean */ shiftPressed = false;
 
 jQuery(function() {
@@ -9,7 +8,7 @@ jQuery(function() {
 	jQuery("#morphTypenAuswahl").val("");
 	jQuery("#konzeptAuswahl").val("");
 	
-	addNewEnumValueScript(undefined, undefined, dbname);
+	addNewEnumValueScript(undefined, undefined, DATA.dbname);
 	
 	jQuery(".chosenSelect").chosen({"normalize_search_text" : removeDiacritics});
 	
@@ -38,7 +37,7 @@ jQuery(function() {
 	jQuery("#filterAtlas").change (changeAtlas);
 	
 	//Change stimulus
-	jQuery(".stimulusList select").change(changeStimulus);
+	jQuery(document).on("change", ".stimulusList", changeStimulus);
 	jQuery("#AllorNot").change(changeStimulus);
 	jQuery("#AllorNotConcept").change(changeStimulus);
 	jQuery("#AllorNotAlpes").change(changeStimulus);
@@ -64,16 +63,16 @@ jQuery(function() {
 			if(data["Relevanz"] == "1"){
 				jQuery('#konzeptAuswahl').append("<option value='" + data["id"] + "'>" + (data["Name_D"] != ""? data["Name_D"]: data["Beschreibung_D"]) + "</option>").val(data["id"]).trigger("chosen:updated");
 			}
-		}, selectModes.Chosen, dbname);
+		}, selectModes.Chosen, DATA.dbname);
 	});
 	
 	//Edit menu
 	jQuery("#newReferenceButton").click(function () {
-		showTableEntryDialog('NeueReferenzFuerZuweisung', callbackSaveReference, selectModes.Chosen, dbname);
+		showTableEntryDialog('NeueReferenzFuerZuweisung', null, selectModes.Chosen, DATA.dbname);
 	});
 	
 	jQuery("#newBasetypeReferenceButton").click(function (){
-		showTableEntryDialog('NeueReferenzFuerBasistyp', callbackSaveReferenceBType, selectModes.Chosen, dbname);
+		showTableEntryDialog('NeueReferenzFuerBasistyp', null, selectModes.Chosen, DATA.dbname);
 	});
 	
 	jQuery("#newBaseTypeButton").click(function (){
@@ -97,7 +96,7 @@ jQuery(function() {
 		
 		var res = "";
 		for (var i = 0; i < description.idlist.length; i++){
-			res += description.idlist[i] + "\t\t\t Äußerung: " + description.aelist[i] + "\n";
+			res += description.idlist[i] + "\t\t\t " + TRANSLATIONS.ATTESTATION + ": " + description.aelist[i] + " --- (Id_Aeusserung  " + description.aeidlist[i] + ")\n";
 		}
 		
 		if(description.kind == "T" || description.kind == "P" || description.kind == "M")
@@ -122,7 +121,7 @@ function emptySelection (){
 		for (var i = 0; i < values.length; i++){
 			var descr = descriptionList.getDescription(values[i]);
 			jQuery("#recordSummary tr").filter("tr[data-id-description=" + values[i] + "]").remove();
-			removeLock("Tokens", descr.getLockName(), null, dbname);
+			removeLock("Tokens", descr.getLockName(), null, DATA.dbname);
 		}
 		jQuery("#tokenAuswahlLex").val([]).trigger("chosen:updated");
 	}
@@ -135,26 +134,39 @@ function emptySelection (){
  * @return {undefined}
  */
 function changeAtlas (firstCall){
-	if(currentStimulusList != null){
-		currentStimulusList.toggle(false);
-		currentStimulusList.find("select").chosen("destroy");
+	if(jQuery(".stimulusList").length > 0){
+		jQuery(".stimulusList").chosen("destroy");
+		jQuery("#stimulusListDiv").html("");
 	}
 	var atlas = jQuery("#filterAtlas").val();
 	window.localStorage.setItem('atlas', atlas);
 	
-	if(atlas == ""){
+	jQuery(".tokenInfo").toggle(false);
+	
+	if(!atlas){
 		jQuery("#tokenAuswahlLex").chosen("destroy");
-		jQuery(".tokenInfo").toggle(false);
-		removeLock("Tokens", null, null, dbname);
+		removeLock("Tokens", null, null, DATA.dbname);
 		return;
 	}
-		
-	currentStimulusList = jQuery(".stimulusList#" + atlas);
-	currentStimulusList.find("select").val("");
-	currentStimulusList.toggle(true);
-	currentStimulusList.find("select").chosen({"allow_single_deselect" : true, "normalize_search_text" : removeDiacritics});
 	
-	changeStimulus(firstCall);
+	var data = {
+		"action" : "va",
+		"namespace" : "typification",
+		"query" : "getStimulusList",
+		"atlas" : atlas,
+		"all" : (jQuery("#AllorNot").is(":checked")? "0": "1"),
+		"allC" : (jQuery("#AllorNotConcept").is(":checked")? "0": "1"),
+		"allA" : (jQuery("#AllorNotAlpes").is(":checked")? "0": "1"),
+		"dbname" : DATA.dbname
+	};
+	
+	jQuery.post(ajaxurl, data, function(response) {
+		if (response){
+			jQuery("#stimulusListDiv").html(response);
+			jQuery(".stimulusList").chosen({"allow_single_deselect" : true, "normalize_search_text" : removeDiacritics});
+			changeStimulus(firstCall);
+		}
+	});
 }
 
 /**
@@ -165,11 +177,11 @@ function changeAtlas (firstCall){
  */
 function changeStimulus(firstCall) {
 
-	removeLock("Tokens", null, null, dbname);
+	removeLock("Tokens", null, null, DATA.dbname);
 
 	jQuery("#tokenAuswahlLex").val([]);
 
-	var selectObject = jQuery(".stimulusList#" + jQuery('#filterAtlas').val() + " select");
+	var selectObject = jQuery(".stimulusList");
 	var id = selectObject.val();
 	
 	jQuery("#tokenAuswahlLex").chosen("destroy");
@@ -178,7 +190,42 @@ function changeStimulus(firstCall) {
 	jQuery("#recordSummary tr").not(":has(th)").remove();
 	descriptionList.removeAll();
 	
-	if(id == ""){
+	let checkboxTriggered = this != undefined && (this.id == "AllorNot" || this.id == "AllorNotConcept" || this.id == "AllorNotAlpes");
+	if (checkboxTriggered){
+			
+		if(jQuery(".stimulusList").length > 0){
+			jQuery(".stimulusList").chosen("destroy");
+			jQuery("#stimulusListDiv").html("");
+		}
+		
+		var data = {
+		"action" : "va",
+		"namespace" : "typification",
+		"query" : "getStimulusList",
+		"atlas" : jQuery("#filterAtlas").val(),
+		"all" : (jQuery("#AllorNot").is(":checked")? "0": "1"),
+		"allC" : (jQuery("#AllorNotConcept").is(":checked")? "0": "1"),
+		"allA" : (jQuery("#AllorNotAlpes").is(":checked")? "0": "1"),
+		"dbname" : DATA.dbname
+		};
+		
+		jQuery.post(ajaxurl, data, function(response) {
+			if (response){
+				jQuery("#stimulusListDiv").html(response);
+				jQuery(".stimulusList").chosen({"allow_single_deselect" : true, "normalize_search_text" : removeDiacritics}).val(id);
+				var selectObject = jQuery(".stimulusList");
+				changeStimulusRest(selectObject.val(), selectObject, checkboxTriggered);
+			}
+		});
+	}
+	else {
+		changeStimulusRest(id, selectObject, checkboxTriggered)
+	}
+}
+
+function changeStimulusRest (id, selectObject, checkboxTriggered){
+	
+	if(!id){
 		jQuery("#pdfFrame").attr("src", "about:blank");
 		return;
 	}
@@ -198,7 +245,7 @@ function changeStimulus(firstCall) {
 		"all" : (jQuery("#AllorNot").is(":checked")? "0": "1"),
 		"allC" : (jQuery("#AllorNotConcept").is(":checked")? "0": "1"),
 		"allA" : (jQuery("#AllorNotAlpes").is(":checked")? "0": "1"),
-		"dbname" : dbname
+		"dbname" : DATA.dbname
 	};
 	jQuery.post(ajaxurl, data, function(response) {
 		var tokens = JSON.parse(response);
@@ -222,7 +269,7 @@ function changeStimulus(firstCall) {
 		jQuery("#filterAtlas").prop("disabled", false).trigger("chosen:updated");
 	});
 	
-	if(this.id != "AllorNot" && this.id != "AllorNotConcept" && this.id != "AllorNotAlpes"){
+	if(!checkboxTriggered){
 		var file = selectObject.find(":selected").attr("data-file");
 		
 		var data = {
@@ -234,7 +281,7 @@ function changeStimulus(firstCall) {
 		
 		jQuery.post(ajaxurl, data, function (response){
 			if(response != "no")
-				jQuery("#pdfFrame").attr("src", scanUrl + response.replace("#", "%23"));
+				jQuery("#pdfFrame").attr("src", DATA.scanUrl + response.replace("#", "%23"));
 		});
 	}
 }
@@ -244,7 +291,7 @@ function changeRecord (obj,changed){
 	if(changed.hasOwnProperty("selected")){
 		var descr = descriptionList.getDescription(changed["selected"]);
 		addLock("Tokens", descr.getLockName(), function (response){
-			if(response != 'success' && writeMode){
+			if(response != 'success' && DATA.writeMode){
 				alert("Der Beleg \"" + descr.token + "\" wird bereits von einem anderen Benutzer typisiert!");
 				jQuery("#tokenAuswahlLex").val(jQuery("#tokenAuswahlLex").val().filter(function (e){
 					return e != changed["selected"];
@@ -252,7 +299,7 @@ function changeRecord (obj,changed){
 				jQuery("#tokenAuswahlLex").trigger("chosen:updated");
 				jQuery("#recordSummary tr").filter("tr[data-id-description=" + changed["selected"] + "]").remove();
 			}
-		}, dbname);
+		}, DATA.dbname);
 		
 		jQuery("#recordSummary").append(descr.createTableRow());
 		
@@ -266,7 +313,7 @@ function changeRecord (obj,changed){
 					var descrOther = descriptionList.getDescription(otherIds[i]);
 					oldIds.push(otherIds[i] + "");
 					addLock("Tokens", descrOther.getLockName(), function (name, id, response){
-						if(response != 'success' && writeMode){
+						if(response != 'success' && DATA.writeMode){
 							alert("Der Beleg \"" + name + "\" wird bereits von einem anderen Benutzer typisiert!");
 							jQuery("#tokenAuswahlLex").val(jQuery("#tokenAuswahlLex").val().filter(function (e){
 								return e != id;
@@ -274,7 +321,7 @@ function changeRecord (obj,changed){
 							jQuery("#tokenAuswahlLex").trigger("chosen:updated");
 							jQuery("#recordSummary tr").filter("tr[data-id-description=" + id + "]").remove();
 						}
-					}.bind(this, descrOther.token, otherIds[i]), dbname);
+					}.bind(this, descrOther.token, otherIds[i]), DATA.dbname);
 				}
 			}
 			jQuery("#tokenAuswahlLex").setSelectionOrder(oldIds, true);
@@ -284,7 +331,7 @@ function changeRecord (obj,changed){
 	else if (changed.hasOwnProperty("deselected")){
 		var descr = descriptionList.getDescription(changed["deselected"]);
 		jQuery("#recordSummary tr").filter("tr[data-id-description=" + changed["deselected"] + "]").remove();
-		removeLock("Tokens", descr.getLockName(), null, dbname);
+		removeLock("Tokens", descr.getLockName(), null, DATA.dbname);
 	}
 	else {
 		alert("Error: " + JSON.stringify(changed));
@@ -294,14 +341,14 @@ function changeRecord (obj,changed){
 function deleteTypification (row){
 	var descr = descriptionList.getDescription(row.data("id-description"));
 	descr.vatype = "---LOADING---";
-	row.find("td:nth-last-child(2)").html("<img src='" + loadingUrl + "' />");
+	row.find("td:nth-last-child(2)").html("<img src='" + DATA.loadingUrl + "' />");
 	
 	var data = {
 		"action" : "va",
 		"namespace" : "typification",
 		"query" : "removeTypification",
 		"description" : JSON.stringify(descr),
-		"dbname" : dbname
+		"dbname" : DATA.dbname
 	};
 	jQuery.post(ajaxurl, data, function (response){
 		if(response != "success"){
@@ -335,7 +382,7 @@ function deleteConcept (element){
 		"query" : "removeConcept",
 		"description" : JSON.stringify(descr),
 		"concept" : id,
-		"dbname" : dbname
+		"dbname" : DATA.dbname
 	};
 	jQuery.post(ajaxurl, data, function (response){
 		if(response != "success"){
@@ -388,7 +435,7 @@ function addRowEventListeners (){
 function typify (){
 	
 	if (!jQuery("#morphTypenAuswahl").val()){
-		alert("Wähle einen Typ!");
+		alert(TRANSLATIONS.CHOOSE_TYPE);
 		return;
 	}
 	
@@ -426,14 +473,14 @@ function typify (){
 		"query" : "addTypification",
 		"descriptionList" : JSON.stringify(descrList),
 		"newTypeId" : newTypeId,
-		"dbname" : dbname
+		"dbname" : DATA.dbname
 	};
 	jQuery.post(ajaxurl, data, function (response){
 		if(response != "success"){
 			alert(response);
 		}
 		else {
-			removeLock("Tokens", null, null, dbname);
+			removeLock("Tokens", null, null, DATA.dbname);
 			
 			jQuery("#tokenAuswahlLex").setSelectionOrder([], true);
 			jQuery("#recordSummary tr").not(":has(th)").remove();
@@ -461,13 +508,13 @@ function typify (){
 function assignConcept (){
 	
 	if (this.id == "assignConcept" && !jQuery("#konzeptAuswahl").val()){
-		alert("Wähle ein Konzept!");
+		alert(TRANSLATIONS.CHOOSE_CONCEPT);
 		return;
 	}
 	
 	var selectedIds = jQuery("#tokenAuswahlLex").getSelectionOrder();
 	if(selectedIds.length == 0){
-		alert("Keine Belege ausgewählt!");
+		alert(TRANSLATIONS.NO_RECORDS);
 		return;
 	}
 	
@@ -479,7 +526,7 @@ function assignConcept (){
 		var multiple = true;
 	}
 	else {
-		alert("Ungültige Auswahl!");
+		alert(TRANSLATIONS.INVALID_SELECTION);
 		return;
 	}
 	
@@ -498,7 +545,7 @@ function assignConcept (){
 		"query" : "addConcept",
 		"descriptionList" : JSON.stringify(descrList),
 		"newConceptId" : newConceptId,
-		"dbname" : dbname
+		"dbname" : DATA.dbname
 	};
 	
 	if(multiple){
@@ -530,13 +577,13 @@ function callbackNoType (newConceptId, selectedIds, descrList, response){
 			descriptionList.remove(selectedIds[i]);
 		}
 		else {
-			errors += descrList[i].name + ": Konzept " + responseArray[i] + "\n";
+			errors += descrList[i].name + ": " + TRANSLATIONS.CONCEPT + " " + responseArray[i] + "\n";
 		}
 	}
 	jQuery("#tokenAuswahlLex").trigger("chosen:updated");
 	
 	if(errors !== ""){
-		alert("Folgende Belege konnten nicht bearbeitet werden, das sie schon mit einem anderen Konzept verbunden sind:\n\n" + errors);
+		alert(TRANSLATIONS.NO_CONCEPT_ASSIGNED + ":\n\n" + errors);
 	}
 }
 
@@ -578,7 +625,7 @@ function saveMorphType (){
 	var data = getMorphTypeData(id);
 	
 	if(data.type.Orth == ""){
-		alert("Das Feld \"Orth\" darf nicht leer sein!");
+		alert(TRANSLATIONS.ERROR_ORTH);
 		return;
 	}
 
@@ -618,7 +665,7 @@ function saveBaseType (){
 	var data = getBaseTypeData();
 	
 	if(data.type.Orth == ""){
-		alert("Das Feld \"Orth\" darf nicht leer sein!");
+		alert(TRANSLATIONS.ERROR_ORTH);
 		return;
 	}
 	
@@ -648,7 +695,7 @@ function saveBaseType (){
 function editMorphType (){
 	
 	if (!jQuery("#morphTypenAuswahl").val()){
-		alert("Wähle einen Typ!");
+		alert(TRANSLATIONS.CHOOSE_TYPE);
 		return;
 	}
 	
@@ -658,7 +705,7 @@ function editMorphType (){
 		"namespace" : "typification",
 		"query" : "getMorphTypeDetails",
 		"id" : jQuery("#morphTypenAuswahl").val(),
-		"dbname" : dbname
+		"dbname" : DATA.dbname
 	};
 	jQuery.post(ajaxurl, data, function (response){
 		try {

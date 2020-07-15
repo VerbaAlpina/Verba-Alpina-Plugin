@@ -409,8 +409,8 @@ function va_tokenization_info_for_stimulus ($id_stimulus) {
 		return;
 	}
 	
-	if ($result[0] > 2000){
-		echo 'Es können nicht mehr als 2000 Äußerungen gleichzeitg tokenisiert werden!';
+	if ($result[0] > 5000){
+		echo 'Es können nicht mehr als 5000 Äußerungen gleichzeitg tokenisiert werden!';
 		return;
 	}
 	
@@ -564,6 +564,7 @@ function va_add_original_and_ipa ($tokenizer, $tokens, $global, $extraData){
 			}
 			
 			$res = $parser->convert_to_original($chars);
+			error_log(json_encode($chars) . ' -> ' . json_encode($res));
 			if($res['string']){
 				$token['Original'] = $res['string'];
 			}

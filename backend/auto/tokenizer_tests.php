@@ -1395,7 +1395,7 @@ function va_tokenize_test() {
 		],
 		
 		[
-			'ALP',
+			'ALJA',
 			'\\\\*\\\\? o1  talsa; a&$%/ba&$%/b&$%/',
 			[
 				'class' => 'B',
@@ -1489,8 +1489,8 @@ function va_tokenize_test() {
 					'mtypes' => [],
 					'ptypes' => [],
 					'warnings' => [
-						'Missing character in ALP-IPA codepage: a&%/', // Dollar is accent => removed
-						'Missing character in ALP-IPA codepage: b&$%/',
+						'Missing character in ALJA-IPA codepage: a&%/', // Dollar is accent => removed
+						'Missing character in ALJA-IPA codepage: b&$%/',
 						'Missing character in original codepage: a&$%/',
 						'Missing character in original codepage: b&$%/'
 					]
@@ -1786,6 +1786,84 @@ function va_tokenize_test() {
 		[
 			'AIS',
 			'\\\\: la\\ lo?do?le(/ta1',
+			[
+				'class' => 'B',
+				'concepts' => [4],
+				'notes' => '',
+				'lang' => 'rom'
+			],
+			[
+				'tokens' => [
+					[
+						'Token' => '\\\\:',
+						'IPA' => '',
+						'Original' => ':',
+						'Trennzeichen' => ' ',
+						'Trennzeichen_IPA' => ' ',
+						'Trennzeichen_Original' => ' ',
+						'Ebene_1' => 1,
+						'Ebene_2' => 1,
+						'Ebene_3' => 1,
+						'Bemerkung' => '',
+						'Genus' => '',
+						'Konzepte' => [
+							779
+						],
+						'Id_Tokengruppe' => NULL,
+						'MTyp' => NULL,
+						'PTyp' => NULL
+					],
+					[
+						'Token' => 'la\\',
+						'IPA' => 'lˌa',
+						'Original' => 'là',
+						'Trennzeichen' => ' ',
+						'Trennzeichen_IPA' => ' ',
+						'Trennzeichen_Original' => ' ',
+						'Ebene_1' => 1,
+						'Ebene_2' => 1,
+						'Ebene_3' => 2,
+						'Bemerkung' => '',
+						'Genus' => 'f',
+						'Konzepte' => [
+							699
+						],
+						'Id_Tokengruppe' => NULL,
+						'MTyp' => NULL,
+						'PTyp' => NULL
+					],
+					[
+						'Token' => 'lo?do?le(/ta1',
+						'IPA' => 'lodolˈɛtɑ',
+						'Original' => 'lọdọlé̜tα',
+						'Trennzeichen' => NULL,
+						'Trennzeichen_IPA' => NULL,
+						'Trennzeichen_Original' => NULL,
+						'Ebene_1' => 1,
+						'Ebene_2' => 1,
+						'Ebene_3' => 3,
+						'Bemerkung' => '',
+						'Genus' => 'f',
+						'Konzepte' => [
+							4
+						],
+						'Id_Tokengruppe' => NULL,
+						'MTyp' => NULL,
+						'PTyp' => NULL
+					]
+				],
+				'global' => [
+					'groups' => [],
+					'mtypes' => [],
+					'ptypes' => [],
+					'warnings' => []
+				]
+			]
+		],
+		
+		[
+			'AIS',
+			'\\\\:la\\ lo?do?le(/ta1',
 			[
 				'class' => 'B',
 				'concepts' => [4],

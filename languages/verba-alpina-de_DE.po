@@ -7,67 +7,267 @@ msgid ""
 msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-06-28 14:36+0200\n"
-"PO-Revision-Date: 2019-06-28 14:36+0200\n"
+"POT-Creation-Date: 2020-01-29 14:19+0100\n"
+"PO-Revision-Date: 2020-01-29 14:22+0100\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: de_DE\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"X-Generator: Poedit 1.8.8\n"
+"X-Generator: Poedit 2.2.4\n"
 "X-Poedit-SourceCharset: UTF-8\n"
 "X-Poedit-KeywordsList: _e;__\n"
 "X-Poedit-Basepath: ..\n"
 "X-Poedit-SearchPath-0: .\n"
+"X-Poedit-SearchPathExcluded-0: lib\n"
+"X-Poedit-SearchPathExcluded-1: im_config/live\n"
+
+#: backend/typification/lex.php:16
+msgid "Correct Attestation"
+msgstr "Korrigiere Beleg"
+
+#: backend/typification/lex.php:17 backend/typification/lex.php:122
+msgid "Attestation"
+msgstr "Beleg"
+
+#: backend/typification/lex.php:18
+msgid "Choose a type!"
+msgstr "Wähle einen Typ!"
+
+#: backend/typification/lex.php:19
+msgid "Choose a concept!"
+msgstr "Wähle eine Konzept!"
+
+#: backend/typification/lex.php:20
+msgid "No attestations selected!"
+msgstr "Keine Belege ausgewählt!"
+
+#: backend/typification/lex.php:21
+msgid "Invalid selection!"
+msgstr "Ungültige Auswahl!"
+
+#: backend/typification/lex.php:22
+msgid "Concept"
+msgstr "Konzept"
+
+#: backend/typification/lex.php:23
+msgid ""
+"The following attestations could not be processed, since they are already "
+"connected to a different concept"
+msgstr ""
+"Folgende Belege konnten nicht bearbeitet werden, das sie schon mit einem "
+"anderen Konzept verbunden sind"
+
+#: backend/typification/lex.php:24
+msgid "The field \"Orth\" must not be empty!"
+msgstr "Das Feld \"Orth\" darf nicht leer sein!"
+
+#: backend/typification/lex.php:41
+msgid ""
+"Attestation without typification are formatted bold. Attestations without "
+"concept are in italics. Attestations linked with irrelevant concepts are "
+"shown with a grey background."
+msgstr ""
+"Noch nicht typisierte Belege sind fett markiert. Belege ohne "
+"Konzeptzuweisung werden kursiv dargestellt. Belege, die mit irrelevanten "
+"Konzepten verknüpft sind, werden grau hinterlegt."
 
 #: backend/typification/lex.php:42
-msgid "Lexical Types"
-msgstr "Lexikalische Typen"
+msgid ""
+"If \"Ctrl\" is pressed multiple attestations can be selected, if \"Shift\" "
+"is pressed other attestations that are orthographically identical get "
+"selected, too."
+msgstr ""
+"Wenn \"Strg\" gedrückt ist, können mehrere Belege ausgewählt werden, wenn "
+"\"Shift\" gedrückt ist, werden auch orthographisch identische Belege mit "
+"ausgewählt."
 
-#: backend/typification/lex.php:49
+#: backend/typification/lex.php:59 va.php:917
+msgid "Typification"
+msgstr "Typisierung"
+
+#: backend/typification/lex.php:63 backend/typification/lex.php:109
+msgid "Attestations"
+msgstr "Belege"
+
+#: backend/typification/lex.php:66
 msgid "Choose Atlas"
 msgstr "Atlas wählen"
 
-#: backend/typification/lex.php:68
+#: backend/typification/lex.php:85
 msgid "Choose Stimulus"
 msgstr "Stimulus auswählen"
 
-#: backend/typification/lex.php:119
+#: backend/typification/lex.php:96
+msgid "Show only attestations without morph.-lex. typification"
+msgstr "Nur Belege ohne morph.-lex. Typisierung anzeigen"
+
+#: backend/typification/lex.php:98
+msgid "Show only attestations without concept"
+msgstr "Nur Belege ohne Konzeptzuweisung anzeigen"
+
+#: backend/typification/lex.php:100
+msgid "Show only attestations within the Alpine convention"
+msgstr "Nur Belege aus der Alpenkonvention anzeigen"
+
+#: backend/typification/lex.php:113
+msgid "Clear selection"
+msgstr "Auswahl leeren"
+
+#: backend/typification/lex.php:123
+msgid "Informants"
+msgstr "Informanten"
+
+#: backend/typification/lex.php:124
+msgid "Remarks"
+msgstr "Bemerkungen"
+
+#: backend/typification/lex.php:125
+msgid "Concept(s)"
+msgstr "Konzept(e)"
+
+#: backend/typification/lex.php:126
+msgid "Morph.-lex type"
+msgstr "Morph.-lex. Typ"
+
+#: backend/typification/lex.php:134
+msgid "Assign morph.-lex. type"
+msgstr "Morph.-lex. Typ zuweisen"
+
+#: backend/typification/lex.php:136
 msgid "Choose type"
 msgstr "Typ auswählen"
 
-#: backend/typification/lex.php:128
+#: backend/typification/lex.php:145
 msgid "Assign type"
 msgstr "Typ zuweisen"
 
-#: backend/typification/lex.php:129
+#: backend/typification/lex.php:146
 msgid "Create new type"
 msgstr "Neuen Typ erstellen"
 
-#: backend/typification/lex.php:137
-msgid "Choose concept"
-msgstr "Konzept auswählen"
+#: backend/typification/lex.php:147
+msgid "Edit type"
+msgstr "Typ bearbeiten"
 
-#: backend/typification/lex.php:146
+#: backend/typification/lex.php:152 backend/typification/lex.php:163
 msgid "Assign concept"
 msgstr "Konzept zuweisen"
 
-#: backend/typification/lex.php:147
+#: backend/typification/lex.php:154
+msgid "Choose concept"
+msgstr "Konzept auswählen"
+
+#: backend/typification/lex.php:164
 msgid "Create new concept"
 msgstr "Neues Konzept anlegen"
 
-#: backend/typification/lex.php:153
+#: backend/typification/lex.php:170
 msgid "Typification not necessary"
 msgstr "Typisierung nicht notwendig"
 
-#: backend/typification/lex.php:165
+#: backend/typification/lex.php:172
+msgid "Tokens are"
+msgstr "Belege sind"
+
+#: backend/typification/lex.php:182 backend/typification/util.php:98
 msgid "Confirm"
 msgstr "Bestätigen"
 
+#: backend/typification/util.php:14
+msgid "Morpho-lexical type"
+msgstr "Morpho-lexikalischer Typ"
+
+#: backend/typification/util.php:16 backend/typification/util.php:123
+msgid "Type Information"
+msgstr "Typ-Information"
+
+#: backend/typification/util.php:23 backend/typification/util.php:130
+msgid "Language"
+msgstr "Sprache"
+
+#: backend/typification/util.php:27
+msgid "POS"
+msgstr "Wortart"
+
+#: backend/typification/util.php:31
+msgid "Prefix"
+msgstr "Präfix"
+
+#: backend/typification/util.php:35
+msgid "Infix"
+msgstr "Infix"
+
+#: backend/typification/util.php:39
+msgid "Suffix"
+msgstr "Suffix"
+
+#: backend/typification/util.php:43
+msgid "Gender"
+msgstr "Genus"
+
+#: backend/typification/util.php:47 backend/typification/util.php:112
+#: backend/typification/util.php:147 backend/typification/util.php:171
+#: util/tools.php:602
+msgid "Internal comment"
+msgstr "Kommentar_Intern"
+
+#: backend/typification/util.php:53
+msgid "Components"
+msgstr "Bestandteile"
+
+#: backend/typification/util.php:63 backend/typification/util.php:152
+msgid "Assigned references"
+msgstr "Zugewiesene Referenzen"
+
+#: backend/typification/util.php:74 backend/typification/util.php:155
+msgid "Create new reference"
+msgstr "Neue Referenz erstellen"
+
+#: backend/typification/util.php:76
+msgid "Assigned base types"
+msgstr "Zugewiesene Basistypen"
+
+#: backend/typification/util.php:86
+msgid "Create new base type"
+msgstr "Neuen Basistyp erstellen"
+
+#: backend/typification/util.php:107 backend/typification/util.php:167
+msgid "Source"
+msgstr "Quelle"
+
+#: backend/typification/util.php:109
+msgid "Genders"
+msgstr "Genera"
+
+#: backend/typification/util.php:110 backend/typification/util.php:169
+msgid "Bibl. reference"
+msgstr "Bibl. Referenz"
+
+#: backend/typification/util.php:113
+msgid "New reference"
+msgstr "Neue Referenz"
+
+#: backend/typification/util.php:121
+msgid "Base type"
+msgstr "Basistyp"
+
+#: backend/typification/util.php:143
+msgid "Alpine word"
+msgstr "Alpenwort"
+
+#: backend/typification/util.php:162
+msgid "Change"
+msgstr "Ändern"
+
+#: backend/typification/util.php:162
+msgid "Insert"
+msgstr "Eintragen"
+
 #: pages/comments.php:88
 msgid "Search"
-msgstr ""
+msgstr "Suche"
 
 #: util/ajax/va_ajax_transcription.php:153
 msgid "Everything transcribed!"
@@ -109,28 +309,60 @@ msgstr "Konzept(e) auswählen"
 msgid "Remove&nbsp;row"
 msgstr "Zeile&nbsp;entfernen"
 
-#: va.php:712
+#: util/tools.php:597
+msgid "Name_German"
+msgstr "Name_D"
+
+#: util/tools.php:598
+msgid "Description_German"
+msgstr "Beschreibung_D"
+
+#: util/tools.php:599
+msgid "Category"
+msgstr "Kategorie"
+
+#: util/tools.php:600
+msgid "Taxonomy"
+msgstr "Taxonomie"
+
+#: util/tools.php:603
+msgid "Relevance"
+msgstr "Relevanz"
+
+#: util/tools.php:604
+msgid "Pseudo"
+msgstr "Pseudo"
+
+#: util/tools.php:605
+msgid "Grammatical"
+msgstr "Grammatikalisch"
+
+#: util/tools.php:615
+msgid "New concept"
+msgstr "Neues Konzept"
+
+#: va.php:737
 msgid ""
 "Adds a marker to the data base that there are no attestations for this "
 "informant."
 msgstr ""
 "Markiert in der Datenbank, dass es für diesen Informanten keine Belege gibt."
 
-#: va.php:715 va.php:716
+#: va.php:740 va.php:741
 msgid "Concept does not exist"
 msgstr "Konzept nicht vorhanden"
 
-#: va.php:717
+#: va.php:742
 msgid ""
 "Adds a marker to the data base that this concept is not known at this place."
 msgstr ""
 "Markiert in der Datenbank, dass dieses Konzept an diesem Ort unbekannt ist."
 
-#: va.php:720 va.php:721
+#: va.php:745 va.php:746
 msgid "Term not known"
 msgstr "Bezeichnung nicht bekannt"
 
-#: va.php:722
+#: va.php:747
 msgid ""
 "Adds a marker to the data base that this concept is known at this place, but "
 "the informant does not know a term for it."
@@ -138,23 +370,19 @@ msgstr ""
 "Markiert in der Datenbank, dass das Konzept an diesem Ort bekannt ist, aber "
 "der Informant keine Bezeichnung dafür kennt."
 
-#: va.php:724
+#: va.php:749
 msgid "Only within alpine convention"
 msgstr "Nur innerhalb der Alpenkonvention"
 
-#: va.php:890
-msgid "Typification"
-msgstr "Typisierung"
-
-#: va.php:911
+#: va.php:939
 msgid "Data base"
 msgstr "Datenbank"
 
+#~ msgid "Lexical Types"
+#~ msgstr "Lexikalische Typen"
+
 #~ msgid "Choose atlas"
 #~ msgstr "Atlas wählen"
-
-#~ msgid "Informant no."
-#~ msgstr "Informant-Nr."
 
 #~ msgid "Informant number(s)"
 #~ msgstr "Informanten-Nummer(n)"
@@ -174,14 +402,8 @@ msgstr "Datenbank"
 #~ msgid "+ Add row"
 #~ msgstr "Zeile hinzufügen"
 
-#~ msgid "Insert"
-#~ msgstr "Eintragen"
-
 #~ msgid "Problem"
 #~ msgstr "Problem"
-
-#~ msgid "Add concept"
-#~ msgstr "Konzept hinzufügen"
 
 #~ msgid "No value!"
 #~ msgstr "Kein Wert!"
@@ -197,9 +419,6 @@ msgstr "Datenbank"
 
 #~ msgid "morphological type"
 #~ msgstr "morphologischer Typ"
-
-#~ msgid "Assigned concepts"
-#~ msgstr "Zugewiesene Konzepte"
 
 #~ msgid "Chose map"
 #~ msgstr "Karte wählen"
@@ -247,9 +466,6 @@ msgstr "Datenbank"
 #~ msgid "This token is already typed by another user."
 #~ msgstr "Dieses Token wird gerade von einem anderen Benutzer typisiert!"
 
-#~ msgid "No selection!"
-#~ msgstr "Keine Auswahl!"
-
 #~ msgid ""
 #~ "Not possible the following concepts are already assigned to identical "
 #~ "tokens: "
@@ -268,9 +484,6 @@ msgstr "Datenbank"
 
 #~ msgid "Adopt type from atlas"
 #~ msgstr "Typ aus Atlas übernehmen"
-
-#~ msgid "Token is"
-#~ msgstr "Token ist"
 
 #~ msgid "Adopt and assign non-VA type"
 #~ msgstr "Nicht-VA-Typ übernehmen und zuweisen"

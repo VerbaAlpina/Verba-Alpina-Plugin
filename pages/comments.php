@@ -83,6 +83,12 @@ function comment_list (){
 			}
 		});
 	}
+	
+	function localLink (fragment){
+		jQuery(".va-entry").toggle(true);
+		jQuery("#seachComments").val("");
+		location.href = "#" + fragment;
+	}
 	</script>
 	
 	<span  style="float: right;"><input type="text" id="seachComments" placeholder="<?php _e('Search');?>"></input></span>
@@ -91,13 +97,40 @@ function comment_list (){
 	
 	echo '<div class="entry-content">';
 	
+	$pre = $vadb->get_var("SELECT Erlaeuterung_$lang FROM glossar WHERE Terminus_D = 'Präambel_LexAlp'");
+	if ($pre){
+		parseSyntax($pre, true);
+		echo '<div>' . $pre . '</div>';
+	}
+	
 	if(va_version_newer_than('va_171'))
 		$comments = $vadb->get_results("SELECT Id, Language FROM im_comments WHERE substr(Id,1,1) IN ('B','L','C') and substr(Language,1,1) = '$lang' and not Internal", ARRAY_A);
 	else
 		$comments = $vadb->get_results("SELECT Id, Language FROM im_comments WHERE substr(Id,1,1) IN ('B','L','C') and substr(Language,1,1) = '$lang'", ARRAY_A);
 	
+	$qids = va_two_dim_to_assoc($vadb->get_results("SELECT Id_Konzept, QID FROM Konzepte WHERE QID IS NOT NULL AND QID != 0 AND (Name_$lang != '' OR Beschreibung_$lang != '') AND Relevanz", ARRAY_N));
+	
+	$concept_ids = [];
+	
 	foreach ($comments as $index => $comment){
-		$comments[$index]['Title'] = va_get_comment_title($comment['Id'], $comment['Language']);
+		if (substr($comment['Id'], 0, 1) === 'C'){
+			$comments[$index]['QID'] = isset($qids[substr($comment['Id'], 1)])? $qids[substr($comment['Id'], 1)]: null;
+			
+			$concept_ids[] = substr($comment['Id'], 1);
+		}
+		else {
+			$comments[$index]['QID'] = null;
+		}
+	}
+	
+	foreach ($qids as $concept => $qid){
+		if (!in_array($concept, $concept_ids)){
+			$comments[] = ['Id' => 'C' . $concept, 'Language' => $lang, 'QID' => $qid];
+		}
+	}
+	
+	foreach ($comments as $index => $comment){
+		$comments[$index]['Title'] = va_get_comment_title($comment['Id'], $comment['Language'], false, $Ue, $vadb);
 	}
 	
 	uasort($comments, function ($e1, $e2){
@@ -138,15 +171,26 @@ function comment_list (){
 		
 		echo '<div class="va-entry"><header class="entry-header" style="margin-bottom: 1rem; margin-top: 5rem;"><h1 class="va-title">' . $pre . '<a style="color: black;" href="#' . $comment['Id'] . '" class="hLink"><span class="title-string">' . $comment['Title'] . '</span></a>' . $app . '</h1></header>';
 		
-		echo '<div class="va-content">' . va_get_comment_text($comment['Id'], $comment['Language'], $admin || $va_mitarbeiter);
+		echo '<div class="va-content">';
 
-		if(va_version_newer_than('va_171')){
+		$text = va_get_comment_text($comment['Id'], $comment['Language'], $admin || $va_mitarbeiter);
+		echo $text;
+
+		if(va_version_newer_than('va_171') && $text){
 			echo '<div>' . va_add_glossary_authors($auth, $trad) . '</div>';
 		}
 		global $va_current_db_name;
 		if(($va_mitarbeiter || $admin) && $va_current_db_name === 'va_xxx'){
 			echo ' <b>' . $vadb->get_var($vadb->prepare('SELECT Approved FROM im_comments WHERE Id = %s AND Language = %s', $comment['Id'], 'de')) . '</b>';	
 		}
+		
+		if ($comment['QID']){
+			if ($text){
+				echo '<br /><br />';
+			}
+			echo '(' . $Ue['SIEHE'] . ' <a target="_BLANK" href="https://www.wikidata.org/wiki/Q' . $comment['QID'] . '">Wikidata Q' . $comment['QID'] . '</a>)';
+		}
+		
 		echo '</div></div>';
 	}
 	echo '</div>';

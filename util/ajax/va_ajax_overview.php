@@ -12,18 +12,22 @@ function va_ajax_overview (&$db){
 		case 'atlases':
 			va_overview_build_atlases_concepts();
 			break;
+			
+		case 'typification':
+		    va_overview_build_typification();
+		    break;
 	}
 }
 
 function va_overview_build_atlases_concepts (){
-	global $va_xxx;
+	global $vadb;
 	?>
 	<table class="matrix">
 			<thead>
 				<tr>
 					<th><div>Konzept</div></th>
 					<?php 
-					$atlanten = $va_xxx->get_col('SELECT DISTINCT Erhebung FROM
+					$atlanten = $vadb->get_col('SELECT DISTINCT Erhebung FROM
 													(SELECT Erhebung FROM Stimuli s WHERE EXISTS (SELECT * FROM Aeusserungen a WHERE a.Id_Stimulus = s.Id_Stimulus)) e', 0);
 					foreach ($atlanten as $atlas){
 						echo '<th><div><span>' . $atlas . '</span></div></th>';
@@ -56,7 +60,7 @@ function va_overview_build_atlases_concepts (){
 				GROUP BY u.Id_Ueberkonzept, Id_Aeusserung, Id_Stimulus
 				ORDER BY IF(Name_D = '', Beschreibung_D, Name_D)
 			 */
-			$belege = $va_xxx->get_results("
+			$belege = $vadb->get_results("
 				SELECT
 					IF(Name_D = '', Beschreibung_D, Name_D) AS Konzept,
 					Id_Aeusserung,
@@ -115,9 +119,9 @@ function va_overview_build_atlases_concepts (){
 }
 
 function va_overview_build_stimuli_concepts (){
-	global $va_xxx;
+	global $vadb;
 	
-	$konzepte = $va_xxx->get_results("
+	$konzepte = $vadb->get_results("
 	SELECT
 		k.Id_Konzept,
 		IF(Name_D = '', Beschreibung_D, NAme_D) as Konzept,
@@ -141,7 +145,7 @@ function va_overview_build_stimuli_concepts (){
 	ORDER BY IF(Name_D = '', Beschreibung_D, Name_D)
 	", ARRAY_A);
 	?>
-	<table class="easy-table easy-table-default tablesorter   tablesorter-default">
+	<table class="easy-table easy-table-default">
 		<tr>
 			<th>Konzept</th>
 			<th>Stimuli</th>
@@ -157,10 +161,10 @@ function va_overview_build_stimuli_concepts (){
 			echo '<td>' . $konzept['Aeusserungen'] . '</td>';
 			echo '<td>' . $konzept['Tokenisiert'] . '</td>';
 			
-			$subConcepts = $va_xxx->get_col('SELECT Id_Konzept FROM A_Ueberkonzepte_Erweitert WHERE Id_Ueberkonzept = ' . $konzept['Id_Konzept'], 0);
+			$subConcepts = $vadb->get_col('SELECT Id_Konzept FROM A_Ueberkonzepte_Erweitert WHERE Id_Ueberkonzept = ' . $konzept['Id_Konzept'], 0);
 			$subConcepts[] = $konzept['Id_Konzept'];
 			
-			$tokens = $va_xxx->get_var('
+			$tokens = $vadb->get_var('
 				SELECT count(*)
 				FROM 
 					Tokens
@@ -169,7 +173,7 @@ function va_overview_build_stimuli_concepts (){
 					Id_Konzept IN (' . implode(',', $subConcepts) . ')'
 				, 0, 0);
 				
-			$tokengruppen = $va_xxx->get_var('
+			$tokengruppen = $vadb->get_var('
 				SELECT count(*)
 				FROM 
 					Tokengruppen
@@ -188,8 +192,8 @@ function va_overview_build_stimuli_concepts (){
 }
 
 function va_overview_build_transcription (){
-	global $va_xxx;
-	$stimuli = $va_xxx->get_results("
+	global $vadb;
+	$stimuli = $vadb->get_results("
 	SELECT
 		Id_Stimulus,
 		Erhebung,
@@ -203,7 +207,7 @@ function va_overview_build_transcription (){
 	", ARRAY_A);
 	
 	?>
-	<table class="easy-table easy-table-default tablesorter   tablesorter-default">
+	<table class="easy-table easy-table-default">
 		<thead>
 			<tr>
 				<td>Id</td>
@@ -244,6 +248,59 @@ function va_overview_build_transcription (){
 	}
 	?>
 	</table>
+	<?php
+}
+
+function va_overview_build_typification (){
+    global $vadb;
+    
+    $sql = 'SELECT 
+                Erhebung, 
+                SUM(IF(Id_morph_Typ IS NOT NULL, 1, 0)) AS Typisiert,
+                SUM(IF(Id_morph_Typ IS NULL AND (Relevanz = 0 OR Grammatikalisch > 0 OR Not Alpenkonvention), 1, 0)) AS Nicht_Notwendig,
+                COUNT(*) AS Summe
+            FROM
+                (SELECT t.Id_Token, s.Erhebung, m.Id_morph_Typ, SUM(Relevanz) as Relevanz, SUM(Grammatikalisch) as Grammatikalisch, Alpenkonvention
+                FROM Tokens t
+                    JOIN Stimuli s USING (Id_Stimulus)
+                    JOIN Informanten USING (Id_Informant)
+                    LEFT JOIN VTBL_Token_morph_Typ vm USING (Id_Token)
+                    LEFT JOIN morph_Typen m ON m.Quelle = "VA" AND m.Id_morph_Typ = vm.Id_morph_Typ
+                    LEFT JOIN VTBL_Token_Konzept USING (Id_Token)
+                    LEFT JOIN Konzepte USING (Id_Konzept)
+                WHERE s.Erhebung != "Test"
+                GROUP BY Id_Token) tt
+            GROUP BY Erhebung
+            ORDER BY COUNT(*) DESC';
+    
+    $res = $vadb->get_results($sql, ARRAY_A);
+    
+    ?>
+	<table class="easy-table easy-table-default tablesorter tablesorter-default">
+		<thead>
+			<tr>
+				<th class="sortable">Erhebung</th>
+				<th class="sortable">Tokens</th>
+				<th class="sortable">Typisiert</th>
+				<th class="sortable">Nicht Notwendig<sup><a href="#fn1">1</a></sup></th>
+				<th class="sortable">Nicht Typisiert</th>
+				<th class="sortable">Anteil Typisiert</th>
+			</tr>
+		</thead>
+	<?php
+    
+	foreach ($res as $row){
+	    $rest = $row['Summe'] - $row['Typisiert'] - $row['Nicht_Notwendig'];
+	    echo '<tr><td>' . $row['Erhebung'] . '</td><td>' . $row['Summe'] . '</td><td>' . $row['Typisiert'] . '</td><td>' . $row['Nicht_Notwendig'] . '</td><td>' .
+	   	    $rest . '</td><td>' . round($row['Typisiert'] / ($row['Typisiert'] + $rest) * 100) . '%</td></tr>';
+	}
+	
+	?>
+	</table>
+	
+	<div id="fn1">
+	1: "Nicht notwendig" bedeutet in diesem Fall das Token ist mit einem nicht relevanten Konzept verknüpft oder als grammatikalisch markiert oder nicht innerhalb der Alpenkonvention.
+	</div>
 	<?php
 }
 ?>

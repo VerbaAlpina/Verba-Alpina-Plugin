@@ -177,6 +177,60 @@ if (function_exists ('acf_add_local_field_group')) :
 										'new_lines' => ''
 									),
 									array(
+										'key' => 'field_5fa550d8bcbca',
+										'label' => 'Freitextoption hinzufügen',
+										'name' => 'fb_cb_user_input',
+										'type' => 'true_false',
+										'instructions' => '',
+										'required' => 0,
+										'conditional_logic' => array(
+											array(
+												array(
+													'field' => 'field_5b226c4078928',
+													'operator' => '==',
+													'value' => 'Auswahl'
+												)
+											)
+										),
+										'wrapper' => array(
+											'width' => '',
+											'class' => '',
+											'id' => '',
+										),
+										'message' => '',
+										'default_value' => 0,
+										'ui' => 0,
+										'ui_on_text' => '',
+										'ui_off_text' => '',
+									),
+									array(
+										'key' => 'field_5fa55171bcbcb',
+										'label' => 'Beschriftung',
+										'name' => 'fb_cb_user_input_label',
+										'type' => 'text',
+										'instructions' => '',
+										'required' => 0,
+										'conditional_logic' => array(
+											array(
+												array(
+													'field' => 'field_5fa550d8bcbca',
+													'operator' => '==',
+													'value' => '1',
+												),
+											),
+										),
+										'wrapper' => array(
+											'width' => '',
+											'class' => '',
+											'id' => '',
+										),
+										'default_value' => 'Sonstige',
+										'placeholder' => '',
+										'prepend' => '',
+										'append' => '',
+										'maxlength' => '',
+									),
+									array(
 										'key' => 'field_5b226d5d545a8',
 										'label' => 'Mittelpunkt',
 										'name' => 'fb_map_center',
@@ -267,6 +321,62 @@ if (function_exists ('acf_add_local_field_group')) :
 										'min' => '',
 										'max' => '',
 										'step' => ''
+									),
+									array(
+										'key' => 'fb_map_type',
+										'label' => 'Kartentyp',
+										'name' => 'fb_map_type',
+										'type' => 'select',
+										'instructions' => '',
+										'required' => 1,
+										'conditional_logic' => array(
+											array(
+												array(
+													'field' => 'field_5b226c4078928',
+													'operator' => '==',
+													'value' => 'Karte'
+												)
+											)
+										),
+										'multiple' => 0,
+										'allow_null' => 0,
+										'choices' => array(
+											'S' => 'Standard',
+											'E' => 'Leer'
+										),
+										'default_value' => 'S',
+										'ui' => 0,
+										'ajax' => 0,
+										'placeholder' => '',
+										'return_format' => 'value',
+									),
+									array(
+										'key' => 'field_map_sel',
+										'label' => 'Auswahltyp',
+										'name' => 'fb_map_selection_type',
+										'type' => 'select',
+										'instructions' => '',
+										'required' => 1,
+										'conditional_logic' => array(
+											array(
+												array(
+													'field' => 'field_5b226c4078928',
+													'operator' => '==',
+													'value' => 'Karte'
+												)
+											)
+										),
+										'multiple' => 0,
+										'allow_null' => 0,
+										'choices' => array(
+											'S' => 'Einzelner Punkt',
+											'M' => 'Mehrere Punkte'
+										),
+										'default_value' => 'S',
+										'ui' => 0,
+										'ajax' => 0,
+										'placeholder' => '',
+										'return_format' => 'value',
 									)
 								)
 							)

@@ -44,19 +44,50 @@ function va_install (){
 	$administrator->add_cap('edit_published_va_posts');
 	$administrator->add_cap('publish_va_posts');
 	$administrator->add_cap('read_private_va_posts');
-	
+	$administrator->add_cap('delete_others_questionnaires');
+	$administrator->add_cap('delete_questionnaires');
+	$administrator->add_cap('delete_private_questionnaires');
+	$administrator->add_cap('delete_published_questionnaires');
+	$administrator->add_cap('edit_others_questionnaires');
+	$administrator->add_cap('edit_questionnaires');
+	$administrator->add_cap('edit_private_questionnaires');
+	$administrator->add_cap('edit_published_questionnaires');
+	$administrator->add_cap('publish_questionnaires');
+	$administrator->add_cap('read_private_questionnaires');
 }
 
 global $login_data;
 $login_data = file(plugin_dir_path(__FILE__) . 'login', FILE_IGNORE_NEW_LINES);
 
-if(class_exists('IM_Initializer') && $login_data !== false){
+$is_external = get_option('va_external', NULL);
+
+if ($is_external === NULL){
+	
+	if (isset($_REQUEST['va_external'])){
+		update_option('va_external', $_REQUEST['va_external'] == 1);
+	}
+	else {
+		add_action('admin_notices', function (){
+		?>
+		<div class="update-nag">VerbaAlpina-Plugin: <a href="?va_external=0">Interne (im GWI-Netz)</a> oder <a href="?va_external=1">externe</a> Installation</div>
+		<?php
+		});
+	}
+}
+
+if(class_exists('IM_Initializer') && $login_data !== false && $is_external !== NULL){
 	
 	define ('VA_PLUGIN_URL', plugins_url('', __FILE__));
 	define ('VA_PLUGIN_PATH', plugin_dir_path(__FILE__));
-	
+
 	//Action Handler/Filter:
-	add_action('plugins_loaded', 'va_load_textdomain' );
+	add_action('plugins_loaded', 'va_load_textdomain');
+	add_action('wp_loaded', function (){
+	    $mapPage = get_page_by_title('KARTE');
+	    if($mapPage != null){
+	        define ('VA_MAP_URL', get_page_link($mapPage));
+	    }
+	});
 	
 	//Map Plugin Hooks
 	add_action('im_define_main_file_constants', 'va_map_plugin_version');
@@ -72,6 +103,15 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 			return 'pixi';
 // 		}
 //		return $type;
+	});
+	
+	add_action ('tt_missing_original_char', function ($char){
+		global $va_xxx;
+		$entry = $va_xxx->get_var($va_xxx->prepare('SELECT Beta FROM Codepage_Original WHERE Beta = %s', $char));
+		
+		if (!$entry){
+			$va_xxx->insert('Codepage_Original', ['Beta' => $char, 'Original' => '']);
+		}
 	});
 	
 	add_action('set_current_user', function (){
@@ -134,6 +174,12 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 	add_filter( 'w3tc_can_print_comment', '__return_false', 10, 1 );
 	add_action( 'get_footer', 'va_footer' );
 	
+	// add_action('init', 'va_rewrite');
+	
+	// function va_rewrite (){
+		// add_rewrite_rule('page_id=2374$', 'page_id=12180', 'bottom');
+	// }
+	
 	function va_map_translations ($list){
 		global $Ue;
 		
@@ -156,6 +202,7 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 		IM_Initializer::$instance->search_location_function = 'search_va_locations';
 		IM_Initializer::$instance->get_location_function = 'get_va_location';
 		IM_Initializer::$instance->global_search_function= 'va_ling_search';
+		IM_Initializer::$instance->similarity_function= 'va_dialectology';
 		
 		add_filter('im_comment', function ($text, $id, $lang){
 			global $Ue;
@@ -195,7 +242,7 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 	
 	function va_check_api_call (){
 		if (isset($_REQUEST['api']) && $_REQUEST['api']){
-			include_once 'util/api.php';
+			include_once 'export/api.php';
 			va_handle_api_call();
 			exit;
 		}
@@ -205,7 +252,7 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 		if(!isDevTester() && (!is_admin() || (isset($_POST['action']) && $_POST['action'] == 'im_a'))){
 			define('IM_MAIN_PHP_FILE', dirname(__FILE__) . '/im_config/live/im_live.phar');
 			define('IM_MAIN_JS_FILE', plugin_dir_url(__FILE__) . 'im_config/live/im_live.js');
-			define('IM_MAIN_CSS_FILE', plugin_dir_url(__FILE__) . 'im_config/live/im_live.css');
+			define('IM_MAIN_CSS_FILE', plugin_dir_url(__FILE__) . 'im_config/live/im_live.css?v=1');
 		}
 	}
 	
@@ -214,9 +261,8 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 	}
 	
 	function va_add_footnotes_support ($content){
-		if(class_exists('swas_wp_footnotes')){
-			$swas_wp_footnotes = new swas_wp_footnotes();
-			return $swas_wp_footnotes->process($content);
+		if(function_exists('process_footnote')){
+		    return process_footnote($content);
 		}
 		return $content;
 	}
@@ -279,7 +325,7 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 	
 	function va_get_menu_items (){
 		return array('KARTE', 'METHODOLOGIE', 'PERSONEN', 'MITARBEITER', 'PARTNER', 'PUBLIKATIONEN',
-			'WISS_PUBLIKATIONEN', 'BEITRAEGE', 'INFORMATIONSMATERIAL', 'KOMMENTARE', 'ECHO', 'BIBLIOGRAPHIE', 'CS_MITMACHEN', 'APIDOKU');
+			'WISS_PUBLIKATIONEN', 'BEITRAEGE', 'INFORMATIONSMATERIAL', 'LexAlp', 'ECHO', 'BIBLIOGRAPHIE', 'CS_MITMACHEN', 'APIDOKU', 'CSGRAPH');
 	}
 	
 	function va_filter_pages ($pages){
@@ -358,6 +404,7 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 		global $admin;
 		global $va_mitarbeiter;
 		global $va_current_db_name;
+		global $va_max_db_name;
 		global $va_next_db_name;
 		global $Ue;
 		
@@ -378,10 +425,12 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 			'site_url' => get_site_url(1), 
 			'plugin_url' => VA_PLUGIN_URL,
 			'db' => substr($va_current_db_name, 3),
+		    'max_db' => substr($va_max_db_name, 3),
 			'va_staff' => $admin || $va_mitarbeiter,
 			'dev' => isDevTester()? '1': '0',
 			'user' => wp_get_current_user()->user_login,
-	        'next_version' => $va_next_db_name
+	        'next_version' => $va_next_db_name,
+		    'lex_path' => va_get_comments_link()
 		);
 		
 		if(isset($post)){
@@ -396,11 +445,13 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 			if($post->post_title == 'KARTE' || $post->post_title == 'Karte-Test'){ //Interaktive Karte
 				if(isDevTester())
 					wp_enqueue_style('va_map_style', plugins_url('/im_config/va_map.css', __FILE__));
-					wp_enqueue_style ('jsTreeStyle', VA_PLUGIN_URL . '/lib/jstree/dist/themes/default/style.min.css');
-					wp_enqueue_script('jsTreeScript', VA_PLUGIN_URL . '/lib/jstree/dist/jstree.min.js', array('jquery'));
+			     wp_enqueue_style ('jsTreeStyle', VA_PLUGIN_URL . '/lib/jstree/dist/themes/default/style.min.css');
+				 wp_enqueue_script('jsTreeScript', VA_PLUGIN_URL . '/lib/jstree/dist/jstree.min.js', array('jquery'));
 			}
 			else if($post->post_title == 'Fortschritt'){
 				va_enqueue_tabs();
+				wp_enqueue_script('tablesorter.js', VA_PLUGIN_URL . '/lib/tablesorter/jquery.tablesorter.min.js');
+				wp_enqueue_style('tablesorter.js', VA_PLUGIN_URL . '/lib/tablesorter/theme.default.css');
 			}
 			else if($post->post_title == 'Protokolle'){
 				wp_enqueue_script('jquery-ui-datepicker');
@@ -411,12 +462,17 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 			else if($post->post_title == 'METHODOLOGIE'){
 				wp_enqueue_script('clipboard', VA_PLUGIN_URL . '/lib/clipboard.min.js');
 			}
-			else if($post->post_title == 'KOMMENTARE'){
+			else if($post->post_title == 'KOMMENTARE' || $post->post_title == 'LexAlp'){
+				wp_enqueue_script('flip', VA_PLUGIN_URL . '/lib/jquery.flip.min.js');
+				wp_enqueue_script('clusterize', VA_PLUGIN_URL . '/lib/clusterize.js');
+				wp_enqueue_script('mark', VA_PLUGIN_URL . '/lib/jquery.mark.min.js');
 				wp_enqueue_script('clipboard', VA_PLUGIN_URL . '/lib/clipboard.min.js');
+				wp_enqueue_script('tablesorter.js', VA_PLUGIN_URL . '/lib/tablesorter/jquery.tablesorter.min.js');
+				wp_enqueue_style('tablesorter.js', VA_PLUGIN_URL . '/lib/tablesorter/theme.dark.css');
 			}
 			else if($post->post_title == 'DATENBANK-DOKU'){
 				va_enqueue_tabs();
-			}
+			}			
 			else if ($post->post_title == 'Todos'){
 			    wp_enqueue_script('jquery-ui-dialog');
 			    wp_enqueue_style('im_jquery-ui-style');
@@ -424,9 +480,13 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 			else if ($post->post_title == 'DizMT Eingabe'){
 				IM_Initializer::$instance->enqueue_select2_library();
 			}
+			else if ($post->post_title == 'DBDokuNeu'){
+			    wp_enqueue_script('jquery-ui-accordion');
+			    wp_enqueue_style('im_jquery-ui-style');
+			}
 			else if ($post->post_type == 'fragebogen'){
 				IM_Initializer::$instance->enqueue_select2_library();
-			}
+			}			
 			else if ($post->post_type == 'post'){
 				wp_enqueue_script('clipboard', VA_PLUGIN_URL . '/lib/clipboard.min.js');
 			}
@@ -453,7 +513,7 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 	
 	//Skripte für das Backend
 	function scripts_be ($hook){
-		wp_enqueue_style('va_style', plugins_url('/css/styles.css', __FILE__));
+		wp_enqueue_style('va_style', plugins_url('/css/styles.css?v=3', __FILE__));
 		
 		if ($hook != 'verba-alpina_page_transcription'){
 			IM_Initializer::$instance->enqueue_qtips(); //Use own version of lib
@@ -465,11 +525,7 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 		wp_localize_script( 'toolsSkript', 'ajax_object', array( 'ajaxurl' => admin_url( 'admin-ajax.php' )) );
 	
 		if($hook === 'verba-alpina_page_typification'){
-			IM_Initializer::$instance->enqueue_chosen_library();
-			IM_Initializer::$instance->enqueue_select2_library();
-			IM_Initializer::$instance->enqueue_gui_elements();
-			wp_enqueue_script('lex_typifiy_script', plugins_url('/backend/typification/lex.js', __FILE__));
-			wp_enqueue_script('typifiy_script', plugins_url('/backend/typification/util.js', __FILE__));
+			va_lex_scripts();
 		}
 		else if ($hook === 'verba-alpina_page_base_types'){
 			IM_Initializer::$instance->enqueue_chosen_library();
@@ -508,12 +564,20 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 			enqueuePEG();
 		}
 		else if ($hook === 'tools_page_va_tools_emails'){
-			wp_enqueue_script('tablesorter.js', VA_PLUGIN_URL . '/lib/jquery.tablesorter.min.js');
+		    wp_enqueue_script('tablesorter.js', VA_PLUGIN_URL . '/lib/tablesorter/jquery.tablesorter.min.js');
+		    wp_enqueue_style('tablesorter.js', VA_PLUGIN_URL . '/lib/tablesorter/theme.default.css');
 		}
 		else if ($hook === 'tools_page_va_tools_single_comments'){
 			IM_Initializer::$instance->enqueue_select2_library();
 		}
 		else if ($hook === 'tools_page_va_tools_informant_geo'){
+			IM_Initializer::$instance->enqueue_select2_library();
+		}
+		else if ($hook === 'tools_page_va_tools_drg_concepts'){
+			IM_Initializer::$instance->enqueue_select2_library();
+			IM_Initializer::$instance->enqueue_gui_elements();
+		}
+		else if ($hook === 'tools_page_va_tools_references'){
 			IM_Initializer::$instance->enqueue_select2_library();
 		}
 	}
@@ -585,7 +649,6 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 		}
 		
 		if($type == 'ethnotext'){
-			$post = get_post($id);
 			$informant = get_field('et_informant', $id);
 			$datum = get_field('et_datum', $id);
 			$ort = get_field('et_ort', $id);
@@ -616,21 +679,7 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 		
 		return $page_title . ' | ' . substr($title, $pos_sep + 1);
 	}
-	
-	function va_get_translations ($lang){
-		global $va_xxx;
-		
-		$transl = 'Begriff_' . $lang;
-		
-		$res = $va_xxx->get_results("SELECT Schluessel, IF($transl = '', CONCAT(Begriff_D, '(!!!)'), $transl) FROM Uebersetzungen" , ARRAY_N);
-		
-		$Ue = array();
-		foreach ($res as $r){
-			$Ue[$r[0]] = $r[1];
-		}
-		return $Ue;
-	}
-	
+
 	function localize(){
 		wp_localize_script('toolsSkript', 'Ue', $Ue);
 	}
@@ -644,10 +693,9 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 		global $Ue;
 		global $login_data;
 		
-		$dbuser = $login_data[0];
-		$dbpassw = $login_data[1];
-		$dbhost = $login_data[2];
-		
+		include_once('util/tools.php');
+		list($dbuser, $dbpassw, $dbhost) = va_get_db_creds($login_data);
+
 		global $va_xxx;
 		//Va_xxx data base, used for all queries that have to be placed in the current working version
 		$va_xxx = new wpdb($dbuser, $dbpassw, 'va_xxx', $dbhost);
@@ -655,9 +703,11 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 		
 		global $va_current_db_name;
 		global $va_next_db_name;
+		global $va_max_db_name;
 		
 		$max_version = $va_xxx->get_var('SELECT MAX(Nummer) FROM Versionen');
 		$va_next_db_name = va_increase_version($max_version);
+		$va_max_db_name = 'va_' . $max_version;
 		
 		if(is_user_logged_in()){
 			$va_current_db_name = 'va_xxx';
@@ -665,6 +715,7 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 		else {
 			$va_current_db_name = 'va_' . $max_version;
 		}
+		
 		if(isset($_GET['db'])){
 			$va_current_db_name = 'va_' . $_GET['db'];
 		}
@@ -686,8 +737,8 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 			IM_Initializer::$instance->database = $va_xxx;
 		}
 		else if (isset($_POST['action']) && $_POST['action'] == 'im_a' && isset($_POST['namespace']) && $_POST['namespace'] == 'load_data'){
-		    $dbuser_ro = $login_data[3];
-		    $dbpassw_ro = $login_data[4];
+		    $dbuser_ro = $login_data[2];
+		    $dbpassw_ro = $login_data[3];
 		    
 		    $va_ro = new wpdb($dbuser_ro, $dbpassw_ro, $va_current_db_name, $dbhost);
 		    IM_Initializer::$instance->database = $va_ro;
@@ -697,7 +748,7 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 		}
 		
 		$lang = va_get_language();
-		$Ue = va_get_translations($lang);
+		$Ue = va_get_translations($va_xxx, $lang);
 
 		if(isDevTester()){ //TODO remove, too and use select
 			global $va_playground;
@@ -713,10 +764,10 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 			
 			$mappings['codepage_original'] = new TableMapping('tcodepage_original');
 			if (is_admin()){
-				$mappings['transcription_rules'] = new TableMapping(get_user_locale() == 'de_DE'? 'trules': 'trules_e');
+			    $mappings['transcription_rules'] = new TableMapping(get_user_locale() == 'de_DE'? 'trules': (get_user_locale() == 'fr_FR'? 'trules_f': 'trules_e'));
 			}
 			else {
-				$mappings['transcription_rules'] = new TableMapping(get_locale() == 'de_DE'? 'trules': 'trules_e');
+			    $mappings['transcription_rules'] = new TableMapping(get_locale() == 'de_DE'? 'trules': (get_locale() == 'fr_FR'? 'trules_f': 'trules_e'));
 			}
 			$mappings['stimuli'] = new TableMapping('tstimuli');
 			$mappings['informants'] = new TableMapping('tinformants');
@@ -774,6 +825,7 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 		add_shortcode('kontakt', function ($attr) {return kontaktSeite ();}); //kontakt.php
 		add_shortcode('internePub', function ($attr) {return intPub ();}); //publikationen.php
 		add_shortcode('kommentare', 'comment_list'); //pages/comments.php
+		add_shortcode('lexicon', 'va_lexicon'); //pages/lexicon.php
 		add_shortcode('echo', 'va_echo_page');//publikation.php
 		add_shortcode('showCodepages', 'va_codepage_page');//codepage.php
 		add_shortcode('csgraph', 'va_graph_page');//cs_graph.php
@@ -784,6 +836,10 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 		add_shortcode('version_list', 'va_version_list'); //util/tools.php
 		
 		add_shortcode('callList', 'va_call_list'); //pages/calls.php 
+		
+		if (isDevTester()){
+			add_shortcode('db_doku_page', 'va_show_db_doku'); //pages/db_doku.php
+		}
 		
 		if(current_user_can('va_transcripts_read')){
 			add_shortcode('protokolle', function ($attr) {return protokolle ();}); //protokolle.php
@@ -808,14 +864,15 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 							(isset($attr['classification'])? $attr['classification']: null),
 							isset($attr['shownotes']) && $attr['shownotes'] == 'true');
 			});
-			
+		}
+		
+		if (current_user_can('edit_questionnaires')){
 			add_shortcode('questionnaireResults', 'show_questionnaire_results'); //pages/qresults.php
 		}
 		
 		//Includes
 		require 'lib/html5-dom-document/autoload.php';
 		
-		include_once('util/tools.php');
 		include_once('util/tokenization_functions.php');
 		include_once('util/ajax/va_ajax.php');
 		include_once('util/parseGlossarSyntax.php');
@@ -835,6 +892,7 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 		
 		include_once('pages/glossar.php');
 		include_once('pages/codepage.php');
+		include_once('pages/lexicon.php');
 		include_once('pages/comments.php');
 		include_once('backend/translate.php');
 		include_once('pages/publikationen.php');
@@ -852,6 +910,7 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 		include_once('backend/auto/tokenize.php');
 		include_once('backend/auto/kml.php');
 		include_once 'backend/auto/ipa.php';
+		include_once 'backend/auto/original.php';
 		include_once('util/pointListToKML.php');
 		
 		if(current_user_can('va_transcripts_read')){
@@ -872,12 +931,19 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 			include_once('backend/cs_emails.php');
 			include_once('backend/auto/import_bsa.php');
 			include_once('pages/record_input.php');
-			include_once('pages/qresults.php');
 			include_once('backend/glossar_errors.php');
 			include_once('backend/comments_single.php');
+			include_once('backend/konzepte_drg.php');
+			include_once('backend/references.php');
+		}
+		
+		if (current_user_can('edit_questionnaires')){
+			include_once('pages/qresults.php');
 		}
 		
 		if(isDevTester()){
+			include_once('pages/db_doku.php');
+
 		    include_once('pages/todos.php');
 		    
 			include_once('im_config/va_map.php');
@@ -891,6 +957,7 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 			include_once('backend/auto/geonames.php');
 			include_once('backend/auto/informant_geo.php');
 			
+			
 			include_once('util/corrections.php');
 		}
 		
@@ -898,6 +965,7 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 		include_once('acf_groups/questionnaire.php');
 		
 		include_once('export/converter.php');
+		include_once('export/text_converter.php');
 	}
 	
 		
@@ -927,6 +995,9 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 		add_submenu_page('va_tools', 'Tools', 'Import BSA', 'verba_alpina', 'va_tools_bsa', 'va_import_bsa_page');
 		add_submenu_page('va_tools', 'Tools', 'Fehler im Glossar', 'verba_alpina', 'va_tools_glossary', 'search_glossary_errors');
 		add_submenu_page('va_tools', 'Tools', 'Kommentare Orte', 'verba_alpina', 'va_tools_single_comments', 'va_single_comments_page');
+		add_submenu_page('va_tools', 'Tools', 'Beta -> Original', 'verba_alpina', 'va_tools_original_conv', 'va_original_page');
+		add_submenu_page('va_tools', 'Tools', 'DRG-Konzepte', 'verba_alpina', 'va_tools_drg_concepts', 'va_drg_concepts');
+		add_submenu_page('va_tools', 'Tools', 'Typ-Referenz-Zuordnung', 'verba_alpina', 'va_tools_references', 'va_reference_page');		
 		
 		if(isDevTester()){
 			add_submenu_page('va_tools', 'Tools', 'VA-Seiten erstellen', 'verba_alpina', 'va_tools_create_pages', 'va_create_frontend_pages');
@@ -1210,7 +1281,9 @@ if(class_exists('IM_Initializer') && $login_data !== false){
 					'post_status' => 'publish',
 					'post_type' => 'page',
 					'page_template' => 'template_empty.php',
-					'post_autor' => get_current_user_id()
+					'post_autor' => get_current_user_id(),
+    			    'menu_order' => 909,
+    			    'post_parent' => $pub_page->ID
 			));
 			echo 'CS Graph<br />';
 		}

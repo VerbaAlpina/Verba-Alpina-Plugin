@@ -61,15 +61,7 @@ function createTypeOverlay (&$db, $dbname){
 	</select>
 	
 	<h2>Zugeordnete Referenzen</h2>
-	<select id="auswahlReferenz" multiple="multiple">
-		<?php
-		$lemmas = $db->get_results('SELECT * FROM Lemmata', ARRAY_A);
-		foreach ($lemmas as $lemma){
-			$genus_info = ' (' . str_replace('+', ',', $lemma['Genera']) . ')';
-			echo "<option value='{$lemma['Id_Lemma']}'>{$lemma['Quelle']}: {$lemma['Subvocem']}" . ($genus_info != ' ()'? $genus_info : '') . "</option>";
-		}
-		?>
-	</select>
+	<select id="auswahlReferenz" multiple="multiple" style="min-width: 400px;"></select>
 	
 	<input type="button" class="button button-primary" id="newReferenceButton" value="Neue Referenz anlegen">
 	
@@ -107,6 +99,7 @@ function createTypeOverlay (&$db, $dbname){
 		new IM_Field_Information('Quelle', 'F WHERE Referenzwoerterbuch', true),
 		new IM_Field_Information('Subvocem', 'V', true),
 		new IM_Field_Information('Genera', 'S', false),
+		new IM_Field_Information('Text_Referenz', 'B', true, false, 0, false, false, va_get_info_symbol('Gibt an, dass die Referenz sich nicht auf das im Feld Subvocem genannte Lemma bezieht, sondern auf eine im entsprechenden Eintragstext genannte Form.')),
 		new IM_Field_Information('Bibl_Verweis', 'V', false),
 		new IM_Field_Information('Link', 'V', false),
 		new IM_Field_Information('Kommentar_Intern', 'T', false)
@@ -166,6 +159,7 @@ function createBaseTypeOverlay (&$db, $dbname, $edit = false){
 	echo im_table_entry_box('NeueReferenzFuerBasistyp', new IM_Row_Information('Lemmata_Basistypen', array(
 			new IM_Field_Information('Quelle', 'F WHERE Referenz_Basistyp', true),
 			new IM_Field_Information('Subvocem', 'V', true),
+			new IM_Field_Information('Text_Referenz', 'B', true, false, 0, false, false, va_get_info_symbol('Gibt an, dass die Referenz sich nicht auf das im Feld Subvocem genannte Lemma bezieht, sondern auf eine im entsprechenden Eintragstext genannte Form.')),
 			new IM_Field_Information('Bibl_Verweis', 'V', false),
 			new IM_Field_Information('Link', 'V', false),
 			new IM_Field_Information('Kommentar_Intern', 'T', false)

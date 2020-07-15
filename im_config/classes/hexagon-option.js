@@ -57,7 +57,7 @@ function HexagonOption (){
 				categoryManager.removeAjaxData("hexgrid");
 			}
 		   
-		   	mapInterface.updateMapStyle(is_quantified !== false);
+		  // 	mapInterface.updateMapStyle(is_quantified !== false);
 		
 		   	if(details && details["load"] !== undefined)
 		   		categoryManager.loadData(6, details["load"], "costum");

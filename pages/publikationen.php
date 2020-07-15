@@ -3,16 +3,23 @@ function wissPub (){
 	global $vadb;
 	global $Ue;
 	
-	$pub_thesis = $vadb->get_results("SELECT Autor, Titel, Jahr, Ort, Band, Enthalten_In, Seiten, Verlag, Download_URL FROM Bibliographie WHERE VA_Publikation = '1' AND Abschlussarbeit ORDER BY Jahr * 1 DESC", ARRAY_A);
-	$pub_rest = $vadb->get_results("SELECT Autor, Titel, Jahr, Ort, Band, Enthalten_In, Seiten, Verlag, Download_URL FROM Bibliographie WHERE VA_Publikation = '1' AND NOT Abschlussarbeit ORDER BY Jahr * 1 DESC", ARRAY_A);
+	$pub_thesis = $vadb->get_results("SELECT Autor, Titel, Jahr, Ort, Band, Enthalten_In, Seiten, Verlag, Download_URL FROM Bibliographie WHERE VA_Publikation = '1' AND Abschlussarbeit ORDER BY Jahr * 1 DESC, Abkuerzung ASC", ARRAY_A);
+	$pub_rest = $vadb->get_results("SELECT Autor, Titel, Jahr, Ort, Band, Enthalten_In, Seiten, Verlag, Download_URL FROM Bibliographie WHERE VA_Publikation = '1' AND NOT Abschlussarbeit ORDER BY Jahr * 1 DESC, Abkuerzung ASC", ARRAY_A);
 	?>
 	
 	<div class="entry-content">
 		
+		<a href="#Publikationen"><?php echo $Ue['PUBLIKATIONEN_PERS'];?></a><br />
+		<a href="#Abschlussarbeiten"><?php echo $Ue['ABSCHLUSSARBEITEN'];?></a>
+		
+		<br />
+		<br />
 		<br />
 		<br />
 		
-		<ul>
+		<h2><?php echo $Ue['PUBLIKATIONEN_PERS'];?></h2>
+		
+		<ul id="Publikationen">
 		<?php
 		
 			foreach ($pub_rest as $p){
@@ -21,13 +28,13 @@ function wissPub (){
 				$link = $p['Download_URL'];
 				$container = $p['Enthalten_In'];
 				$parts = parse_url($link);
-				if($parts['host'] === $_SERVER['HTTP_HOST']){
+				if(isset($parts['host']) && $parts['host'] === $_SERVER['HTTP_HOST']){
 					global $va_current_db_name;
 					$link = add_query_arg('db', substr($va_current_db_name, 3), $link);
 					$pos_host = strpos($link, $parts['host']);
 					$app = substr($link, $pos_host + strlen($parts['host']));
 					$link = va_get_doi_base_link(true) . urlencode($app);
-					$container = '';
+					//$container = '';
 				}
 				
 				echo va_format_bibliography($p['Autor'], $p['Titel'], $p['Jahr'], $p['Ort'], $link, $p['Band'], $container, $p['Seiten'], $p['Verlag'], false);
@@ -62,6 +69,7 @@ function wissPub (){
 		
 		<br />
 		
+		<ul id="Abschlussarbeiten">
 		<?php
 		foreach ($pub_thesis as $p){
 			echo '<li>';
@@ -70,6 +78,7 @@ function wissPub (){
 			echo '<br />';
 		}
 		?>
+		</ul>
 	</div>
 	<?php
 }
@@ -151,7 +160,7 @@ function infoMat (){
 	$posts = get_posts($args);
 	?>
 
-	<div class="entry-sub-head"><?php echo $Ue['PRESS_MATERIAL'];?></div>
+	<div class="entry-sub-head" id="pm"><?php echo $Ue['PRESS_MATERIAL'];?></div>
 
 	<div class="press_container">
 		
@@ -213,7 +222,7 @@ function infoMat (){
 		</div>
 
 
-		<div class="entry-small_head_indent" >Screenshots Crowdsourcing:</div>
+		<div class="entry-small_head_indent">Screenshots Crowdsourcing:</div>
 
 		<div class="image_table">
 
@@ -246,7 +255,7 @@ function infoMat (){
 	</div>	
 
 
-    <div class="entry-sub-head"><?php echo $Ue['INFO_MATERIAL'];?></div>
+    <div class="entry-sub-head" id="im"><?php echo $Ue['INFO_MATERIAL'];?></div>
 	
 	<div class="entry-content">
 
@@ -263,6 +272,24 @@ function infoMat (){
 		?>
 		</ul>
 	</div>
+	
+	
+	<div class="entry-sub-head" id="kv"><?php echo $Ue['KOOPERATIONSVEREINBARUNGEN'];?></div>
+	<div class="entry-content">
+		<ul>
+		<?php
+		
+			foreach ($posts as $post){
+				if(has_term('kooperationsvereinbarung', 'media_category', $post) ){
+					echo '<li class="entry-small_head_indent">';
+					echo '<a href="' . $post->guid . '">' . va_translate($va_xxx->get_var('SELECT Gegenstand FROM Medien WHERE Id_Medium = ' . getVA_ID($post->ID), 0, 0), $Ue) . '</a>';
+					echo '</li>';		
+				}
+			}
+		?>
+		</ul>
+	</div>
+	
 	<?php
 	if(function_exists('switch_to_blog'))
 		restore_current_blog();

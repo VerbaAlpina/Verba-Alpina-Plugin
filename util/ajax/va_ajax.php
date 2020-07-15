@@ -7,6 +7,7 @@ add_action('wp_ajax_nopriv_va', 'va_ajax_handler');
 include_once('va_ajax_typification.php');
 include_once('va_ajax_edit_glossary.php');
 include_once('va_ajax_concept_tree.php');
+include_once('va_ajax_lex_alp.php');
 include_once('va_ajax_overview.php');
 
 function va_ajax_handler (){
@@ -25,6 +26,27 @@ function va_ajax_handler (){
 	$intern = $admin || $va_mitarbeiter;
 	switch($_REQUEST['namespace']){
 		
+	    case 'token_ops':
+	        if($_POST['stage'] == 'getTokens'){
+	            switch ($_POST['type']){
+	                case 'original':
+	                    $tokens = $db->get_results("
+					SELECT distinct Token, Erhebung FROM Tokens LEFT JOIN VTBL_Token_Konzept USING (Id_Token) LEFT JOIN Konzepte USING (Id_Konzept) JOIN Stimuli USING (ID_Stimulus) JOIN Bibliographie ON Erhebung = Abkuerzung
+					WHERE VA_Beta
+						AND Original = '' AND Token != '' AND (Id_Konzept is null or Id_Konzept != 779)", ARRAY_N);
+	                    break;
+	                    
+	                case 'bsa':
+	                    $tokens = $db->get_results("SELECT distinct Aeusserung, Erhebung FROM Aeusserungen JOIN Stimuli USING (ID_Stimulus) WHERE Erhebung = 'BSA' AND Bemerkung NOT like '%BayDat-Transkription%'", ARRAY_N);
+	                    break;
+	                    
+	                default:
+	                    $tokens = array();
+	            }
+	            echo json_encode($tokens);
+	       }
+	       break;
+	    
 		//Typification tool
 		case 'typification':
 			if(!current_user_can('va_typification_tool_read'))
@@ -39,6 +61,11 @@ function va_ajax_handler (){
 				break;
 
 			va_ajax_edit_glossary($db);
+		break;
+		
+		//Lexicon Alpinum
+		case 'lex_alp':
+			va_ajax_lex_alp($db);
 		break;
 		
 		//Edit comments
@@ -264,6 +291,102 @@ function va_ajax_handler (){
 			
 			break;
 			
+		case 'drg':
+		    if(!$intern)
+		        break;
+
+	        switch ($_REQUEST['query']){
+	            case 'get_letter_data':
+	                echo va_drg_get_letter_data($_POST['letter']);
+					break;
+	            case 'set_irrelevant':
+	                echo va_drg_set_irrelevant($_POST['id']);
+					break;
+				case 'set_concept':
+					echo va_drg_set_concept($_POST['id_lemma'], $_POST['id_concept']);
+					break;
+					
+				case 'remove_concept':
+					echo va_drg_remove_concept($_POST['id_lemma'], $_POST['id_concept']);
+					break;
+					
+				case 'import':
+					echo va_drg_import_data();
+					break;
+	        }
+	        break;
+		        
+		case 'original':
+		    if(!$intern)
+		        break;
+		        
+        switch ($_REQUEST['query']){
+            case 'compute':
+                $tokens = $va_xxx->get_col(
+					"SELECT distinct Token
+					FROM Tokens JOIN Stimuli USING (Id_Stimulus) JOIN bibliographie ON Erhebung = Abkuerzung
+					WHERE Token != '' AND Original = '' AND VA_Beta
+                    ORDER BY Token ASC");
+                
+                $reps = [];
+                $errors = [];
+                
+                $parser = va_get_general_beta_parser();
+                
+                foreach ($tokens as $token){
+                    $res = $parser->convert_to_original($token);
+                    if ($res['string']){
+						
+						//Replace u1 since wordpress db connection does not work with mb4 characters for some reason
+						$db_string = str_replace('𝑢', '###u1###', $res['string']);
+						
+                        $va_xxx->query($va_xxx->prepare('UPDATE Tokens JOIN Stimuli USING (Id_Stimulus) JOIN bibliographie ON Erhebung = Abkuerzung SET Original = %s WHERE Token = %s AND Original = "" AND VA_Beta', $db_string, $token));
+                        $reps[] = [htmlentities($token), $res['string']];
+                    }
+                    else {
+                        foreach ($res['output'] as $part){
+                            $msg = htmlentities($part[1]);
+                            if (!in_array($msg, $errors)){
+                                $errors[] = htmlentities($msg);
+                            }
+							$reps[] = [htmlentities($token), ''];
+                        }
+                    }
+                }
+				
+				$va_xxx->query('CALL replace_u1()');
+                
+                echo json_encode([$reps, $errors]);
+                break;
+				
+				case 'computeText':
+				
+					$reps = [];
+					$errors = [];
+				
+					$parser = va_get_general_beta_parser();
+					foreach ($_POST['records'] as $record){
+						$record = html_entity_decode(stripslashes($record));
+						$res = $parser->convert_to_original($record);
+						
+						if ($res['string']){
+							$reps[] = [htmlentities($record), $res['string']];
+						}
+						else {
+							foreach ($res['output'] as $part){
+								$msg = htmlentities($part[1]);
+								if (!in_array($msg, $errors)){
+									$errors[] = htmlentities($msg);
+								}
+								$reps[] = [htmlentities($record), ''];
+							}
+						}
+					}
+					echo json_encode([$reps, $errors]);
+				break;
+        }
+		break;
+			
 		//Util tools
 		case 'util':
 			if ($_REQUEST['query'] == 'get_print_overlays'){
@@ -275,8 +398,17 @@ function va_ajax_handler (){
 			//TODO maybe better user control
 			if(!$intern && !current_user_can('va_transcription_tool_write') && !current_user_can('va_typification_tool_write') && !current_user_can('va_glossary'))
 				break;
-			
+
 			switch ($_REQUEST['query']){
+				case 'user_email_outdated':
+					if(update_user_meta($_POST['id_user'], 'email_outdated', $_POST['val']) || !$val){
+						echo $_POST['val'];
+					}
+					else {
+						echo 'failure';
+					}
+				break;
+				
 				case 'check_external_link':
 					va_check_external_link($_POST['link']);
 				break;
@@ -311,6 +443,14 @@ function va_ajax_handler (){
 				    $db->update('Todos', ['Fertig' => $_POST['marked'] == '1'? current_time('mysql'): null], ['Id_Todo' => $_POST['id']]);
 				    echo 'success';
 			   break;
+			   
+			   case 'getTypeWithoutRef':
+					va_references_show_candidates($_POST['source'], $_POST['threshold'], $_POST['num_lemmas'], $_POST['show_no_candidates'] === 'true');
+				break;
+				
+				case 'saveReferences':
+					va_references_save_data($_POST['data'], $_POST['source']);
+				break;
 			   
 				case 'addTodo':
 				    $text = stripslashes($_POST['text']);
@@ -361,6 +501,14 @@ function va_ajax_handler (){
 				 case 'get_community_name':
 				 	echo $db->get_var($db->prepare('SELECT Name FROM Orte WHERE Id_Kategorie = 62 AND ST_WITHIN(GeomFromText(%s), Geodaten)', $_POST['point']));
 				 	break;
+					
+				case 'get_community_names':
+					$comms = [];
+					foreach (explode(', ', $_POST['points']) as $point){
+						$comms[] = $db->get_var($db->prepare('SELECT Name FROM Orte WHERE Id_Kategorie = 62 AND ST_WITHIN(GeomFromText(%s), Geodaten)', $point));
+					}
+				 	echo implode(', ', $comms);
+				 	break;
 				 	
 				 case 'search_locations':
 				 	echo json_encode(search_va_locations($_POST['search']));
@@ -382,6 +530,25 @@ function va_ajax_handler (){
 					
 				case 'get_informant_list':
 					va_get_informant_geo_data(stripslashes($_POST['source']), $_POST['regions']);
+					break;
+					
+				case 'getConceptsForSelect':
+					$where = '';
+					
+					if ($_REQUEST['ignore']){
+						$where = 'Id_Konzept NOT IN (' . implode(',', $_REQUEST['ignore']) . ') AND ';
+					}
+				
+					$results = $db->get_results('SELECT Id_Konzept as id, IF(Name_D is not null and Name_d != "" AND Name_D != Beschreibung_D, CONCAT(Name_D, " (", Beschreibung_D, ")"), Beschreibung_D) as text FROM Konzepte WHERE ' . $where . '(Name_D LIKE "%' . esc_sql($_REQUEST['search']) . '%" OR Beschreibung_D LIKE "%' . esc_sql($_REQUEST['search']) . '%") ORDER BY text ASC', ARRAY_A);
+					
+					echo json_encode($results);
+				break;
+					
+				case 'getLemmasForSelect':
+					$sql = 'SELECT Id_lemma as id, subvocem as text FROM lemmata WHERE NOT Text_Referenz AND Quelle = %s AND subvocem LIKE "%' . esc_sql($_REQUEST['search']) . '%" ORDER BY subvocem ASC';
+					$refs = $db->get_results($va_xxx->prepare($sql, $_REQUEST['source']), ARRAY_A);
+					
+					echo json_encode($refs);
 					break;
 			}
 		break;

@@ -187,7 +187,7 @@ function addBibLikeQTips (parent, classNames, colors, prefixes){
 }
 
 function addCopyButtonSupport () {
-	new Clipboard('.copyButton', {
+	new ClipboardJS('.copyButton', {
 	    text: function(trigger) {
 	    	var regex = /<br\s*[\/]?>/gi;
 	        return jQuery(trigger).data('content').replace(regex, "\n").replace(/&nbsp;/g, " ").replace(/(<([^>]+)>)/ig,"");
@@ -321,6 +321,7 @@ function removeDiacritics (str) {
         R: /[\u0052\u24C7\uFF32\u0154\u1E58\u0158\u0210\u0212\u1E5A\u1E5C\u0156\u1E5E\u024C\u2C64\uA75A\uA7A6\uA782]/g,
         S: /[\u0053\u24C8\uFF33\u1E9E\u015A\u1E64\u015C\u1E60\u0160\u1E66\u1E62\u1E68\u0218\u015E\u2C7E\uA7A8\uA784]/g,
         T: /[\u0054\u24C9\uFF34\u1E6A\u0164\u1E6C\u021A\u0162\u1E70\u1E6E\u0166\u01AC\u01AE\u023E\uA786]/g,
+		Th: /[\u00de]/g,
         TZ: /[\uA728]/g,
         U: /[\u0055\u24CA\uFF35\u00D9\u00DA\u00DB\u0168\u1E78\u016A\u1E7A\u016C\u00DC\u01DB\u01D7\u01D5\u01D9\u1EE6\u016E\u0170\u01D3\u0214\u0216\u01AF\u1EEA\u1EE8\u1EEE\u1EEC\u1EF0\u1EE4\u1E72\u0172\u1E76\u1E74\u0244]/g,
         V: /[\u0056\u24CB\uFF36\u1E7C\u1E7E\u01B2\uA75E\u0245]/g,
@@ -363,6 +364,7 @@ function removeDiacritics (str) {
         s: /[\u0073\u24E2\uFF53\u015B\u1E65\u015D\u1E61\u0161\u1E67\u1E63\u1E69\u0219\u015F\u023F\uA7A9\uA785\u1E9B]/g,
         ss: /[\u00DF]/g,
         t: /[\u0074\u24E3\uFF54\u1E6B\u1E97\u0165\u1E6D\u021B\u0163\u1E71\u1E6F\u0167\u01AD\u0288\u2C66\uA787]/g,
+		th: /[\u00fe]/g,
         tz: /[\uA729]/g,
         u: /[\u0075\u24E4\uFF55\u00F9\u00FA\u00FB\u0169\u1E79\u016B\u1E7B\u016D\u00FC\u01DC\u01D8\u01D6\u01DA\u1EE7\u016F\u0171\u01D4\u0215\u0217\u01B0\u1EEB\u1EE9\u1EEF\u1EED\u1EF1\u1EE5\u1E73\u0173\u1E77\u1E75\u0289]/g,
         v: /[\u0076\u24E5\uFF56\u1E7D\u1E7F\u028B\uA75F\u028C]/g,
@@ -583,3 +585,17 @@ function addCitations (copyName){
 	addCopyButtonSupport();
 }
 
+function whichTransitionEvent() {
+    var el = document.createElement('fake'),
+        transEndEventNames = {
+            'WebkitTransition' : 'webkitTransitionEnd',// Saf 6, Android Browser
+            'MozTransition'    : 'transitionend',      // only for FF < 15
+            'transition'       : 'transitionend'       // IE10, Opera, Chrome, FF 15+, Saf 7+
+        };
+
+    for(var t in transEndEventNames){
+        if( el.style[t] !== undefined ){
+            return transEndEventNames[t];
+        }
+    }
+}

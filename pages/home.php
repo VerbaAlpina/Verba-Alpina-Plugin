@@ -48,10 +48,10 @@ function showStartPage (){
 			color: white !important;
 			opacity: 0.65;
 			display: inline-block;
-			padding-top: 6px;
-			padding-bottom: 6px;
-			padding-left: 10px;
-			padding-right: 12px;
+			padding-top: 3px;
+			padding-bottom: 3px;
+			padding-left: 7px;
+			padding-right: 5px;
 			box-shadow: 0 2px 6px rgba(100, 100, 100, 0.3);
 			margin-bottom: 5px;
 			background: #47864c;
@@ -85,7 +85,45 @@ function showStartPage (){
        		opacity: 1.0;
        }
 
-		@media only screen and (min-width: 1467px) {
+        .social_icons_container{
+           margin-left: 5px;
+           display: inline-block;
+        }
+
+       .social_icons_container > span{
+       	    margin-left: 5px;
+       }
+
+       .social_icons_container  i{
+       	font-size: 18px;
+       	color: #47864C;
+       	top: 3px;
+       	position: relative;
+       	opacity: 0.65;
+       }
+
+        .social_icons_container  i:hover{
+        	opacity: 1.0;
+        }
+
+        .social_icons_container  a{
+        	text-decoration: none !important;
+        }
+
+        .social_icons_container  a{
+        	color: transparent !important;
+    		text-decoration: none;
+        }
+
+       .social_icons_container  a:visited{
+       		color: transparent !important;
+       }
+
+       .social_icons_container  a:link{
+       		color: transparent !important;
+       }
+
+		@media only screen and (min-width: 1530px) {
 
 			.start_options_right{
 			top:15px;
@@ -156,6 +194,7 @@ function showStartPage (){
 
 	<div class="start_options_right">
 		<a href= '<?php echo get_page_link(get_page_by_title("LIVEGRAPH")); ?>' ><div><i class="fas fa-chart-pie"></i> <?php echo ucfirst($Ue['LIVEGRAPH'])?></div></a>
+		<a href= '<?php echo get_page_link(get_page_by_title("CSGRAPH")); ?>' ><div><i class="fas fa-chart-bar"></i> Live Stat.</div></a>
 		<?php
 		include_once('wp-admin/includes/file.php');
 		$tfile = '/dokumente/tutorials/tutorial_' . substr(get_locale(), 0, 2) . '.mp4';
@@ -163,7 +202,9 @@ function showStartPage (){
 			echo '<a href="' . get_home_url(1) . $tfile .'" target="_BLANK"><div><i class="fas fa-graduation-cap"></i> Tutorial</div></a>';
 		}
 		?>
+	
 	 </div>
+
 
 		<?php	
 		
@@ -194,6 +235,26 @@ function showStartPage (){
 			<span class="cite_btn"><i class="fas fa-book" style="padding-right: 2px;"></i>
 			<?php echo $Ue['ZITIEREN']; ?>
 			</span>
+
+		<div class="social_icons_container">
+				<span>
+					<a href="https://www.facebook.com/verbaalpina">
+						<i class="fab fa-facebook" aria-hidden="true"></i>
+					</a>
+				</span>
+
+				<span>
+					<a href="https://twitter.com/verbaalpina">
+						<i class="fab fa-twitter" aria-hidden="true"></i>
+					</a>	
+				</span>
+
+				<span>
+					<a href=" https://www.instagram.com/verba.alpina/">
+						<i class="fab fa-instagram"></i>
+					</a>	
+				</span>
+		</div>
 		</h3>	
 
 
@@ -225,7 +286,7 @@ function showStartPage (){
        <div style="line-height: 1.45;" id="cite_field">
    	    Krefeld, Thomas | Lücke, Stephan (Hrsgg.) (2014–): <br>
    	    VerbaAlpina. Der alpine Kulturraum im Spiegel seiner Mehrsprachigkeit,<br> München, online, 
-		http://dx.doi.org/10.5282/verba-alpina
+		<a href = "https://dx.doi.org/10.5282/verba-alpina">https://dx.doi.org/10.5282/verba-alpina</a>
 		</div>	 
         
       </div>

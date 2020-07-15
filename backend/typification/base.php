@@ -24,7 +24,7 @@ function va_edit_base_type_page (){
 		jQuery("#newBTypeButton").click(saveBaseType);
 
 		jQuery("#newBasetypeReferenceButton").click(function (){
-			showTableEntryDialog('NeueReferenzFuerBasistyp', callbackSaveReferenceBType, selectModes.Chosen, dbname);
+			showTableEntryDialog('NeueReferenzFuerBasistyp', null, selectModes.Chosen, dbname);
 		});
 	});
 

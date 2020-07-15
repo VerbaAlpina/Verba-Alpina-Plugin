@@ -174,7 +174,15 @@ function bindMenuSlide(){
 
 	jQuery(document).on('im_before_load_data', function(event, data){
 		
-		if(data["trigger"] == "menu"){
+		if (data["category"] === categories.Polygon && data["trigger"] != "dialectology"){
+			//Use endCompareMode or similar from im (also unset ajax parameter)
+			lastPolygonSelection = {"category": data["category"], "key": data["key"], "filter": data["ajaxData"]["filter"]};
+			if (jQuery(".dialectometry-btn").hasClass("active")){
+				jQuery(".dialectometry-btn").removeClass("active");
+			}
+		}
+
+		if(data["trigger"] == "menu" || data["trigger"] == "dialectology"){
 			if(data["category"] == categories.Polygon && optionManager.getOptionState("polymode") !== "phy"){
 				//Update ajax data
 				data["ajaxData"]["hexgrid"] = data["key"]; //Ajax data already computed => has to be changed here
@@ -193,7 +201,7 @@ function bindMenuSlide(){
 		if(jQuery('#legend_heading').hasClass('l_disabled'))
 			jQuery('#legend_heading').removeClass('l_disabled');
 		
-		if(data["trigger"] == "menu"){
+		if(data["trigger"] == "menu" || data["trigger"] == "dialectology"){
 				if(!(jQuery('#legend_heading').next('.menu_collapse').is(':visible')))jQuery('#legend_heading').trigger('click');	
 		}
 	});
@@ -585,6 +593,18 @@ jQuery(document).on("im_show_edit_mode",
 jQuery(".sql-query-btn").click(function (){
 	categoryManager.showFilterScreen(categories.Custom, "SQL");
 });
+
+var lastPolygonSelection = null;
+
+jQuery(".dialectometry-btn").click(function (){
+	if (jQuery(this).hasClass("active")){
+		categoryManager.loadData(lastPolygonSelection["category"], lastPolygonSelection["key"], "menu", lastPolygonSelection["filter"]);
+	}
+	else {
+		jQuery(this).addClass("active");
+		categoryManager.loadData(6, "A62", "dialectology", {"subElementCategory" : -5});
+	}
+});
 	
 jQuery(document).on("im_legend_element_created", 
 	/**
@@ -745,7 +765,7 @@ categoryManager.registerCategory (
 		"nameEmpty" : Ue["NICHT_TYPISIERT"],
 		"elementID" : "morphTypeSelect",
 		"filterComponents" : [
-			new GroupingComponent([categories.PhoneticType, categories.Concept], categories.Concept, new Sorter([alphabetSorter, numRecSorter]), undefined, lingTags),
+			new GroupingComponent([/*categories.PhoneticType, */categories.Concept], categories.Concept, new Sorter([alphabetSorter, numRecSorter]), undefined, lingTags),
 			new MarkingComponent(lingTagFunction),
 			new TypeGenderFilterComponent()],
 		"countNames" : [Ue["BELEG"], Ue["BELEGE"]],
@@ -789,7 +809,7 @@ categoryManager.registerCategory (
 		"nameEmpty" : Ue["NICHT_TYPISIERT"],
 		"elementID" : "baseTypeSelect",
 		"filterComponents" : [
-			new GroupingComponent([categories.PhoneticType, categories.MorphologicType, categories.Concept], categories.Concept, new Sorter([alphabetSorter, numRecSorter]), undefined, lingTags),
+			new GroupingComponent([/*categories.PhoneticType, */categories.MorphologicType, categories.Concept], categories.Concept, new Sorter([alphabetSorter, numRecSorter]), undefined, lingTags),
 			new MarkingComponent(lingTagFunction)],
 		"countNames" : [Ue["BELEG"], Ue["BELEGE"]],
 		"textForNewComment" :Ue["KOMMENTAR_BASIS_SCHREIBEN"]
@@ -810,7 +830,7 @@ categoryManager.registerCategory (
 		"filterComponents" : [
 			new ConceptFilterComponent(), 
 			new GroupingComponent(
-				[categories.PhoneticType, categories.MorphologicType, categories.BaseType], 
+				[/*categories.PhoneticType, */categories.MorphologicType, categories.BaseType], 
 				categories.MorphologicType, 
 				new Sorter([alphabetSorter, new LanguageFamilySortComponent (), numRecSorter]), 
 				conceptSorterFunc,
@@ -889,6 +909,10 @@ var /** GroupingComponent */ elingGroupingP = new GroupingComponent(function (ca
 	
 	if(ajax_object.va_staff == "1" && (elementID == "A62" || elementID == "A60")){
 		result.push(-4);
+		
+		if (elementID == "A62"){
+			result.push(-5);
+		}
 	}
 	
 	if(simplifyELingKey(elementID) == "63" || simplifyELingKey(elementID) == "17" || simplifyELingKey(elementID) == "74"){
@@ -927,6 +951,18 @@ categoryManager.registerCategory (
 		"singleSelect" : true,
 		"forbidRemovingFunction" : function (key){
 			return optionManager.getOptionState("polymode") !== "phy";
+		},
+		"lineWidth" : function (key){
+			var hex = optionManager.getOptionState("polymode") !== "phy";
+			if (hex){
+				return 2;
+			}
+			else {
+				if (simplifyELingKey(key) == 62){
+					return 1;
+				}
+				return 2;
+			}
 		}
 		})
 );
@@ -938,7 +974,17 @@ categoryManager.registerCategory (
 		"name" : Ue["EIGENE_KATEGORIE"],
 		"nameEmpty" : Ue["EMPTY"],
 		"elementID" : undefined,
-		"filterComponents" : [new SQL_Filter("Type_Kind = 'L' AND Type = 'Butter' AND Instance like 'p%'")]
+		"filterComponents" : [new SQL_Filter("Type_Kind = 'L' AND Type = 'Butter' AND Instance like 'p%'")],
+		"costumGetNameFunction" : function (key){
+			let element = legend.getElementByKey(categories.Custom, key);
+			
+			if (!element || !element.filterData){
+				//Before or during loading
+				return "SQL";
+			}
+			
+			return element.filterData["query_name"];
+		}
 	})
 );
 

@@ -219,6 +219,11 @@
 						GROUP BY Id_Geo
 						ORDER BY Cluster_Id ASC';
 						$data = $db->get_results($db->prepare($query, $epsilon), ARRAY_N);
+						
+						if (!$data && $epsilon != 0){
+						    //Fallback if there are no simplified polygons
+						    $data = $db->get_results($db->prepare($query, 0), ARRAY_N);
+						}
 					}
 
 					$db->flush();
@@ -241,6 +246,17 @@
 							}
 							$data[$key][9] = $subVal;
 						}
+					}
+					else if(isset($_POST['filter']) && $_POST['filter']['subElementCategory'] == -5){ //Dialectometry
+					    $useable = $db->get_col('SELECT DISTINCT Id_Ort_1 FROM a_orte_aehnlichkeiten');
+					    $umap = [];
+					    foreach ($useable as $com_id){
+					        $umap[$com_id] = true;
+					    }
+					    
+					    foreach ($data as $key => $row){
+					        $data[$key][9] = isset($umap[$row[4]])? 1: 0;
+					    }
 					}
 					else if (isset($_POST['filter']['subElementCategory']) && $_POST['filter']['subElementCategory'] == -4){ //All distinct
 						foreach ($data as $key => $row){
@@ -445,7 +461,7 @@ function va_translate_content ($text, &$Ue){
 }
 
 function va_create_result_object ($where_clause, $lang, $epsilon, $grid_cat, IM_Result &$result, &$Ue, &$db){
-	global $time;
+	//global $time;
 	
 	$bibData = [];
 	$stimulusData = [];
@@ -483,7 +499,7 @@ function va_create_result_object ($where_clause, $lang, $epsilon, $grid_cat, IM_
 		$type_array = array();
 		if($typifications[0] !== ''){
 			foreach ($typifications as $t){
-				$type_info = mb_split('#', $t);
+				$type_info = mb_split('§', $t);
 				$kind = $type_info[0];
 				$id = $type_info[1];
 				if($kind == 'P'){
@@ -501,15 +517,15 @@ function va_create_result_object ($where_clause, $lang, $epsilon, $grid_cat, IM_
 				//For multiple references
 				$type_exists = false;
 				foreach ($type_array as &$type_descr){
-					if($type_descr[0] == $kind && $type_descr[1] == $type && $type_descr[2] == $source){
+					if($type_descr[1] == $kind && $type_descr[2] == $type && $type_descr[3] == $source){
 						if($ref)
-							$type_descr[3][] = $ref;
+							$type_descr[4][] = $ref;
 						$type_exists = true;
 						break;
 					}
 				}
 				if(!$type_exists)
-					$type_array[] = array ($kind, $type, $source, ($ref? [$ref]: []));
+					$type_array[] = array ($id, $kind, $type, $source, ($ref? [$ref]: []));
 				
 				if($source == 'VA'){
 					if($subElementType === 3) { //Lex. Typ
@@ -534,10 +550,10 @@ function va_create_result_object ($where_clause, $lang, $epsilon, $grid_cat, IM_
 		if($row[2] != ''){
 			$base_types = explode('-+-', $row[2]);
 			foreach ($base_types as $b){
-				$bparts = explode('#', $b);
+				$bparts = explode('§', $b);
 				
 				$id_btyp = mb_substr($bparts[0], 0, - 2); //-2 to remove |0 or |1 for unsure
-				$btyp = $bparts[1];
+				$btyp = '<span class="va_base_type" data-id="' . $id_btyp . '">' . $bparts[1] . '</span>';
 				if ($bparts[2] && isset($isolangs[$bparts[2]])){
 					$btyp .= ' (<span class="iso" data-iso="' . $bparts[2] . '">' . $bparts[2] . '.</span>)';
 					if (!isset($langData[$bparts[2]])){
@@ -551,16 +567,16 @@ function va_create_result_object ($where_clause, $lang, $epsilon, $grid_cat, IM_
 				
 				//For multiple base type references
 				foreach ($base_array as &$btype_descr){
-					if($btype_descr[0] == $btyp){
+					if($btype_descr[1] == $btyp){
 						if($ref)
-							$btype_descr[1][] = $ref;
+							$btype_descr[2][] = $ref;
 						$btypeExists = true;
 						break;
 					}
 				}
 				
 				if(!$btypeExists)
-					$base_array[] = [$btyp, ($ref? [$ref]: [])];
+				    $base_array[] = [$id_btyp, $btyp, ($ref? [$ref]: [])];
 					
 				if($subElementType === 4 /*Basistyp */ && !$btypeExists) {
 					if($va_sub === '-1'){
@@ -582,7 +598,7 @@ function va_create_result_object ($where_clause, $lang, $epsilon, $grid_cat, IM_
 		if($subElementType === -3){ //Tags
 			switch ($_POST['filter']['selectedTag']){
 				case 'ERHEBUNG':
-					$va_sub = '#' . substr($row[4], 0, strpos($row[4], ':'));
+					$va_sub = '#' . substr($row[4], 0, strpos($row[4], '#'));
 					break;
 			}
 		}
@@ -637,6 +653,10 @@ function va_create_result_object ($where_clause, $lang, $epsilon, $grid_cat, IM_
 		$current_array[] = $row[9]; //encoding
 		
 		$current_array[] = $row[13]; //Geonames Id
+		
+		$current_array[] = $row[14]; //Id community
+		
+		$current_array[] = va_community_download_link($row[14]);
 		
 		$markingColor = -1;
 		if(isset($_POST['filter']['markings'])){
@@ -909,8 +929,8 @@ function va_get_db_results ($where_clause, $epsilon, $grid_cat, &$db){
 	
 	$query = "SELECT
 				Instance,
-				GROUP_CONCAT(DISTINCT CONCAT(Type_Kind, '#', Id_Type, '#', Type, '#', Type_Lang, '#', POS, '#', Gender, '#', Affix, '#', Source_Typing, '#', IF(Type_Reference IS NULL, '', Type_Reference)) SEPARATOR '-+-') AS Typings,
-				GROUP_CONCAT(DISTINCT CONCAT(Id_Base_Type, '|', Base_Type_Unsure, '#', IF(Base_Type_Unsure, '(?) ', ''), Base_Type, '#', IFNULL(Base_Type_Lang, '') , '#', IF(Base_Type_Reference IS NULL, '', Base_Type_Reference)) SEPARATOR '-+-') AS Base_Types,
+				GROUP_CONCAT(DISTINCT CONCAT(Type_Kind, '§', Id_Type, '§', Type, '§', Type_Lang, '§', POS, '§', Gender, '§', Affix, '§', Source_Typing, '§', IF(Type_Reference IS NULL, '', Type_Reference)) SEPARATOR '-+-') AS Typings,
+				GROUP_CONCAT(DISTINCT CONCAT(Id_Base_Type, '|', Base_Type_Unsure, '§', IF(Base_Type_Unsure, '(?) ', ''), Base_Type, '§', IFNULL(Base_Type_Lang, '') , '§', IF(Base_Type_Reference IS NULL, '', Base_Type_Reference)) SEPARATOR '-+-') AS Base_Types,
 				GROUP_CONCAT(DISTINCT CONCAT('C', Id_Concept)) AS Concepts,
 				Instance_Source,
 				" . $geo_sql . " AS Geo_Data,
@@ -921,7 +941,8 @@ function va_get_db_results ($where_clause, $epsilon, $grid_cat, &$db){
 				Cluster_Id,
 				Id_Stimulus,
 				Stimulus,
-				Geonames_Id
+				Geonames_Id,
+                Id_Community
 			FROM Z_Ling JOIN Stimuli USING (Id_Stimulus)
 			WHERE " . $where_clause 
 					. ($_POST['outside'] == 'false' ? ' AND Alpine_Convention' : '') . "
@@ -972,20 +993,20 @@ function va_create_type_table (&$types, &$btypes, $lang, $source, &$Ue, $part_of
 	
 	//Look for VA-Typings and Source-Typings
 	foreach ($types as $index => $type){
-		if($type[0] == 'P'){
-			if($type[2] == 'VA'){
+		if($type[1] == 'P'){
+			if($type[3] == 'VA'){
 				$va_phon_index = $index;
 			}
-			else if(mb_strpos($source, $type[2]) === 0) {
+			else if(mb_strpos($source, $type[3]) === 0) {
 				$source_phon_index = $index;
 			}
 			$phon_indexes[] = $index;
 		}
 		else {
-			if($type[2] == 'VA'){
+			if($type[3] == 'VA'){
 				$va_lex_index = $index;
 			}
-			else if(mb_strpos($source, $type[2]) === 0) {
+			else if(mb_strpos($source, $type[3]) === 0) {
 				$source_lex_index = $index;
 			}
 			$morph_indexes[] = $index;
@@ -1005,7 +1026,7 @@ function va_create_type_table (&$types, &$btypes, $lang, $source, &$Ue, $part_of
 	}
 	else {
 		$btype = implode(' + ', array_map(function ($btype){
-			return add_references($btype[0], $btype[1]);
+		    return va_add_references($btype[1], $btype[2]);
 		}, $btypes));
 	}
 	$result .= '<tr><td>' . (count($btypes) > 1 ? $Ue['BASISTYP_PLURAL']: $Ue['BASISTYP']) . '</td><td>' . $btype . '</td><td>VA</td></tr>';
@@ -1028,7 +1049,7 @@ function va_get_type_table_row ($name, $empty, $va_index, $source_index, $indexe
 			if($part_of_group){
 				$star .= '<font color="red">*</font>';
 			}
-			$result .= '<tr><td>' . $name . '</td><td class="atlasSourceB">' . $types[$source_index][1] . $star . '</td><td class="atlasSource">' . $sourceStr . '</td></tr>';
+			$result .= '<tr><td>' . $name . '</td><td class="atlasSourceB">' . $types[$source_index][2] . $star . '</td><td class="atlasSource">' . $sourceStr . '</td></tr>';
 			$count_rest--;
 			array_splice($indexes, $source_index, 1);
 		}
@@ -1044,21 +1065,34 @@ function va_get_type_table_row ($name, $empty, $va_index, $source_index, $indexe
 			}
 			
 			if($count_rest == 1){
-				$tname = $types[$indexes[0]][1];
+				$tname = $types[$indexes[0]][2];
 				if($indexes[0] == $va_index){
-					$tname = add_references($tname, $types[$va_index][3]);
+				    $pos_lang = mb_strpos($tname, ' (<span class="iso"');
+				    $tlang = '';
+				    if ($pos_lang){
+				        $tlang = mb_substr($tname, $pos_lang);
+				        $tname = mb_substr($tname, 0, $pos_lang);
+				    }
+				    
+				    $tname = va_add_references('<span class="va_lex_type" data-id="' . $types[$va_index][0] . '">' . $tname . '</span>' . $tlang, $types[$va_index][4]);
 				}
-				$result .= '<td>' . $tname . '</td><td>' . $types[$indexes[0]][2] . '</td>';
+				$result .= '<td>' . $tname . '</td><td>' . $types[$indexes[0]][3] . '</td>';
 			}
 			else {
-				$type_name_td = $va_index !== false? add_references($types[$va_index][1], $types[$va_index][3]) : $types[$indexes[0]][1];
+			    if ($va_index !== false){
+			        $type_name_td =  va_add_references('<span class="va_lex_type" data-id="' . $types[$va_index][0] . '">' . $types[$va_index][2] . '</span>', $types[$va_index][4]);
+			    }
+			    else {
+			        $type_name_td = $types[$indexes[0]][2];
+			    }
+			    
 				$result .= '<td>' . $type_name_td . '</td><td><select class="infoWindowTypeSelect">';
 				if($va_index !== false){
 					array_splice($indexes, $va_index, 1);
-					$result .= '<option value="' . $types[$va_index][1] . '" data-tname="' . add_references($types[$va_index][1], $types[$va_index][3]) . '" selected>VA</option>';
+					$result .= '<option value="' . strip_tags($types[$va_index][2]) . '" data-tname="' . strip_tags($types[$va_index][2]) . '" selected>VA</option>';
 				}
 				foreach ($indexes as $index){
-					$result .= '<option value="' . $types[$index][1] . '" data-tname="' . $types[$index][1] .  '">' . $types[$index][2] . '</option>';
+				    $result .= '<option value="' . strip_tags($types[$index][2]) . '" data-tname="' . strip_tags($types[$index][2]) .  '">' . $types[$index][3] . '</option>';
 				}
 				$result .= '</select></td>';
 			}
@@ -1066,22 +1100,6 @@ function va_get_type_table_row ($name, $empty, $va_index, $source_index, $indexe
 		}
 	}
 	return $result;
-}
-
-function add_references ($str, $ref_data){
-
-	foreach ($ref_data as $ref){
-		$data = explode('|', $ref);
-		if($data[0] !== 'VA'){
-			if($data[3]){
-				$str .= '<a title="' . $data[0] . ': ' . $data[1] . ' ' . $data[2] . '" href="' . $data[3] . '" target="_BLANK" class="encyLink">' . substr($data[0], 0, 1) . '</a>';
-			}
-			else {
-				$str .= '<span title="' . $data[0] . ': ' . $data[1] . ' ' . $data[2] . '" class="encyLink">' . substr($data[0], 0, 1) . '</span>';
-			}
-		}
-	}
-	return $str;
 }
 
 /*
@@ -1113,7 +1131,9 @@ class IM_RecordInfoWindowData extends IM_ElementInfoWindowData {
 			'community' => $arr[4],
 			'original' => $arr[5],
 			'encoding' => $arr[6],
-			'geonames' => $arr[7]
+			'geonames' => $arr[7],
+		    'id_community' => $arr[8],
+		    'comm_download' => $arr[9]
 		);
 	}
 	
@@ -1128,6 +1148,7 @@ class IM_InformantInfoWindowData extends IM_ElementInfoWindowData {
 	function __construct ($location, $number, $gender, $age, $text){
 		parent::__construct('informant');
 		
+		global $Ue;
 		$text = va_sub_translate($text, $Ue);
 		parseSyntax($text, true);
 		
@@ -1200,34 +1221,39 @@ function get_va_location ($id){
 	$db = IM_Initializer::$instance->database;
 	$query = 'SELECT 
                 ST_AsText(ST_Envelope(IFNULL(Center, Geo_Data))) AS point, 
-                Name, Description, Id_Category
+                Name, Description, Id_Category, Geonames_Id
             From Z_Geo WHERE Id_Geo = %f';
 	
 	$result = $db->get_row($db->prepare($query, $id), ARRAY_A);
 	parseSyntax($result['Description'], true);
-	$text = '<h1>' . va_translate_extra_ling_name($result['Name'], $lang) . '</h1>' . $result['Description'];
-	
+	$text = '<h1>' . va_translate_extra_ling_name($result['Name'], $lang) . ($result['Geonames_Id']? va_get_geonames_link($result['Geonames_Id']) : '') . '</h1>' . $result['Description'];
+
 	if ($result['Id_Category'] == 62){
 	    //Community => show API link if there are records
-	    
-	    $records_exist = $db->get_var($db->prepare('SELECT Id_Community FROM z_ling WHERE Id_Community = %d LIMIT 1', $id));
-	    if ($records_exist){
-	       global $Ue;
-	       global $va_current_db_name;
-	       
-	       $dbname = substr($va_current_db_name, 3);
-	       if ($dbname === 'xxx'){
-	           $dbname = $db->get_var('SELECT MAX(Nummer) FROM Versionen');
-	       }
-	       
-	       $base_link = site_url() . '?api=1&action=getRecord&id=A' . $id . '&version=' . $dbname;
-	       //19308
-	       
-	       $text .= '<br /><br /><a href="' . $base_link . '" style="margin: 5px;"><i class="list_export_icon fas fa-file-download" title="' . $Ue['API_LINK'] .'"></i></a>';
-	    }
+	    $text .= '<br /><br />VA-ID: A' . $id . va_community_download_link($id);
 	}
 	
 	return ['point' => $result['point'], 'text' => $text];
+}
+
+function va_community_download_link ($id){
+    global $va_current_db_name;
+    global $Ue;
+    
+    $db = IM_Initializer::$instance->database;
+    
+    $dbname = substr($va_current_db_name, 3);
+    if ($dbname === 'xxx'){
+        $dbname = $db->get_var('SELECT MAX(Nummer) FROM Versionen');
+    }
+    
+    $records_exist = $db->get_var($db->prepare('SELECT Id_Community FROM z_ling WHERE Id_Community = %d LIMIT 1', $id));
+    
+    if ($records_exist){
+        $base_link = site_url() . '?api=1&action=getRecord&id=A' . $id . '&version=' . $dbname;
+        return '<br /><br /><a href="' . $base_link . '" style="margin: 5px;"><i class="list_export_icon fas fa-file-download" title="' . $Ue['API_LINK'] .'"></i></a>';
+    }
+    return '';
 }
 
 function va_ling_search ($search, $lang){
@@ -1343,7 +1369,7 @@ function va_load_info_window ($category, $element_id, $overlay_ids, $lang){
 	global $Ue;
 	
 	if ($category == 5 || $category == 6){
-		$res = $db->get_results($db->prepare('SELECT Id_Geo, Name, Description, ContainsTranslations FROM z_geo WHERE Epsilon = 0 AND Id_Geo IN ' . im_key_placeholder_list($overlay_ids), $overlay_ids), ARRAY_A);
+		$res = $db->get_results($db->prepare('SELECT Id_Geo, Name, Description, ContainsTranslations, Geonames_Id FROM z_geo WHERE Epsilon = 0 AND Id_Geo IN ' . im_key_placeholder_list($overlay_ids), $overlay_ids), ARRAY_A);
 		
 		$info_windows = [];
 		foreach ($res as $row){
@@ -1357,10 +1383,27 @@ function va_load_info_window ($category, $element_id, $overlay_ids, $lang){
 			}
 			
 			parseSyntax($descr, true);
-			
+
 			if ($category == 6){
+			    
+			    if ($row['Geonames_Id']){
+			        $name .= va_get_geonames_link($row['Geonames_Id']);
+			    }
+			    
+			    if ($element_id == 'A62'){
+			        $descr .= '<br /><br />VA-ID: A' . $row['Id_Geo'] . va_community_download_link ($row['Id_Geo']);
+			    }
+			    
+			    if (isDevTester()){
+    			    $is_compareable = $db->get_var($db->prepare('SELECT Id_Ort_1 FROM A_Orte_Aehnlichkeiten WHERE Id_Ort_1 = %d', $overlay_ids[0]));
+    			    
+    			    if ($is_compareable && isset($_POST['similarity'])){
+    			        $descr .= va_type_concept_table($overlay_ids[0], $_POST['similarity']);
+    			    }
+			    }
+			    
 				$id = $row['Id_Geo'];
-				$info_windows[] = new IM_PolygonInfoWindowData($name, $descr, $id);
+				$info_windows[] = new IM_PolygonInfoWindowData($name, $descr, $id, $is_compareable? true: false);
 			}
 			else {
 				$info_windows[] = new IM_SimpleElementInfoWindowData($name, $descr);
@@ -1369,5 +1412,109 @@ function va_load_info_window ($category, $element_id, $overlay_ids, $lang){
 		
 		return $info_windows;
 	}
+}
+
+function va_get_geonames_link ($id){
+    return ' <a target="_BLANK" href="https://www.geonames.org/' . $id . '"><img style="height: 1em;" src="' . VA_PLUGIN_URL . '/images/geonames-icon.svg" /></a>';
+}
+
+function va_dialectology ($id_polygon){
+    $db = IM_Initializer::$instance->database;
+    
+    $sims = $db->get_results($db->prepare('SELECT Id_Ort_2, Aehnlichkeit FROM A_Orte_Aehnlichkeiten WHERE Id_Ort_1 = %d', $id_polygon), ARRAY_N);
+    $html = va_type_concept_table($id_polygon);   
+    
+    return ['similarities' => va_two_dim_to_assoc($sims), 'html' => $html];
+}
+
+function va_type_concept_table ($id_polygon, $id_reference = NULL){
+    $db = IM_Initializer::$instance->database;
+    
+    $pairs = $db->get_results($db->prepare('
+        SELECT DISTINCT m.Id_morph_Typ, Id_Konzept, m.Orth, m.Sprache, m.Wortart, m.Genus, m.Affix, IF(Name_D != "" AND Name_D IS NOT NULL, Name_D, Beschreibung_D) as Konzept
+		FROM
+			Tokens t
+			JOIN Informanten i USING (Id_Informant)
+			JOIN VTBL_Token_morph_Typ vm USING (Id_Token)
+			JOIN morph_Typen m ON m.Id_morph_Typ = vm.Id_morph_Typ AND Quelle = "VA"
+			JOIN VTBL_Token_Konzept USING (Id_Token)
+            JOIN Konzepte USING (Id_Konzept)
+		WHERE Id_Gemeinde = %d
+        ORDER BY Konzept ASC', $id_polygon), ARRAY_N);
+    
+    $reference_data = [];
+    
+    if ($id_reference){
+
+        $ids_refs = $db->get_results($db->prepare('
+        SELECT DISTINCT m.Id_morph_Typ, Id_Konzept
+		FROM
+			Tokens t
+			JOIN Informanten i USING (Id_Informant)
+			JOIN VTBL_Token_morph_Typ vm USING (Id_Token)
+			JOIN morph_Typen m ON m.Id_morph_Typ = vm.Id_morph_Typ AND Quelle = "VA"
+			JOIN VTBL_Token_Konzept USING (Id_Token)
+            JOIN Konzepte USING (Id_Konzept)
+		WHERE Id_Gemeinde = %d', $id_reference), ARRAY_N);
+        
+        foreach ($ids_refs as $id_pair){
+            if (!isset($reference_data[$id_pair[1]])){
+                $reference_data[$id_pair[1]] = [];
+            }
+            $reference_data[$id_pair[1]][] = $id_pair[0];
+        }
+    }
+    
+    $num = 0;
+    $num_ref_pairs = 0;
+    
+    $eq = [];
+    $diff = [];
+    $neutr = [];
+    
+    foreach ($pairs as $pair){
+        if (isset($reference_data[$pair[1]])){
+            if (in_array($pair[0], $reference_data[$pair[1]])){
+                $eq[] = $pair;
+                $num ++;
+            }
+            else {
+                $diff[] = $pair;
+            }
+            $num_ref_pairs++;
+        }
+        else {
+            $neutr[] = $pair;
+        }
+    }
+    
+    $html = '<table>';
+    foreach ($eq as $pair){
+        $type = va_format_lex_type($pair[2], $pair[3], $pair[4], $pair[5], $pair[6]);
+        $concept = $pair[7];
+        $class = ' class = "sim_row_eq"';
+        $html .= '<tr' . $class . '><td>' . $concept . '</td><td>' . $type . '</td></tr>';
+    }
+    foreach ($diff as $pair){
+        $type = va_format_lex_type($pair[2], $pair[3], $pair[4], $pair[5], $pair[6]);
+        $concept = $pair[7];
+        $class = ' class = "sim_row_diff"';
+        $html .= '<tr' . $class . '><td>' . $concept . '</td><td>' . $type . '</td></tr>';
+    }
+    
+    $html .= '</table><br /><br /><table>';
+    
+    foreach ($neutr as $pair){
+        $type = va_format_lex_type($pair[2], $pair[3], $pair[4], $pair[5], $pair[6]);
+        $concept = $pair[7];
+        $html .= '<tr><td>' . $concept . '</td><td>' . $type . '</td></tr>';
+    }
+    $html .= '<table>';
+    
+    if ($id_reference){
+        $html = '<div>' . $num . ' / ' . $num_ref_pairs . '</div><br /><br />' . $html;
+    }
+    
+    return $html;
 }
 ?>

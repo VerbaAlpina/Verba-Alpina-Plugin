@@ -49,6 +49,12 @@ function ladeGlossar (){
 	</style>
 
 	<?php
+	
+        $pre = $vadb->get_var("SELECT Erlaeuterung_$lang FROM glossar WHERE Terminus_D = 'Präambel_Methodologie'");
+        if ($pre){
+            parseSyntax($pre, true);
+            echo '<div class="entry-content" style="margin-bottom: 2em;">' . $pre . '</div>';
+        }
 				
 		echo $Ue['SORTIERUNG'];
 		?>
@@ -148,6 +154,15 @@ function ladeGlossar (){
 				echo '<span class="va-rel-link" id="' . $e['Id_Eintrag'] . '"></span>';
 				list($estyle, $eclass, $eimgs) = va_get_glossary_link_style($e['Id_Eintrag']);
 				echo "<a class='hLink' href='#" . $e['Id_Eintrag'] . "'><span style='$estyle' class='$eclass'>" . $e['Name'] . '</span></a>';
+				
+				$langs = array_filter(va_get_lang_array(), function ($e) use ($lang) {return $e != $lang;});
+				foreach ($langs as $clang){
+					// error_log('SELECT Terminus_' . $clang . ' != "" AND Beschreibung_' . $clang . ' != "" FROM glossar WHERE Id_Eintrag = ' . $e['Id_Eintrag']);
+					if ($vadb->get_var('SELECT Terminus_' . $clang . ' != "" AND Erlaeuterung_' . $clang . ' != "" FROM glossar WHERE Id_Eintrag = ' . $e['Id_Eintrag'])){
+						echo ' <a href="' . va_get_glossary_link($e['Id_Eintrag'], $clang) . '"><img class="missingTranslation" src="' . get_stylesheet_directory_uri() . '/' . va_get_flag_image($clang) . '" /></a>';
+					}
+				}
+				
 				if($intern && $va_current_db_name == 'va_xxx'){
 					echo '&nbsp;<a href="' . get_admin_url(1) . '?page=glossar&entry=' . $e['Id_Eintrag'] . '" target="_BLANK" style="font-size: 50%">(' . $Ue['BEARBEITEN'] . ')</a>';
 				}
@@ -198,7 +213,7 @@ function ladeGlossar (){
 				$matches = [];
 				preg_match_all('#(?:<|\[\[)(?:neu|mod)(?: fertig="([IFSREL]*)")?(?:>|\]\])#', $info[1], $matches, PREG_SET_ORDER);
 				
-				$tlangs = ['I' => true, 'F' => true, 'S' => true, 'R' => true];
+				$tlangs = ['I' => true, 'F' => true, 'S' => true, 'R' => true, 'E' => true];
 				foreach ($matches as $match){
 					if (isset($match[1])){
 						foreach (array_keys($tlangs) as $tlang){
@@ -217,18 +232,7 @@ function ladeGlossar (){
 				
 				foreach ($tlangs as $tlang => $val){
 					if(!$val){
-						if ($tlang == 'I'){
-							$imgs[] = 'images/svg_flags/italy_svg_round.png';
-						}
-						else if ($tlang == 'F'){
-							$imgs[] = 'images/svg_flags/france_svg_round.png';
-						}
-						else if ($tlang == 'S'){
-							$imgs[] = 'images/svg_flags/slovenia_svg_round.png';
-						}
-						else if ($tlang == 'R'){
-							$imgs[] = 'images/svg_flags/canton_svg_round.png';
-						}
+						$imgs[] = va_get_flag_image($tlang);
 					}
 				}
 				
@@ -247,10 +251,31 @@ function ladeGlossar (){
 		return '';
 	}
 	
+	function va_get_flag_image ($tlang){
+		if ($tlang == 'I'){
+			return 'images/svg_flags/italy_svg_round.png';
+		}
+		else if ($tlang == 'F'){
+			return 'images/svg_flags/france_svg_round.png';
+		}
+		else if ($tlang == 'S'){
+			return 'images/svg_flags/slovenia_svg_round.png';
+		}
+		else if ($tlang == 'R'){
+			return 'images/svg_flags/canton_svg_round.png';
+		}
+		else if ($tlang == 'E'){
+			return 'images/svg_flags/uk_svg_round.png';
+		}
+		else {
+			return 'images/svg_flags/germany_svg_round.png';
+		}
+	}
+	
 	function va_add_glossary_authors($authors, $translators){
 
 		$res = '';
-		if(count($authors) > 0){
+		if($authors && count($authors) > 0){
 			usort($authors, function ($a,$b){return strcmp($a[1].$a[0], $b[1].$b[0]);});
 			
 			$res .= '<br />';
@@ -266,7 +291,7 @@ function ladeGlossar (){
 	}
 	
 	function va_add_glossary_tags($tags){
-		if(count($tags) > 0){
+		if($tags && count($tags) > 0){
 			echo '<br />Tags: ';
 			foreach ($tags as $tag){
 				$url = add_query_arg('tag', $tag[0], get_permalink());
@@ -429,13 +454,33 @@ function ladeGlossar (){
 			$size = 45;
 			foreach ($files as $i => $file){
 				$res .= '<div class="galleryContainer">';
-				$res .= '<object type="image/svg+xml" class="galleryLogo" style="width: ' 
-					. $file[2] * $size / 100 . '%; left: ' 
-					. $file[3] * $size / 100 . '%; top: ' 
-					. $file[4] . '%;" data="' . get_site_url(1) . '/wp-content/uploads/VA_logo.svg"></object>';
-					$vnum =	va_get_string_or_empty($files, $i - 1);
-					$res .= '<img style="width: ' . $size . '%" src="' . $file[0] . '" /><p>' . va_format_version_number($vnum? $vnum[1] : '') . '</p>';
-				$res .= '</div>';
+				
+				$vnum =	va_get_string_or_empty($files, $i - 1);
+				$vnum = $vnum? $vnum[1]: '';
+				
+				if ($file[1] >= '162'){
+					$res .= '<a href="' . get_site_url() . '?db=' . $vnum . '">';
+				}
+
+				if ($vnum <= '172'){
+					$res .= '<object type="image/svg+xml" class="galleryLogo" style="width: ' 
+						. $file[2] * $size / 100 . '%; left: ' 
+						. $file[3] * $size / 100 . '%; top: ' 
+						. $file[4] . '%;" data="' . get_site_url(1) . '/wp-content/uploads/VA_logo.svg"></object>';
+				}
+
+				$res .= '<img style="width: ' . $size . '%" src="' . $file[0] . '" />';
+				if ($vnum >= '151'){
+					$res .= '</a>';
+				}
+				
+				$caption_key = 'VA_TITELBILD_' . ($vnum >= '151'? $vnum: '14');
+				if (isset($Ue[$caption_key]) && $Ue[$caption_key]){
+					$res .= '<figcaption style="margin-bottom: 20px;">' . $Ue[$caption_key] . '</figcaption>';
+				}
+
+				
+				$res .= '<p>' . va_format_version_number($vnum) . '</p></div>';
 			}
 			return $res;
 		}

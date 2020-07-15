@@ -81,7 +81,7 @@ function RecordInfoWindowContent (categoryID, elementID, overlayType, data){
 			crecord = escapeHtml(crecord);
 		}
 		
-		var geonames = this.geonamesID? "<a target='_BLANK' href='http://www.geonames.org/" + this.geonamesID + "'><img class='geonamesLogo' src='" + ajax_object["plugin_url"] + "/images/geonames-icon.svg' /></a>": "";
+		var geonames = this.geonamesID? "<a target='_BLANK' href='https://www.geonames.org/" + this.geonamesID + "'><img class='geonamesLogo' src='" + ajax_object["plugin_url"] + "/images/geonames-icon.svg' /></a>": "";
 		
 		if(crecord.substring(1,4) == "TYP"){
 			result += "<table style='width : 100%'><tr><td>" + Ue['KEIN_BELEG'] + "</td>";
@@ -155,10 +155,17 @@ function RecordInfoWindowContent (categoryID, elementID, overlayType, data){
 				wdataLink = " <a target='_BLANK' href='https://www.wikidata.org/wiki/Q" + QIDS[cid] + "'>(Wikidata)</a>";
 			}
 			
-			if(conceptName == "" || conceptName == conceptDescription)
-				result += "<tr><td class='atlasSource'>" + this.sources[i] + "</td><td>" + conceptDescription + wdataLink + "</td></tr>";
-			else
-				result += "<tr><td class='atlasSource'>" + this.sources[i] + "</td><td><span class='currentRecordWindowConcept' data-concept-descr='" + conceptDescription.replace("'", "&apos;") + "'>" + conceptName + "</span>" + wdataLink + "</td></tr>";
+			let cdescr;
+			if (conceptName != "" && conceptName != conceptDescription){
+				cdescr = conceptDescription.replace("'", "&apos;");
+			}
+			else {
+				cdescr = "";
+				conceptName = conceptDescription;
+			}
+			
+			result += "<tr><td class='atlasSource'>" + this.sources[i] + "</td><td><span class='currentRecordWindowConcept' data-id='" + cid + "' data-concept-descr='" + cdescr + "'>" + conceptName + "</span>" + wdataLink + "</td></tr>";
+				
 		}
 		
 		result += "</table>";
@@ -202,11 +209,42 @@ function RecordInfoWindowContent (categoryID, elementID, overlayType, data){
 		var /** jQuery*/ concepts = jQuery(content).find(".currentRecordWindowConcept");
 		concepts.qtip({
 			"content" : {
-				"attr" : 'data-concept-descr'
+				text : function (){
+					let res = "";
+					if (jQuery(this).data("concept-descr")){
+						res += jQuery(this).data("concept-descr") + "<br /><br />";
+					}
+					res += "VA-ID: C" + jQuery(this).data("id");
+					res += "<br /><br /><a href='" + ajax_object["lex_path"] + "#C" + jQuery(this).data("id") + "' target='_BLANK'>" + Ue["LEX_ALP_REF"] + "</a>";
+					return res;
+				},
+				title: {
+					button: true // Close button
+				}
 			},
 			"position" : {
 				"my" : "bottom left",
 				"at" : "top left"
+			},
+			"events": {
+				"render":
+				/**
+				 * @param {Object} event
+				 * @param {Object} api
+				 */
+				function(event, api) {
+					api.elements.target.bind('click', function() {
+						api.set('hide.event', false);
+					});
+				},
+				"hide": 
+				/**
+				 * @param {Object} event
+				 * @param {Object} api
+				 */
+				function(event, api) {
+					api.set('hide.event', 'mouseleave');
+				}
 			}
 		});
 		var /** Object */ capi = concepts.qtip("api");
@@ -216,11 +254,14 @@ function RecordInfoWindowContent (categoryID, elementID, overlayType, data){
 		var /** jQuery */ records = jQuery(content).find(".singleRecord:not(.community)");
 		
 		records.each(function (){
-			var /** jQuery*/ textElement = jQuery(this).next();
+			var /** jQuery*/ textElement = jQuery(this).next().clone();
 			if(textElement.html() != ""){
 				jQuery(this).qtip({
 					"content" : {
-						text : textElement
+						text : textElement,
+						title: {
+							button: true // Close button
+						}
 					},
 					"position" : {
 						"my" : "top left",
@@ -228,7 +269,27 @@ function RecordInfoWindowContent (categoryID, elementID, overlayType, data){
 					},
 					"style" : {
 						"classes" : "qtip-record"
-					}
+					},
+					"events": {
+						"render":
+						/**
+						 * @param {Object} event
+						 * @param {Object} api
+						 */
+						function(event, api) {
+							api.elements.target.bind('click', function() {
+								api.set('hide.event', false);
+							});
+						},
+						"hide": 
+						/**
+						 * @param {Object} event
+						 * @param {Object} api
+						 */
+						function(event, api) {
+							api.set('hide.event', 'mouseleave');
+						}
+					},
 				});
 			}
 		});
@@ -255,6 +316,146 @@ function RecordInfoWindowContent (categoryID, elementID, overlayType, data){
 		for (let i = 0; i < apis.length; i++){
 			thisObject.tooltipApis.push(apis[i]);
 		}
+		
+		let communities = jQuery(content).find(".community");
+		communities.each(function (){
+			jQuery(this).qtip({
+				"content" : {
+					text : function (){
+						let res = "VA-ID: A" + data['id_community'];
+						if (data["comm_download"]){
+							res += data["comm_download"];
+						}
+						return res;
+					},
+					title: {
+						button: true // Close button
+					}
+				},
+				"position" : {
+					"my" : "top left",
+					"at" : "bottom left"
+				},
+				"style" : {
+					"classes" : "qtip-record"
+				},
+				"events": {
+					"render":
+					/**
+					 * @param {Object} event
+					 * @param {Object} api
+					 */
+					function(event, api) {
+						api.elements.target.bind('click', function() {
+							api.set('hide.event', false);
+						});
+					},
+					"hide": 
+					/**
+					 * @param {Object} event
+					 * @param {Object} api
+					 */
+					function(event, api) {
+						api.set('hide.event', 'mouseleave');
+					}
+				}
+			});
+		});
+		communities.each(function (){
+			thisObject.tooltipApis.push(jQuery(this).qtip("api"));
+		});
+		
+		let lexTypes = jQuery(content).find(".va_lex_type");
+		lexTypes.each(function (){
+			jQuery(this).qtip({
+				"content" : {
+					text : function (){
+						let res = "VA-ID: L" + jQuery(this).data("id");
+						res += "<br /><br /><a href='" + ajax_object["lex_path"] + "#L" + jQuery(this).data("id") + "' target='_BLANK'>" + Ue["LEX_ALP_REF"] + "</a>";
+						return res;
+					},
+					title: {
+						button: true // Close button
+					}
+				},
+				"position" : {
+					"my" : "top left",
+					"at" : "bottom left"
+				},
+				"style" : {
+					"classes" : "qtip-record"
+				},
+				"events": {
+					"render":
+					/**
+					 * @param {Object} event
+					 * @param {Object} api
+					 */
+					function(event, api) {
+						api.elements.target.bind('click', function() {
+							api.set('hide.event', false);
+						});
+					},
+					"hide": 
+					/**
+					 * @param {Object} event
+					 * @param {Object} api
+					 */
+					function(event, api) {
+						api.set('hide.event', 'mouseleave');
+					}
+				}
+			});
+		});
+		lexTypes.each(function (){
+			thisObject.tooltipApis.push(jQuery(this).qtip("api"));
+		});
+		
+		let baseTypes = jQuery(content).find(".va_base_type");
+		baseTypes.each(function (){
+			jQuery(this).qtip({
+				"content" : {
+					text : function (){
+						let res = "VA-ID: B" + jQuery(this).data("id");
+						res += "<br /><br /><a href='" + ajax_object["lex_path"] + "#B" + jQuery(this).data("id") + "' target='_BLANK'>" + Ue["LEX_ALP_REF"] + "</a>";
+						return res;
+					},
+					title: {
+						button: true // Close button
+					}
+				},
+				"position" : {
+					"my" : "top left",
+					"at" : "bottom left"
+				},
+				"style" : {
+					"classes" : "qtip-record"
+				},
+				"events": {
+					"render":
+					/**
+					 * @param {Object} event
+					 * @param {Object} api
+					 */
+					function(event, api) {
+						api.elements.target.bind('click', function() {
+							api.set('hide.event', false);
+						});
+					},
+					"hide": 
+					/**
+					 * @param {Object} event
+					 * @param {Object} api
+					 */
+					function(event, api) {
+						api.set('hide.event', 'mouseleave');
+					}
+				}
+			});
+		});
+		baseTypes.each(function (){
+			thisObject.tooltipApis.push(jQuery(this).qtip("api"));
+		});
 	};
 	
 	/**

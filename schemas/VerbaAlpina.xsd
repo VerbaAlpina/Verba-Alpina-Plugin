@@ -5,8 +5,8 @@
 	<xsd:annotation>
 		<xsd:documentation xml:lang="de">
 			Schema für die VerbaAlpina-Datenkategorien "Einzelbeleg", "Gemeinde", "Morpho-lexikalischer Typ" und "Konzept"); 
-			Stand: Dezember 2018;
-			Bearbeiter: Sonja Kümmet (UB LMU / IT)
+			Stand: Mai 2020;
+			Bearbeiter: Sonja Kümmet (UB LMU / IT), Florian Zacherl (ITG)
 		</xsd:documentation>
 	</xsd:annotation>
 	
@@ -25,6 +25,18 @@
 		<xsd:restriction base="xsd:byte">
 			<xsd:enumeration value="0"/>
 			<xsd:enumeration value="1"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	
+	<xsd:simpleType name="conceptId">
+		<xsd:restriction base="xsd:string">
+			<xsd:pattern value="C([0-9])+_v[0-9]+_[0-9]{2}[1-2]"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	
+	<xsd:simpleType name="communityId">
+		<xsd:restriction base="xsd:string">
+			<xsd:pattern value="A([0-9])+_v[0-9]+_[0-9]{2}[1-2]"/>
 		</xsd:restriction>
 	</xsd:simpleType>
 	
@@ -51,7 +63,13 @@
 	
 	<xsd:simpleType name="instanceId">
 		<xsd:restriction base="xsd:string">
-			<xsd:pattern value="(A|C|G|L|S)([0-9])+_v[0-9]+_[0-9]{2}[1-2]"/>
+			<xsd:pattern value="(G|S)([0-9])+_v[0-9]+_[0-9]{2}[1-2]"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	
+	<xsd:simpleType name="typeId">
+		<xsd:restriction base="xsd:string">
+			<xsd:pattern value="L([0-9])+_v[0-9]+_[0-9]{2}[1-2]"/>
 		</xsd:restriction>
 	</xsd:simpleType>
 	
@@ -96,11 +114,10 @@
 			<xsd:element name="instanceSource" type="instanceSource"/>
 			<xsd:element name="stimulus" type="xsd:string"/>
 			<xsd:element name="concepts" type="concepts" minOccurs="0"/>
-			<xsd:element name="communityName" type="communityName"/>
-			<xsd:element name="communityBoundingBox" type="communityBoundingBox"/>
+			<xsd:element name="community" type="community"/>
 			<xsd:element name="yearPublication" type="xsd:string" minOccurs="0"/>
 			<xsd:element name="yearSurvey" type="xsd:string" minOccurs="0"/>
-			<xsd:element name="informantLang" type="informantLang"/>
+			<xsd:element name="informantLang" type="informantLang" minOccurs="0"/>
 			<xsd:element name="types" type="types" minOccurs="0" />
 		</xsd:sequence>
 		<xsd:attribute name="id" type="instanceId" use="required"/>
@@ -108,19 +125,15 @@
 	
 	
 	<!-- 3. Ebene (alphabetisch geordnet) -->
-	<xsd:complexType name="communityBoundingBox">
+	<xsd:complexType name="community">
 		<xsd:sequence>
-			<xsd:element name="point" type="point" minOccurs="5" maxOccurs="5"/>
+			<xsd:element name="communityName" type="communityName"/>
+			<xsd:element name="communityBoundingBox" type="communityBoundingBox"/>
+			<xsd:element name="geonamesId" type="xsd:integer"  minOccurs="0" />
 		</xsd:sequence>
+		<xsd:attribute name="id" type="communityId" use="required"/>
 	</xsd:complexType>
-	
-	<xsd:complexType name="communityName">
-		<xsd:sequence>
-			<xsd:element name="officialName" type="xsd:string"/>
-			<xsd:element name="translations" type="translations" minOccurs="0"/>
-		</xsd:sequence>
-	</xsd:complexType>
-	
+
 	<xsd:complexType name="concepts">
 		<xsd:sequence>
 			<xsd:element name="concept" type="concept" minOccurs="0" maxOccurs="unbounded"/>
@@ -152,11 +165,26 @@
 	
 	
 	<!-- 4. Ebene (alphabetisch geordnet) -->
+	
+	<xsd:complexType name="communityBoundingBox">
+		<xsd:sequence>
+			<xsd:element name="point" type="point" minOccurs="5" maxOccurs="5"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	
+	<xsd:complexType name="communityName">
+		<xsd:sequence>
+			<xsd:element name="officialName" type="xsd:string"/>
+			<xsd:element name="translations" type="translations" minOccurs="0"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	
 	<xsd:complexType name="concept">
 		<xsd:sequence>
 			<xsd:element name="conceptDescription" type="xsd:string"/>
 			<xsd:element name="qid" type="qid" minOccurs="0"/>
 		</xsd:sequence>
+		<xsd:attribute name="id" type="conceptId" use="required"/>
 	</xsd:complexType>
 	
 	<xsd:complexType name="point">
@@ -183,6 +211,7 @@
 			<xsd:element name="baseTypes" type="baseTypes" minOccurs="0"/>
 		</xsd:sequence>
 		<xsd:attribute name="kind" type="kind" use="required"/>
+		<xsd:attribute name="id" type="typeId"/>
 	</xsd:complexType>
 	
 	

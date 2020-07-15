@@ -1,7 +1,7 @@
 <?php 
 
 function create_va_map (){
-
+   
 global $lang;
 global $Ue;
 global $admin;
@@ -100,6 +100,7 @@ wp_localize_script ('im_map_script', 'TypeGenders', va_two_dim_to_assoc($typeGen
 wp_localize_script ('im_map_script', 'QIDS', va_two_dim_to_assoc($qids));
 wp_localize_script ('im_map_script', 'TypeOccs', $type_occs);
 
+
 $show_legend = isset($_REQUEST['tk']) || isset($_REQUEST['single']);
 
 ?>
@@ -157,7 +158,12 @@ $show_legend = isset($_REQUEST['tk']) || isset($_REQUEST['single']);
  
 				     		<!-- <div><i class="fas fa-search"></i>Search...</div> -->
 
-							<h6 class="VA_Map_Subhead search_language_data search"><?php echo ucfirst($Ue['SPRACHDATEN']); ?> <span class="sql-query-btn">SQL Query</span></h6>
+							<h6 class="VA_Map_Subhead search_language_data search"><?php echo ucfirst($Ue['SPRACHDATEN']); ?> 
+								<span class="sql-query-btn upper_map_btn">SQL Query</span>
+								<?php if (isDevTester()){?>
+								<span class="dialectometry-btn upper_map_btn"><?php echo ucfirst($Ue['DIALEKTOMETRIE']);?></span>
+								<?php }?>
+							</h6>
 
 							<div class="va_select_container">
 
@@ -182,14 +188,22 @@ $show_legend = isset($_REQUEST['tk']) || isset($_REQUEST['single']);
 							<div class="va_select_container">
 
 								<?php
-
+								
+								$morph_function = function ($input){
+									$input = str_replace(' (roa)', '', $input);
+									$input = str_replace(' (gem)', '', $input);
+									$input = str_replace(' (sla)', '', $input);
+									
+									return va_remove_special_chars($input);
+								};
+								
 								//Morphologic types
 								echo im_table_select('Z_Ling', array('Id_Type'), array('Type', 'Type_Lang', 'POS', "'' AS Gender", 'Affix'), 'morphTypeSelect', array(
 										'list_format_function' => array('va_format_lex_type'),
 										'placeholder' => ucfirst($Ue['MORPH_TYP_PLURAL']),
 										'width' => '90%',
 										'filter' => "Type_Kind != 'P' AND Source_Typing = 'VA'" . ($admin? '': ' AND Id_Type != 6977'),
-										'sort_simplification_function' => 'va_remove_special_chars',
+										'sort_simplification_function' => $morph_function,
 										'group_by' => 'Type, Type_Lang, POS',
 										'group_order_by' => 'Type ASC, Gender ASC',
 										'costum_attribute_function' => function ($val, $name) use ($type_occs){

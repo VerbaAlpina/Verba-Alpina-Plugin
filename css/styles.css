@@ -209,7 +209,7 @@ ol.footnotes p {
 	background : yellow;
 }
 
-.entry-content a:not(.hLink) {text-decoration : underline;}
+.entry-content a:not(.hLink, encyLink) {text-decoration : underline;}
 .entry-content a:not(.hLink):link {color: #3CB371}
 .entry-content a:not(.hLink):visited {color: #3CB371}
 
@@ -241,7 +241,7 @@ ol.footnotes p {
 	margin-bottom: 50px;
 }
 
-.corrTable td,th {
+.corrTable td,.corrTable th {
 	padding: 5px;
 	vertical-align: middle;
 }
@@ -363,5 +363,1102 @@ img.orcid {
 }
 
 .entry-content table.ruleTable td.imageTranscriptionRule img{
+	height: 1em;
+}
+
+.sim_row_eq {
+	background: Aquamarine ;
+}
+
+.sim_row_diff {
+	background: LightCoral ;
+}
+
+body.lex{
+    overflow-x: hidden;
+}
+
+#page.lex{
+	max-width: 100% !important;
+	background: transparent;
+    overflow-x: hidden;
+}
+
+.lex_header{
+    left: 25%;
+    position: fixed;
+    top: 45px;
+    right: 0;
+    height: 170px;
+   -webkit-box-shadow: 3px 3px 3px 0px rgba(0,0,0,0.11);
+    -moz-box-shadow: 3px 3px 3px 0px rgba(0,0,0,0.11);
+    box-shadow: 3px 3px 3px 0px rgba(0,0,0,0.11);
+    background: #dbe1e6;
+    z-index: 2;   
+}
+
+.lex_header_cover{
+    top: 0;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    background: url(http://localhost/VA/wp-content/uploads/20_2_titel.jpg) center center fixed;
+   filter: grayscale(100%);
+}
+
+
+
+.lex_header_inner{
+    padding-right: 15px;
+    padding-left: 22px;
+    top:28px;
+    position: relative;
+}
+
+.entry-content.lex{
+    left: 25%;
+    position: fixed;
+    height: calc(100% - 215px);
+    right: 0;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    word-break: break-word;
+    margin-top: 215px;
+    padding-right: 20px;
+    padding-left: 20px;
+    overflow-x: hidden;
+    padding-top: 25px;
+}
+
+.lexhead{
+    font-family: 'Quicksand', serif;
+    font-size: 65px;
+    z-index: 3;
+    margin-bottom: 12px;
+}
+
+
+
+.lexcontent{
+    max-width: 1000px;
+    min-width: 300px;
+    margin-left: auto;
+    margin-right: auto;
+    position: relative;
+}
+
+.lex .lmu_signum_bg{
+	opacity: 0.05;
+}
+
+.lex_articles{
+    padding-left: 10px;
+    padding-right: 10px;
+    z-index: 1;
+    position: relative;
+}
+
+.lexsearch{
+    display: flex;
+    border: 1px solid #444444;
+    box-shadow: none;
+    width: 690px;
+    border-radius: 24px;
+    z-index: 3;
+    height: 44px;
+    margin-bottom: 25px;
+    margin-left: 5px;
+  /*  position: -webkit-sticky;
+    position: sticky;
+    top: 0px;*/
+    z-index: 2;
+}
+
+
+
+.lexsearch > div{
+	color: transparent;
+    flex: 100%;
+    white-space: pre;
+    display: flex;
+    align-items: center;
+    position: relative;
+}
+
+.lexsearch input{
+	background-color: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    color: rgba(0,0,0,.87);
+    word-wrap: break-word;
+    outline: none;
+    display: flex;
+    flex: 100%;
+    -webkit-tap-highlight-color: transparent;
+    height: 34px;
+    font-size: 16px;
+    margin: 0 auto;
+    padding-left: 15px;
+    border-right: 1px solid #757575;
+}
+
+.lexsearch input::placeholder{
+	font-size: 14px;
+	color: #444;
+	opacity: 1.0;
+}
+
+.lexsearch i{
+    color: #444444;
+    font-size: 20px;
+    display: flex;
+    right: 16px;
+
+}
+
+.lexsearch input.red::placeholder{
+  color: red;
+}
+
+.lexsearch .fa-search:hover{
+	cursor: pointer;
+}
+
+.front .highlight{
+    background: #f1d44a6b;
+}
+
+.lex_edit button{
+    color: #444444;
+    font-size: 14px;
+    padding: 0;
+    position: relative;
+    top: inline-flex;
+    top: -2px;
+    padding-left: 5px;
+}
+
+.lex_comment_id{
+    font-size: 12px;
+}
+
+.lex_article .sep{
+    border-left: 1px solid;
+    margin-left: 10px;
+    margin-right: 5px;
+}
+
+.lex .va-title{
+	font-family: Helvetica, sans-serif;
+}
+
+.entry-content.lex::-webkit-scrollbar {
+    width: 10px;
+    background-color: transparent;
+}
+
+.entry-content.lex::-webkit-scrollbar-thumb {
+    background-color: #a9a9a9;
+    border-radius: 4px;
+}
+
+.lexstartcontent{
+    display: none;
+}
+
+
+.lexsidebar{
+	position: fixed;
+    overflow: hidden;
+    min-width: 190px;
+    width: 25%;
+    top: 45px;
+    left: 0;
+    bottom: 0;
+    background-color: #272d37f0;
+    height: calc(100% - 45px);
+    z-index: 4;
+    -webkit-box-shadow: 3px 3px 3px 0px rgba(0,0,0,0.15);
+    -moz-box-shadow: 3px 3px 3px 0px rgba(0,0,0,0.15);
+    box-shadow: 3px 3px 3px 0px rgba(0,0,0,0.15);
+}
+
+
+#scrollArea{
+    width: 100%;
+    height: calc(100% - 75px);
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+     margin-top: 15px;
+}
+
+.lex_load_cover{
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    color: black;
+    z-index: 20;
+    height: 100%;
+    margin: auto;
+    background: rgb(20,20,20);
+    background: linear-gradient(180deg, rgba(20,20,20,0) 0%, rgba(20,20,20,0.5032387955182073) 25%, rgba(20,20,20,0.6208858543417367) 50%, rgba(20,20,20,0.5032387955182073) 75%, rgba(20,20,20,0) 100%);
+}
+
+.lex_load_cover .spinnerarea{
+    position: absolute;
+    margin: auto;
+    width: 40px;
+    height: 40px;
+    bottom: 40px;
+    top: 0px;
+    left: 0px;
+    right: 0px;
+}
+
+.sk-fading-circle {
+  width: 40px;
+  height: 40px;
+  position: relative;
+}
+
+.sk-fading-circle .sk-circle {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+.sk-fading-circle .sk-circle:before {
+  content: '';
+  display: block;
+  margin: 0 auto;
+  width: 15%;
+  height: 15%;
+  background-color: #aaa;
+  border-radius: 100%;
+  -webkit-animation: sk-circleFadeDelay 1.2s infinite ease-in-out both;
+          animation: sk-circleFadeDelay 1.2s infinite ease-in-out both;
+}
+.sk-fading-circle .sk-circle2 {
+  -webkit-transform: rotate(30deg);
+      -ms-transform: rotate(30deg);
+          transform: rotate(30deg);
+}
+.sk-fading-circle .sk-circle3 {
+  -webkit-transform: rotate(60deg);
+      -ms-transform: rotate(60deg);
+          transform: rotate(60deg);
+}
+.sk-fading-circle .sk-circle4 {
+  -webkit-transform: rotate(90deg);
+      -ms-transform: rotate(90deg);
+          transform: rotate(90deg);
+}
+.sk-fading-circle .sk-circle5 {
+  -webkit-transform: rotate(120deg);
+      -ms-transform: rotate(120deg);
+          transform: rotate(120deg);
+}
+.sk-fading-circle .sk-circle6 {
+  -webkit-transform: rotate(150deg);
+      -ms-transform: rotate(150deg);
+          transform: rotate(150deg);
+}
+.sk-fading-circle .sk-circle7 {
+  -webkit-transform: rotate(180deg);
+      -ms-transform: rotate(180deg);
+          transform: rotate(180deg);
+}
+.sk-fading-circle .sk-circle8 {
+  -webkit-transform: rotate(210deg);
+      -ms-transform: rotate(210deg);
+          transform: rotate(210deg);
+}
+.sk-fading-circle .sk-circle9 {
+  -webkit-transform: rotate(240deg);
+      -ms-transform: rotate(240deg);
+          transform: rotate(240deg);
+}
+.sk-fading-circle .sk-circle10 {
+  -webkit-transform: rotate(270deg);
+      -ms-transform: rotate(270deg);
+          transform: rotate(270deg);
+}
+.sk-fading-circle .sk-circle11 {
+  -webkit-transform: rotate(300deg);
+      -ms-transform: rotate(300deg);
+          transform: rotate(300deg); 
+}
+.sk-fading-circle .sk-circle12 {
+  -webkit-transform: rotate(330deg);
+      -ms-transform: rotate(330deg);
+          transform: rotate(330deg); 
+}
+.sk-fading-circle .sk-circle2:before {
+  -webkit-animation-delay: -1.1s;
+          animation-delay: -1.1s; 
+}
+.sk-fading-circle .sk-circle3:before {
+  -webkit-animation-delay: -1s;
+          animation-delay: -1s; 
+}
+.sk-fading-circle .sk-circle4:before {
+  -webkit-animation-delay: -0.9s;
+          animation-delay: -0.9s; 
+}
+.sk-fading-circle .sk-circle5:before {
+  -webkit-animation-delay: -0.8s;
+          animation-delay: -0.8s; 
+}
+.sk-fading-circle .sk-circle6:before {
+  -webkit-animation-delay: -0.7s;
+          animation-delay: -0.7s; 
+}
+.sk-fading-circle .sk-circle7:before {
+  -webkit-animation-delay: -0.6s;
+          animation-delay: -0.6s; 
+}
+.sk-fading-circle .sk-circle8:before {
+  -webkit-animation-delay: -0.5s;
+          animation-delay: -0.5s; 
+}
+.sk-fading-circle .sk-circle9:before {
+  -webkit-animation-delay: -0.4s;
+          animation-delay: -0.4s;
+}
+.sk-fading-circle .sk-circle10:before {
+  -webkit-animation-delay: -0.3s;
+          animation-delay: -0.3s;
+}
+.sk-fading-circle .sk-circle11:before {
+  -webkit-animation-delay: -0.2s;
+          animation-delay: -0.2s;
+}
+.sk-fading-circle .sk-circle12:before {
+  -webkit-animation-delay: -0.1s;
+          animation-delay: -0.1s;
+}
+
+@-webkit-keyframes sk-circleFadeDelay {
+  0%, 39%, 100% { opacity: 0; }
+  40% { opacity: 1; }
+}
+
+@keyframes sk-circleFadeDelay {
+  0%, 39%, 100% { opacity: 0; }
+  40% { opacity: 1; } 
+}
+
+.lex_load_cover i{
+  position: absolute;
+
+  top:0;
+  left:0;
+  right: 0;
+  bottom: 30;
+  font-size: 30px;
+  height: 30px;
+  width: 30px;
+  color:rgb(120,120,120);
+}
+
+.lexlist{
+	padding: 10px;
+    width: 100%;
+    bottom: 0;
+    border: none !important;
+    outline: none !important;
+}
+
+.lexsidebar #scrollArea::-webkit-scrollbar {
+    width: 10px;
+    background-color: transparent;
+}
+
+.lexsidebar  #scrollArea::-webkit-scrollbar-thumb {
+    background-color: #647086;
+    border-radius: 4px;
+}
+
+.lexsidebar li{
+	font-family: Quicksand;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    padding-left: 8px;
+    padding-right: 5px; 
+    border-bottom: 1px solid #647086;
+    overflow: hidden;
+    color: white;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;      
+               
+}
+
+
+.active .list_marker{
+	display: inline;
+}
+
+.list_marker{
+    position: relative;
+    margin-right: 5px;
+    display: none;
+}
+
+.type_C{
+  border-color: #00658c !important;
+}
+
+.type_L{
+  border-color:#004763 !important;
+}
+
+.type_B{
+  border-color: #002e40 !important; 
+}
+
+.type_C .front, .type_C .back{
+  border-color: #00658c !important;
+}
+ 
+.type_L .front, .type_L .back{
+  border-color:#004763 !important;
+}
+
+.type_B .front, .type_B .back{
+  border-color: #002e40 !important; 
+}
+
+.list_marker {
+   border-left: 5px solid;
+}
+
+
+
+.lexsidebar li:hover{
+	cursor: pointer;
+}
+
+.lexsidebar li .desc{
+	display: none;
+}
+
+.lexsidebar li .type{
+	font-size: 12px;
+	font-style: italic;
+	color:#647086;
+    font-weight: 500;
+}
+
+.lexsidebar .search{
+    padding-left: 10px;
+    padding-right: 10px;
+}    
+
+.lexsidebar .search input {
+  	background-color: transparent;
+    color: #fff;
+    border: none;
+    border-bottom: 1px solid;
+    border-color: #647086;
+    margin-top: 25px;
+    border-radius: 0px;
+    padding-left: 20px;
+}
+
+.lexsidebar li:last-child {
+	border-bottom: none;
+}
+
+.lexsidebar .search input::placeholder {
+color: #647086;
+}
+
+.lexsidebar .search i.fas{
+	position: absolute;
+    display: flex;
+    top: 33px;
+    color: #647086;
+}
+
+.lexsearch button{
+  color: white; 
+  padding: 12px 16px; 
+  padding-right: 20px;
+}
+
+.lexgradient {
+    width: calc(100% - 20px);
+    height: 105px;
+    position: fixed;
+    background: rgb(225,228,231);
+    background: linear-gradient(180deg, rgb(215, 224, 230,1) 80%, rgba(15, 224, 230,0) 100%);
+    z-index: 2;
+    left: 0;
+    top: 45px;
+}
+
+.lex_wiki a{
+    color: #003a50 !important;
+}
+
+.lex_button_container{
+    display: inline-block;
+    float: right;
+}
+
+.lex_button_container.bback .lex_edit button{
+    color: white;
+}
+
+.flipbutton {
+    position: absolute;
+    right: -15px;
+    border: 1px solid;
+    font-size: 12px;
+    z-index: 2;
+    background: #483030;
+    top: 50%;
+    padding: 2px 5px 2px 5px;
+    box-shadow: -3px 3px 3px 0px rgba(0,0,0,0.15);
+    background: #dbe1e6;
+    color:white;
+    border-top-left-radius: 2px;
+    border-bottom-left-radius: 2px;
+    border-top-right-radius: 2px;
+}
+
+
+.flipbutton.type_C{
+  color: #00658c !important;
+}
+ 
+.flipbutton.type_L{
+  color:#004763 !important;
+}
+
+.flipbutton.type_B {
+  color: #002e40 !important; 
+}
+
+.flipbutton .arrow{
+    width: 0;
+    height: 0;
+    line-height: 0;
+    border-right: 15px solid transparent;
+    border-top: 7px solid #5f5f5f;
+    right: -1px;
+    position: absolute;
+    bottom: -8px;
+}
+
+
+.lex_article{
+    margin-bottom: 25px;
+    background: transparent;
+    position: relative;
+    transition: all .5s ease-in-out;
+    opacity: 0;
+    perspective: 3000px !important;
+    max-height: 209px;
+}
+
+
+
+.lex_article:hover .flipbutton{
+    cursor: pointer;
+}
+
+ 
+.hiddenbackcontent{
+    display: none;
+    padding: 5px;
+    margin-right: 25px;
+}
+
+
+
+
+/*.backtable tr:last-child td{
+    border-bottom: 1px solid transparent !important;
+}*/
+
+
+
+
+
+/*.backtable .tablesorter-header-inner:focus{
+  border: none !important; 
+  background: transparent !important;
+  outline:0 !important;
+}*/
+
+.hiddenbackcontent th{
+    color: white !important;
+}
+
+.hiddenbackcontent td{
+     color: white !important;
+}
+
+.sub_head_content{
+    display: inline-block;
+    cursor: pointer;
+}
+
+.lex_article .f_content, .b_content{
+    box-sizing:border-box;
+    padding: 10px 15px 10px 15px;
+}
+
+.lex_article.toggle_scale{
+  transform: scale(0.9);
+}
+
+
+
+.lex_article .front, .back{
+
+    -webkit-box-shadow: 3px 3px 3px 0px rgba(0,0,0,0.11);
+    -moz-box-shadow: 3px 3px 3px 0px rgba(0,0,0,0.11);
+    box-shadow: 3px 3px 3px 0px rgba(0,0,0,0.11);
+    background: #dbe1e6;
+    border-left: 10px solid #00658c;
+    border-radius: 4px;
+    overflow: hidden;
+    max-height: 209px;
+    width: 100%;
+}
+
+
+
+.lex_article.overflow .front{
+    transition: all .5s ease-in-out;   
+}
+
+.lex_article .back{
+    display: none;
+    font-size: 12px; 
+    background-color: #323741;
+    color: white;
+}
+
+
+
+.lex_article.show {
+  opacity: 1;
+}
+
+
+
+.lex_article.open{
+  transition: all .5s ease-in-out;
+}
+
+.lex_article.open .front{
+  transition: all .5s ease-in-out;
+}
+
+.lex_article.open .lex_read_more{
+  transition: all .5s ease-in-out;
+}
+
+
+.lexfooter{
+    position: relative;
+}
+
+.lex_read_more{
+    position: absolute;
+    bottom: 0;
+    width: calc(100% - 10px);
+    left: 10px;
+    text-align: center;
+    background: rgb(219,225,230);
+    background: linear-gradient(180deg, rgba(219,225,230,0) 0%, rgba(219,225,230,1) 70%);
+    height: 50px;
+    display: flex;
+    align-items: end;
+    justify-content: center;
+    cursor: pointer;
+    border-bottom-right-radius: 4px;
+}
+
+.lex_read_more.no_grad{
+    background: transparent;
+}
+
+
+.lex_read_more span{
+    bottom: 0;
+    position: absolute;
+    font-style: italic;
+}
+
+
+
+.lex_articles .lex_article:last-child{
+    border-bottom: none;
+}
+
+.lex_head_container{
+    display: inline-block;
+    width: 75%;
+}
+
+.lex_article .head{
+    font-size: 20px;
+    font-family: 'Quicksand', serif;
+    font-weight: 500;
+}
+
+.lex_article .sub_head{
+    font-size: 16px;
+    font-family: 'Quicksand', serif;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;      
+               
+}
+
+.back .back_body{
+    padding: 5px;
+}
+
+.lex_wiki{
+    font-size: 12px;
+}
+
+.lex_id{
+    font-size: 10px;
+    padding: 2px 5px 2px 5px;
+    position: relative;
+    border-radius: 4px;
+    top: -3px;
+    margin-left: 5px;
+    color: #444;
+    box-shadow: inset 0 0 0 1px #444;
+}
+
+.back .lex_id{
+    color: white;
+    box-shadow: inset 0 0 0 1px white;
+}
+
+.lex_article .head .desc{
+    font-size: 13px;
+    font-family: 'Quicksand', serif;
+    font-weight: 500;
+    color:#444;
+    font-style: italic;
+    max-width: 75%;
+}
+
+.lex-search-spinner{
+  font-size: 20px !important;
+  color: #222 !important;
+}
+
+.lex_article .content{
+   padding: 5px;
+   padding-left: 0px;
+   padding-right: 0px;
+}
+
+.lex_article .content{
+    padding-right: 35px;
+}
+
+
+.actionbtn {
+  border: none;
+  background: transparent !important;
+  transition: all .08s ease-in-out;
+  cursor: default;
+}
+
+.actionbtn:hover{
+background: transparent;
+transform: scale(1.2);
+cursor: pointer; 
+}
+
+.actionbtn.no_hover{
+  transform: scale(1.0);
+  cursor: default;
+}
+
+.actionbtn:active{
+	transform: scale(1.0);
+	background: transparent;
+	box-shadow: none;
+}
+
+.actionbtn:focus{
+	border: none;
+	background: transparent;
+	outline:0;
+}
+
+.lexmenubtn{
+	display: none;	
+    font-size: 20px;
+}
+
+.lexmenubtn > i{
+    color: #444444;
+    font-size: 20px;
+    display: flex;
+    right: 16px;
+}
+
+.lexsep{
+	display: none;	
+}
+
+.mobile_sidebar_bg{
+    width: 100%;
+    height: 100%;
+    position: fixed;
+    background: black;
+    opacity: 0.4;
+    z-index: 3;
+    display: none;
+}
+
+.lexlogo{
+	opacity: 0.78;
+    height: 65px;
+    margin-left: 2px;
+    margin-top: 3px;
+}
+
+.backtable{
+   /* table-layout: fixed;*/
+    transform: translate3d(0, 0, 0);
+}
+
+.backtable th{
+  font-size: 10px;
+}
+
+.back.table_open{
+transform: initial !important;
+backface-visibility: initial !important;
+transform-style: initial !important;
+}
+
+.backtable, .backtable th, .backtable tr, .backtable td{
+  background-color: transparent !important;
+  color: white !important;
+  font-family: 'Quicksand', serif !important;
+  border-bottom: 1px solid white !important;
+}
+
+.backtable div:focus, .backtable th:focus, .backtable tr:focus, .backtable td:focus{
+  border: none !important; 
+  outline:0 !important;
+}
+
+.backtable > tbody > tr:not(.second_row):hover > td:not(.no_hover){
+  cursor: pointer;
+}
+
+.no_hover td:hover{
+  cursor: default !important;
+}
+
+.backtable > tbody > tr.active:not(.second_row) > td{
+   border-bottom: 1px solid transparent !important;
+}
+
+.backtable td{
+    border-bottom: 1px solid white;
+}
+
+.second_row > td{
+  padding-left: 10px;
+}
+
+.second_table{
+  table-layout: fixed;
+  margin-bottom: 5px !important;
+  background: transparent !important;
+}
+
+.second_table td {
+   color: #ffffff !important;
+   border-color: #989ba0  !important;
+   font-weight: 500;
+   opacity: 0.5;
+}
+
+.second_table th{
+    color: #ffffff  !important;
+    border-color: #989ba0   !important;
+    border-bottom: 1px solid #989ba0   !important;
+    font-weight: 500;
+    opacity: 0.5;
+}
+
+.second_table th:focus{
+   border-bottom: 1px solid #989ba0 !important;
+}
+
+
+.second_table tr:last-child td{
+ border-bottom: 1px solid transparent !important;
+}
+
+
+@media only screen and (max-width: 1055px) {
+     .lexsidebar{
+    	width: 35%;
+    }
+    .entry-content.lex, .lex_header{
+      left: 35%;
+      width: 65%;    
+      margin-bottom: 20px;
+     }
+
+     .lexhead{
+    	font-size: 50px;
+    }
+      .lexsearch {
+        width: 100%;
+    }
+    .lexlogo{
+        margin-top: 10px;
+        height: 55px;   
+        margin-bottom: 18px;
+    }
+}
+
+ 
+
+@media only screen and (max-width: 768px) {
+    .lexsidebar {
+		display: none;
+		width: 100%;
+		background: #272d37;
+		top: 100%;
+		height: calc(100% - 185px);
+		border-top-left-radius: 8px;
+		border-top-right-radius: 8px;
+		transition: all .4s ease-out;
+		-webkit-box-shadow: 0px -1px 17px 0px rgba(0,0,0,0.25);
+		-moz-box-shadow: 0px -1px 17px 0px rgba(0,0,0,0.25);
+		box-shadow: 0px -1px 17px 0px rgba(0,0,0,0.25);
+    }
+
+    .entry-content.lex{
+    	left: 0;
+    	width: 100%;
+    }
+    .lexhead{
+    	font-size: 45px;
+    }
+
+    .lexlogo{
+        margin-top: 3px;
+        height: 55px;
+    }
+
+    .lexmenubtn{
+    	display: block;
+    }
+
+    .lexsep{
+	display: block;	
+	height: 34px;
+    border-left: 1px solid #757575
+	}	
+
+  .lex_header {
+     left: 0;
+     width: 100%;
+  }
+
+.lex_article .head{
+    font-size: 16px;
+}
+
+.lex_article .head .desc{
+  font-size: 11px;
+}
+
+.lex_article .f_content .content{
+  font-size: 12px;
+}
+
+.lex_article .lexfooter{
+  font-size: 12px;
+}
+
+.sub_head_content{
+  font-size: 14px;
+}
+
+
+}
+
+
+@media only screen and (max-width: 520px) {
+    .lexsearch {
+        width: 100%;
+    }
+}
+
+@media only screen and (max-width: 469px) {
+   .lexhead{
+    	font-size: 35px;
+    }
+    .lexlogo{
+        height: 45px;
+        margin-top: 10px;
+        margin-bottom: 25px;
+    }
+}
+
+@media only screen and (max-width: 390px) {
+    .lexhead{
+    	font-size: 30px;
+    }
+}
+
+@media only screen and (max-width: 355px) {
+    .lexhead{
+        font-size: 30px;
+    }
+     .lexlogo{
+        height: 35px;
+        margin-top: 15px;
+        margin-bottom: 30px;
+    }
+}
+
+a.encyLink, span.encyLink{
+	margin-left: 5pt;
+	margin-right: 5pt;
+	padding-left : 2pt;
+	padding-right : 2pt;
+	border-radius: 5pt;
+	border: 1pt solid;
+	text-decoration: none;
+	font-weight: bold;
+	font-size: 110%;
+}
+
+img.noTranslationImg {
 	height: 1em;
 }

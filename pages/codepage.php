@@ -35,11 +35,11 @@ function va_codepage_page (){
 	global $va_xxx;
 	global $Ue;
 	
-	$atlases = $va_xxx->get_col($va_xxx->prepare('SELECT DISTINCT Erhebung FROM Codepage_IPA WHERE Erhebung != %s ORDER BY Erhebung', 'BSA_alt'));
+	$atlases = $va_xxx->get_col($va_xxx->prepare('SELECT DISTINCT Erhebung FROM Codepage_IPA WHERE Erhebung != "" AND Erhebung != %s ORDER BY Erhebung', 'BSA_alt'));
 	$select = '<select id="atlasSelect" autocomplete="off"><option selected value="0">' . '--- ' . $Ue['QUELLENWAHL'] . ' ---' . '</option>';
 	
 	foreach ($atlases as $atlas){
-		$select .= '<option value="' . $atlas . '">' . $atlas . '</option>';
+		$select .= '<option value="' . $atlas . '">' . ($atlas === 'ALD-II'? 'ALD': $atlas) . '</option>';
 	}
 	
 	$select .= '</select><br /><br />';

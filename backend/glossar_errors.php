@@ -27,7 +27,7 @@ function search_glossary_errors() {
 							"link" : links[i][1]
 						}, function (response){
 							if (response == "1"){
-								if(links[i][1].indexOf("verba-alpina.gwi.uni-muenchen.de") != -1){
+								if(links[i][1].indexOf("verba-alpina.gwi.uni-muenchen.de") != -1 && links[i][1].indexOf("https://web.archive.org") == -1 && links[i][2]){
 									jQuery("#externalLinksDiv").append("<span>" + links[i][0] + " --- Global link to VerbaAlpina page (should be replaced by local link): " + links[i][1] + "</span><br />");
 								}
 							}
@@ -57,6 +57,7 @@ function search_glossary_errors() {
 
 function va_glossary_error_search ($echo){
 	global $va_xxx;
+	global $Ue;
 	
 	$entries = $va_xxx -> get_results('SELECT * FROM Glossar', ARRAY_A);
 	
@@ -64,7 +65,7 @@ function va_glossary_error_search ($echo){
 	$media_path = get_home_path() . '/wp-content/uploads/';
 	
 	$pages = va_get_menu_items();
-	$pages = array_merge($pages, ['CODEPAGE', 'EXPORT', 'START', 'Datenbank-Dokumentation']);
+	$pages = array_map('mb_strtolower', array_merge($pages, ['CODEPAGE', 'EXPORT', 'START', 'DATENBANK-DOKU', 'REGISTER', 'CSGRAPH']));
 
 	$ignoreList = ['Konst'];
 	$elinks = [];
@@ -82,7 +83,7 @@ function va_glossary_error_search ($echo){
 	
 	$comments = $va_xxx->get_results('SELECT id, substring(language, 1, 1) as language, comment, Internal FROM im_comments', ARRAY_A);
 	foreach ($comments as $comment){
-		va_check_single_entry($echo, va_get_comment_title($comment['id'], 'D'), $comment['language'], $comment['comment'], $elinks, $pages, $ignoreList, $media_path, $comment['Internal']);
+		va_check_single_entry($echo, va_get_comment_title($comment['id'], 'D', false, $Ue, $va_xxx), $comment['language'], $comment['comment'], $elinks, $pages, $ignoreList, $media_path, $comment['Internal']);
 	}
 	
 	return $elinks;
@@ -120,6 +121,7 @@ function va_check_single_entry ($echo, $name, $lang, $field, &$elinks, $pages, $
 		if (strpos($link, 'Bild:') === 0) {
 			$path = $media_path . substr($link, 5);
 			if ($echo && !file_exists($path)) {
+				error_log($path);
 				echo $lang . ' --- ' . $name . ' --- IMAGE NOT FOUND: ' . substr($link, 5) . '<br />';
 			}
 		}
@@ -127,7 +129,7 @@ function va_check_single_entry ($echo, $name, $lang, $field, &$elinks, $pages, $
 		//Pages
 		else if (strpos($link, 'Seite:') === 0) {
 			$pname = substr($link, 6);
-			if ($echo && !in_array($pname, $pages)){
+			if ($echo && !in_array(mb_strtolower($pname), $pages)){
 				echo $lang . ' --- ' . $name . ' --- PAGE NOT FOUND: ' . $pname . '<br />';
 			}
 		}
@@ -151,7 +153,13 @@ function va_check_single_entry ($echo, $name, $lang, $field, &$elinks, $pages, $
 		else if (strpos($link, 'Kommentar:') === 0) {
 			$id = substr($link, 10);
 			$res = $va_xxx -> get_row($va_xxx->prepare("SELECT Id, Internal FROM im_comments WHERE Id = %s AND SUBSTRING(Language, 1, 1) = %s", $id, $lang), ARRAY_A);
-			if ($echo && empty($res)) {
+			
+			$res2 = false;
+			if (!$res && substr($id, 0, 1) == 'C'){
+				$res2 = $va_xxx->get_row($va_xxx->prepare('SELECT Id_Konzept FROM Konzepte WHERE Id_Konzept = %d AND QID != 0 AND QID IS NOT NULL', substr($id, 1)));
+			}
+			
+			if ($echo && !$res && !$res2) {
 				echo $lang . ' --- ' . $name . ' --- COMMENT LINK NOT FOUND: ' . $id . '<br />';
 			}
 			else if ($echo && !$intern && $res['Internal']){
@@ -176,7 +184,10 @@ function va_check_single_entry ($echo, $name, $lang, $field, &$elinks, $pages, $
 			
 			//Links
 			if (strpos($link, "http") === 0 || strpos($link, "www") === 0) {
-				$elinks[] = [$lang . ' --- ' . $name, $link];
+				$elinks[] = [$lang . ' --- ' . $name, $link, true];
+			}
+			else if (strpos($link, "va/") === 0) {
+				$elinks[] = [$lang . ' --- ' . $name, get_home_url() . substr($link, 2), false];
 			}
 			else {
 				$loclink = $va_xxx -> get_row($va_xxx->prepare("SELECT Id_Eintrag, Intern FROM Glossar WHERE Terminus_$lang = %s", $link), ARRAY_A);

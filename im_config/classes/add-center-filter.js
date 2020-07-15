@@ -39,6 +39,29 @@ function CenterPointFilterComponent (){
 	};
 	
 	/**
+	*
+	* Uses the filter data to re-create the state in which this filter was submitted.
+	*
+	* @param {Object<string, ?>} data The complete filter data object after storeData has been called for all applicable filters
+	* @param {Element} element The DOM element created by getFilterScreenElement.
+	* @param {number} categoryId
+	* @param {string} elementId
+	* 
+	* @return {undefined}
+	*/
+	this.setValues = function (data, element, categoryId, elementId){
+		if (data["addCenterPoints"]){
+			jQuery("#centerOption").prop("checked", true);
+		}
+		if (data["onlyMultipolygons"]){
+			jQuery("#fragOption").prop("checked", true);
+		}
+		if (data["centerOutsideContour"]){
+			jQuery("#outsideOption").prop("checked", true);
+		}
+	};
+	
+	/**
 	 * @override
 	 * 
 	 * @param {number} categoryId

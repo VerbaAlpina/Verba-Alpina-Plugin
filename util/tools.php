@@ -1,30 +1,31 @@
 <?php
 
-//Action Handler
-add_action('wp_ajax_token_ops', 'token_ops'); //TODO integrate into va_ajax
-
-$mapPage = get_page_by_title('KARTE');
-global $va_map_url;
-if($mapPage != null){
-	$va_map_url = get_page_link($mapPage);
-}
-
 function va_query_log($query){
 	error_log(preg_replace('/\s+/', ' ', $query));
 }
 
-function va_get_glossary_link ($id = null){
+function va_get_glossary_link ($id = null, $lang = null){
 
-	$glossarPage = get_page_by_title('METHODOLOGIE');
-	if($glossarPage != null){
-		$link = get_page_link($glossarPage);
+	if (!$lang){
+		global $lang;
+	}
+	$blog_id = va_blog_id_from_lang($lang);
+	
+	$post_table = 'wp_' . ($blog_id > 1? $blog_id . '_' : '') . 'posts';
+	$sql = "SELECT ID FROM $post_table WHERE post_title = 'METHODOLOGIE'";
+	global $wpdb;
+	$page_id = $wpdb->get_var($sql);
+
+	//$glossarPage = get_page_by_title('METHODOLOGIE');
+	if($page_id){
+		//$link = get_page_link($page_id);
+		$link = va_add_query_vars(add_query_arg('page_id', $page_id, get_home_url($blog_id)), $page_id);
 	}
 	else {
 		return '';
 	}
 	
 	if($id){
-		global $lang;
 		global $vadb;
 		$res = $vadb->get_var('SELECT Terminus_' . $lang . ' FROM Glossar WHERE Id_Eintrag = ' . $id);
 		
@@ -32,6 +33,23 @@ function va_get_glossary_link ($id = null){
 	}
 	
 	return $link;
+}
+
+function va_blog_id_from_lang ($lang){
+	switch ($lang){
+		case 'F':
+			return 5;
+		case 'I':
+			return 3;
+		case 'S':
+			return 6;
+		case 'R':
+			return 7;
+		case 'E':
+			return 8;
+		default:
+			return 1;
+	}
 }
 
 function va_get_glossary_doi_link ($version = false, $id = null){
@@ -77,7 +95,7 @@ function va_get_post_doi_link ($version = false, $id){
 }
 
 function va_get_comments_doi_link ($version = false, $id = null){
-	$commentsPage = get_page_by_title('KOMMENTARE');
+	$commentsPage = get_page_by_title('LexAlp');
 	
 	if($commentsPage != null){
 		$link = va_get_doi_base_link();
@@ -98,6 +116,14 @@ function va_get_comments_doi_link ($version = false, $id = null){
 	
 	$append = '?' . implode('&', $params) . ($fragment !== false? '#' . $fragment: '');
 	return $link . urlencode($append);
+}
+
+function va_get_comments_link ($id = null){
+    $commentsPage = get_page_by_title('LexAlp');
+    if($commentsPage != null){
+        return get_page_link($commentsPage) . ($id ? '#' . $id : '');
+    }
+    return '';
 }
 
 
@@ -137,11 +163,10 @@ function va_get_glossary_link_and_title ($id = null){
 }
 
 function va_get_map_link ($element = null){
-	global $va_map_url;
 	$result = '';
 	
-	if($va_map_url){
-		$result = $va_map_url;
+	if(defined('VA_MAP_URL')){
+		$result = VA_MAP_URL;
 		if($element != null){
 			$result = add_query_arg('single', $element, $result);
 		}
@@ -149,10 +174,10 @@ function va_get_map_link ($element = null){
 	return $result;
 }
 
-function va_get_comments_link ($id = null){
-	$commentsPage = get_page_by_title('KOMMENTARE');
-	if($commentsPage != null){
-		return get_page_link($commentsPage) . ($id ? '#' . $id : '');
+function va_get_dbdoku_link (){
+	$dokuPage = get_page_by_title('DBDokuNeu'); //TODO change
+	if($dokuPage != null){
+		return get_page_link($dokuPage);
 	}
 	return '';
 }
@@ -188,12 +213,16 @@ function va_format_bibliography ($author, $title, $year, $loc, $link, $band, $in
 		return $res;
 }
 
-function va_format_base_type ($str, $lang, $uncertain = '0'){
+function va_format_base_type ($str, $lang, $uncertain = '0', $Ue = null){
 	
-	if ($lang)
+    if ($lang){
 		$str .= ' (' . $lang . ')';
+    }
 	
-	global $Ue;
+	if (!$Ue){
+	   global $Ue;
+	}
+	
 	if(mb_strpos($str, '*') !== false){
 		return $str . ' (* = ' . $Ue['REKONSTRUIERT'] . ')';
 	}
@@ -265,30 +294,7 @@ function va_format_version_number ($version){
 	return substr($version, 0, 2) . '/' . substr($version, 2);
 }
 
-function token_ops (){
-	global $va_xxx;
-	
-	if($_POST['stage'] == 'getTokens'){
-		switch ($_POST['type']){
-			case 'original':
-				$tokens = $va_xxx->get_results("
-					SELECT distinct Token, Erhebung FROM Tokens LEFT JOIN VTBL_Token_Konzept USING (Id_Token) LEFT JOIN Konzepte USING (Id_Konzept) JOIN Stimuli USING (ID_Stimulus) JOIN Bibliographie ON Erhebung = Abkuerzung
-					WHERE VA_Beta
-						AND Original = '' AND Token != '' AND (Id_Konzept is null or Id_Konzept != 779)", ARRAY_N);
-				break;
-			
-			case 'bsa':
-				$tokens = $va_xxx->get_results("SELECT distinct Aeusserung, Erhebung FROM Aeusserungen JOIN Stimuli USING (ID_Stimulus) WHERE Erhebung = 'BSA' AND Bemerkung NOT like '%BayDat-Transkription%'", ARRAY_N);
-				break;
-			
-			default:
-				$tokens = array();
-		}
-		echo json_encode($tokens);
-	}
-	die;
-}
- function va_sub_translate ($str, &$Ue){
+function va_sub_translate ($str, &$Ue){
 	return preg_replace_callback('/Ue\[(.*)\]/U', function ($matches) use (&$Ue){
 		if(isset($Ue[$matches[1]])){
 			return $Ue[$matches[1]];
@@ -498,6 +504,11 @@ function va_create_comment_citation ($id, &$Ue){
  			$authors[] = $names[count($names) - 1] . ', ' . $names[0][0] . '.';
  		}
  	}
+ 	
+ 	if (!$authors){
+ 	    return false;
+ 	}
+ 	
  	$title = va_sub_translate($vadb->get_var("SELECT getEntryName('$id', '$lang')"), $Ue);
 
  	$link = va_get_comments_doi_link(substr($va_current_db_name, 3, 3), $id);
@@ -802,29 +813,38 @@ function va_array_to_html_string ($arr, $showLevel = 1, $recLevel = 0){
 	return '[' . ($recLevel > $showLevel? '' : '<br />') . implode(($recLevel > $showLevel? ', ': '<br />'), $vals) . ($recLevel > $showLevel? '' : '<br />') . ']' . ($recLevel > 0? '' : '<br />');
 }
 
-function va_get_comment_text ($id, $lang, $internal){
-	global $vadb;
+function va_get_comment_text ($id, $lang, $internal, $db = false){
+    if (!$db){
+        global $vadb;
+        $db = $vadb;
+    }
 	
 	if (true /*!va_version_newer_than('va_181')*/){ //TODO change
-		$content = $vadb->get_var($vadb->prepare('SELECT comment FROM im_comments WHERE Id = %s AND Language = %s', $id, $lang));
+		$content = $db->get_var($db->prepare('SELECT comment FROM im_comments WHERE Id = %s AND Language = %s', $id, $lang));
+		
+		$content = trim($content);
+		
+		if (!$content){
+			return '';
+		}
 		
 		parseSyntax($content, true, $internal);
 		
 		return $content;
 	}
 
-	$date_cache = $vadb->get_var($vadb->prepare('SELECT geaendert FROM a_text_cache WHERE Typ = "kommentar" AND Id = %s AND Sprache = %s', $id, $lang));
-	$date_comment = $vadb->get_var($vadb->prepare('SELECT changed FROM im_comments WHERE Id = %s AND Language = %s', $id, $lang));
+	$date_cache = $db->get_var($db->prepare('SELECT geaendert FROM a_text_cache WHERE Typ = "kommentar" AND Id = %s AND Sprache = %s', $id, $lang));
+	$date_comment = $db->get_var($db->prepare('SELECT changed FROM im_comments WHERE Id = %s AND Language = %s', $id, $lang));
 	
 	if ($date_cache && $date_cache > $date_comment){
-		return $vadb->get_var($vadb->prepare('SELECT Inhalt FROM a_text_cache WHERE Typ = "kommentar" AND Id = %s AND Sprache = %s', $id, $lang));
+		return $db->get_var($db->prepare('SELECT Inhalt FROM a_text_cache WHERE Typ = "kommentar" AND Id = %s AND Sprache = %s', $id, $lang));
 	}
 	else {
-		$content = $vadb->get_var($vadb->prepare('SELECT comment FROM im_comments WHERE Id = %s AND Language = %s', $id, $lang));
+		$content = $db->get_var($db->prepare('SELECT comment FROM im_comments WHERE Id = %s AND Language = %s', $id, $lang));
 		
 		parseSyntax($content, true, $internal);
 		
-		$vadb->query($vadb->prepare("REPLACE INTO a_text_cache (Typ, Id, Sprache, Intern, Inhalt) VALUES ('kommentar', %s, %s, %d, %s)",
+		$db->query($db->prepare("REPLACE INTO a_text_cache (Typ, Id, Sprache, Intern, Inhalt) VALUES ('kommentar', %s, %s, %d, %s)",
 				$id, $lang, ($internal? 1: 0), $content));
 		
 		return $content;
@@ -880,36 +900,71 @@ function va_replace_in_single_html_node (DOMNode $node, $pattern, $callback){
 	}
 }
 
-function va_get_comment_title ($id, $lang){
-	global $Ue;
-	global $vadb;
+function va_get_comment_title ($id, $lang, $from_db = true, &$Ue = NULL, $db = NULL){
 	
+    $lang = substr($lang, 0, 1);
+    
+    if ($from_db){
+        global $vadb;
+        
+        $sql = 'select Title_Html from a_lex_titles alt where id = %s AND lang = %s';
+        return $vadb->get_var($vadb->prepare($sql, $id, $lang));
+    }
+    
 	$letter = substr($id, 0, 1);
 	$key = substr($id, 1);
 	
-	$lang = substr($lang, 0, 1);
-	
 	switch ($letter){
 		case 'B':
-			return '<em>' . $vadb->get_var($vadb->prepare('SELECT Orth FROM Basistypen WHERE Id_Basistyp = %d', $key)) . '</em> - ' . $Ue['BASISTYP'];
+		    $type_data = $db->get_row($db->prepare('SELECT Orth, Sprache FROM Basistypen WHERE Id_Basistyp = %d', $key), ARRAY_A);
+		    $title = va_format_base_type('<em>' . $type_data['Orth'] . '</em>', $type_data['Sprache'], '0', $Ue);
+			return '<span class="name">' . $title . '</span> - ' . '<span class="type">'.$Ue['BASISTYP'].'</span>';
 			break;
 			
 		case 'L':
-			return '<em>' . $vadb->get_var($vadb->prepare('SELECT Orth FROM morph_Typen WHERE Id_morph_Typ = %d', $key)) . '</em> - ' . $Ue['MORPH_TYP'];
+		    $type_data = $db->get_row($db->prepare('SELECT Orth, Sprache, Wortart, Genus, Affix FROM morph_Typen WHERE Id_morph_Typ = %d', $key), ARRAY_A);
+		    $title = va_format_lex_type('<em>' . $type_data['Orth'] . '</em>', $type_data['Sprache'], $type_data['Wortart'], $type_data['Genus'], $type_data['Affix']);
+		    return '<span class="name">' . $title . '</span> - ' . '<span class="type">'.$Ue['MORPH_TYP'].'</span>';
 			break;
 			
 		case 'C':
-			$nameData = $vadb->get_row($vadb->prepare("SELECT Name_$lang, Beschreibung_$lang FROM Konzepte WHERE Id_Konzept = %d", $key), ARRAY_A);
-			if ($nameData["Name_$lang"] && $nameData["Name_$lang"] != $nameData["Beschreibung_$lang"]){
-				$title = $nameData["Name_$lang"] . '<span style="font-size: 60%"> ('. $nameData["Beschreibung_$lang"] . ')</span>';
+			$nameData = $db->get_row($db->prepare("SELECT Name_$lang, Beschreibung_$lang, Name_D, Beschreibung_D FROM Konzepte WHERE Id_Konzept = %d", $key), ARRAY_A);
+			
+			$title = '';
+			if (!$nameData["Beschreibung_$lang"]){
+			    $title = '<img class="noTranslationImg" title="Translation missing" src="' . WP_CONTENT_URL . '/themes/verba-alpina/images/svg_flags/germany_svg_round.png" /> ';
+			    $name = $nameData['Name_D'];
+			    $desc = $nameData['Beschreibung_D'];
 			}
 			else {
-				$title = $nameData["Beschreibung_$lang"];
+			    $name = $nameData["Name_$lang"];
+			    $desc = $nameData["Beschreibung_$lang"];
 			}
-			return $title  . ' - ' . $Ue['KONZEPT'];
+			    
+			if ($name && $name != $desc){
+				$title .= '<span class="name">' .$name . '</span>'. ' - ' . '<span class="type">'.$Ue['KONZEPT'].'</span>';
+			}
+			else {
+				$title .= '<span class="name">'. $desc . ' - </span><span class="type">'.$Ue['KONZEPT'].'</span>';
+			}
+			return $title;
 			break;
 	}
 }
+
+function va_get_comment_description($id, $lang){
+
+global $vadb;
+
+	$key = substr($id, 1);
+	$lang = substr($lang, 0, 1);
+	$descData = $vadb->get_row($vadb->prepare("SELECT Beschreibung_$lang FROM Konzepte WHERE Id_Konzept = %d", $key), ARRAY_A);
+
+return '<div class="desc"> ('. $descData["Beschreibung_$lang"] . ')</div>';
+
+}
+
+
 
 function va_get_general_beta_parser (){
 	global $general_beta_parser;
@@ -987,5 +1042,129 @@ function va_version_list ($params){
 		default:
 			return 'Invalid format';
 	}
+}
+
+function va_add_references ($str, $ref_data){
+    
+    foreach ($ref_data as $ref){
+        $data = explode('|', $ref);
+        if($data[0] !== 'VA'){
+            if($data[3]){
+                $str .= '<a title="' . $data[0] . ': ' . ($data[4]? 's.v. ': '') . $data[1] . ' ' . $data[2] . '" href="' . $data[3] . '" target="_BLANK" class="encyLink">' . substr($data[0], 0, 1) . '</a>';
+            }
+            else {
+                $str .= '<span title="' . $data[0] . ': ' . ($data[4]? 's.v. ': '') . $data[1] . ' ' . $data[2] . '" class="encyLink">' . substr($data[0], 0, 1) . '</span>';
+            }
+        }
+    }
+    return $str;
+}
+
+function va_get_db_creds ($login_data){
+    
+    $dbuser = $login_data[0];
+    $dbpassw = $login_data[1];
+    $is_external = get_option('va_external');
+    $dbhost = $is_external? 'localhost:3311': 'gwi-sql.gwi.uni-muenchen.de:3311';
+    
+    return [$dbuser, $dbpassw, $dbhost];
+}
+
+function va_get_lex_alp_header_data ($from_db = true, &$db = NULL){
+
+    if ($from_db){
+        global $lang;
+        global $vadb;
+        
+        $sql = 'select Id, Title_Html, QID from a_lex_titles alt where lang = %s order by Sort_Number ASC';
+        return $vadb->get_results($vadb->prepare($sql, $lang), ARRAY_A);
+    }
+    
+    $insert_data = [];
+    
+    foreach (va_get_lang_array() as $lang){
+        $Ue = va_get_translations($db, $lang);
+        
+        $concepts = $db->get_results('
+            SELECT DISTINCT CONCAT("C", Id_Konzept) AS Id, IF(QID != 0 AND QID IS NOT NULL, QID, NULL) AS QID 
+            FROM A_Anzahl_Konzept_Belege JOIN Konzepte USING (Id_Konzept) 
+            WHERE Id_Konzept != 2195 AND Id_Konzept != 2197 AND Anzahl_Allein_AK > 0 AND Relevanz AND (Name_' . $lang . ' != "" OR Id_Ueberkonzept = 707)', ARRAY_A);
+        $mtypes = $db->get_results('SELECT DISTINCT CONCAT("L", Id_Type) AS Id, NULL AS QID FROM z_ling WHERE Id_Type != 6977 AND Type_Kind = "L" AND Source_Typing = "VA"', ARRAY_A);
+        $btypes = $db->get_results('SELECT DISTINCT CONCAT("B", Id_Base_Type) AS Id, NULL AS QID FROM z_ling WHERE Id_Base_Type IS NOT NULL', ARRAY_A);
+        
+        $comment_data = array_merge($concepts, $mtypes, $btypes);
+        
+        foreach ($comment_data as $index => $comment){
+            $comment_data[$index]['Title_Html'] = va_get_comment_title($comment['Id'], $lang, false, $Ue, $db);
+            $title_raw = strip_tags($comment_data[$index]['Title_Html']);
+            $parts = explode(' - ', $title_raw);
+            $comment_data[$index]['Title'] = $parts[0];
+            $comment_data[$index]['Entity'] = $parts[1];
+        }
+        
+        usort($comment_data, function ($e1, $e2){
+            $str1 = preg_replace('/[^a-zA-Z]/', '', str_replace('<em>', '', remove_accents($e1['Title'])));
+            $str2 = preg_replace('/[^a-zA-Z]/', '', str_replace('<em>', '', remove_accents($e2['Title'])));
+            $strcmp = strcasecmp($str1, $str2);
+            
+            if ($strcmp === 0){
+                return strcasecmp($e1['Entity'], $e1['Entity']);
+            }
+            return $strcmp;
+        });
+          
+        foreach ($comment_data as $index => $comment){
+            $insert_data[] = array_merge($comment, ['Sort_Number' => $index, 'Lang' => $lang]);
+        }
+    }
+    
+    return $insert_data;
+}
+
+function va_insert_multiple (&$db, $table, $data, $param_str, $packet_size = 500){
+    
+    $field_str = '';
+    foreach (array_keys($data[0]) as $key){
+        $field_str .= ',`' . $key . '`';
+    }
+    
+    $sql_prefix = 'INSERT INTO `' . $table . '` (' . mb_substr($field_str, 1) . ') VALUES ';
+    
+    $num = ceil(count($data) / $packet_size);
+    
+    for ($i = 0; $i < $num; $i++){
+        $sql = $sql_prefix;
+        
+        for ($j = 0; $j < $packet_size; $j++){
+            
+            $index = $i * $packet_size + $j;
+            if ($index >= count($data)){
+                break;
+            }
+            
+            if ($j > 0){
+                $sql .= ',';
+            }
+            $sql .= $db->prepare('(' . $param_str .')', $data[$index]);
+        }
+        
+        $db->query($sql);
+    }
+}
+
+function va_get_lang_array (){
+    return ['D','E','F','I','L','R','S'];
+}
+
+function va_get_translations (&$db, $lang){
+    $transl = 'Begriff_' . $lang;
+    
+    $res = $db->get_results("SELECT Schluessel, IF($transl = '', CONCAT(Begriff_D, '(!!!)'), $transl) FROM Uebersetzungen" , ARRAY_N);
+    
+    $Ue = array();
+    foreach ($res as $r){
+        $Ue[$r[0]] = $r[1];
+    }
+    return $Ue;
 }
 ?>

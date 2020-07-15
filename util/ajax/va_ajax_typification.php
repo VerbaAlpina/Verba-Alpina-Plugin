@@ -3,12 +3,17 @@ function va_ajax_typification (&$db){
 	switch ($_POST['query']){
 		case 'getTokenList':
 			if (!is_numeric($_POST['id'])){
+			    //error_log($db->prepare('CALL getRecords(%d, %d, %d, %d, %s);', 90322, $_POST['all'], $_POST['allC'], $_POST['allA'], $_POST['id']));
 				echo json_encode($db->get_results($db->prepare('CALL getRecords(%d, %d, %d, %d, %s);', 90322, $_POST['all'], $_POST['allC'], $_POST['allA'], $_POST['id'])));
 			}
 			else {
 				echo json_encode($db->get_results($db->prepare('CALL getRecords(%d, %d, %d, %d, %s);', $_POST['id'], $_POST['all'], $_POST['allC'], $_POST['allA'], '')));
 			}
 			break;
+			
+		case 'getStimulusList':
+		    echo va_typif_get_stimulus_list($db, $_POST['atlas'], $_POST['all'] == 0, $_POST['allC'] == 0, $_POST['allA'] == 0);
+		    break;
 			
 		case 'removeTypification':
 			if(!current_user_can('va_typification_tool_write'))
@@ -247,12 +252,12 @@ function va_ajax_typification (&$db){
 			echo file_exists($file)? $file_loc: 'no';
 			break;
 			
-		case 'getReferences':
+		case 'getReferencesBase':
 			if (isset($_POST['ids'])){
 				$where = 'Id_Lemma IN (' . implode(',', array_filter($_POST['ids'], 'is_numeric')) . ')';
 			}
 			else if (isset($_POST['search'])){
-				$where = 'Quelle LIKE "%' . esc_sql($_POST['search']) . '%" OR Subvocem LIKE "%' .  esc_sql($_POST['search']) . '%"';
+				$where = 'Quelle LIKE "%' . esc_sql($_POST['search']) . '%" OR Subvocem COLLATE utf8_general_ci LIKE "%' .  esc_sql($_POST['search']) . '%"';
 			}
 			else {
 				echo '[]';
@@ -260,6 +265,23 @@ function va_ajax_typification (&$db){
 			}
 			
 			$results = $db->get_results('SELECT Id_Lemma as id, CONCAT(Quelle, ": ", Subvocem) as text FROM Lemmata_Basistypen WHERE ' . $where . ' ORDER BY Quelle ASC, Subvocem COLLATE utf8_general_ci ASC', ARRAY_A);
+			
+			echo json_encode($results);
+			break;
+			
+		case 'getReferencesMorph':
+			if (isset($_POST['ids'])){
+				$where = 'Id_Lemma IN (' . implode(',', array_filter($_POST['ids'], 'is_numeric')) . ')';
+			}
+			else if (isset($_POST['search'])){
+				$where = 'Quelle LIKE "%' . esc_sql($_POST['search']) . '%" OR Subvocem COLLATE utf8_general_ci LIKE "%' .  esc_sql($_POST['search']) . '%"';
+			}
+			else {
+				echo '[]';
+				break;
+			}
+			
+			$results = $db->get_results('SELECT Id_Lemma as id, CONCAT(Quelle, ": ", IF(Text_Referenz, "s.v. ", ""), Subvocem) as text FROM Lemmata WHERE ' . $where . ' ORDER BY Quelle ASC, Subvocem COLLATE utf8_general_ci ASC', ARRAY_A);
 			
 			echo json_encode($results);
 			break;

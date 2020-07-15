@@ -6,14 +6,19 @@ function overview_page (){
 	
 	$ajax_params = array (
 		'action' => 'va',
-		'namespace' => 'overview'
+		'namespace' => 'overview',
+		'db' => $_REQUEST['db']
 	);
 	$ajaxurl = admin_url( 'admin-ajax.php' );
 	
 	?>
 	<script type="text/javascript">
 		jQuery(function (){
-			jQuery("#tabDiv").tabs();
+			jQuery("#tabDiv").tabs({
+				"load": function (event, ui){
+					ui.panel.find("table.tablesorter").tablesorter();
+				}
+			});
 		});
 	</script>
 	
@@ -37,6 +42,12 @@ function overview_page (){
 					$ajax_params['query'] = 'atlases';
 					echo $ajaxurl . '?' . http_build_query($ajax_params);
 					?>">Atlanten/Konzepte</a>
+				</li>
+				<li>
+					<a href="<?php 
+					$ajax_params['query'] = 'typification';
+					echo $ajaxurl . '?' . http_build_query($ajax_params);
+					?>">Typisierung</a>
 				</li>
 			</ul>
 		</div>

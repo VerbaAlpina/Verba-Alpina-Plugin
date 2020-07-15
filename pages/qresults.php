@@ -16,8 +16,8 @@ function show_questionnaire_results ($attrs){
 			jQuery.post(ajax_object.ajaxurl, {
 				"action" : "va",
 				"namespace" : "util",
-				"query" : "get_community_name",
-				"point" : jQuery(this).data("point")
+				"query" : "get_community_names",
+				"points" : jQuery(this).data("point")
 			}, function (response){
 				jQuery(that).parent().html(response);
 			});

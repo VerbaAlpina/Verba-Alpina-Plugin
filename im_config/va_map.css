@@ -34,7 +34,19 @@ h1, h2 {
 }
 
 .singleRecord svg path, .singleRecord svg rect {
-	fill: #2c879b;
+	fill: #2c879b !important;
+}
+
+.fullRecordInfo svg path, .singleRecord svg rect {
+	fill: red !important;
+}
+
+.originalRecord {
+	line-height: 1.5;
+}
+
+.originalRecord svg path, .singleRecord svg rect {
+	fill: #2c879b !important;
 }
 
 #IM_filter_popup_div h1 {
@@ -44,19 +56,6 @@ h1, h2 {
 #IM_filter_popup_div h1, .IM_filter_popup_div h2 {
 	color: #2c879b;
 	margin-bottom: 1em !important;
-}
-
-a.encyLink, span.encyLink{
-	margin-left: 5pt;
-	margin-right: 5pt;
-	padding-left : 2pt;
-	padding-right : 2pt;
-	border-radius: 5pt;
-	border: 1pt solid;
-	text-decoration: none;
-	font-weight: bold;
-	font-size: 110%;
-	color: blue;
 }
 
 .singleRecord {
@@ -115,19 +114,12 @@ a.encyLink, span.encyLink{
 
 .fullRecordInfo {
 	color: red;
+	line-height: 1.5;
 }
 
 .fullRecordInfo span {
 	font-size: 14px;
 	font-family: arial unicode;
-}
-
-.fullRecordInfo svg {
-	fill: red;
-}
-
-.originalRecord svg {
-	fill: #2c879b;
 }
 
 .informantDetails td {

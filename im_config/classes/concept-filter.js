@@ -68,6 +68,30 @@ function ConceptFilterComponent (){
 	};
 	
 	/**
+	*
+	* Uses the filter data to re-create the state in which this filter was submitted.
+	*
+	* @param {Object<string, ?>} data The complete filter data object after storeData has been called for all applicable filters
+	* @param {Element} element The DOM element created by getFilterScreenElement.
+	* @param {number} categoryId
+	* @param {string} elementId
+	* 
+	* @return {undefined}
+	*/
+	this.setValues = function (data, element, categoryId, elementId){
+		if (data["conceptIds"] != "ALL"){
+			jQuery(element).children("div").on("loaded.jstree", function (){
+				jQuery(this).jstree("deselect_all");
+				jQuery(this).jstree("open_all");
+				
+				for (let i  = 0; i < data["conceptIds"].length; i++){
+					jQuery(this).jstree("select_node", jQuery(this).find("[data-concept=" + data["conceptIds"][i] + "]"));
+				}
+			});
+		}
+	};
+	
+	/**
 	 * @override
 	 * 
 	 * @param {Element} element

@@ -1,6 +1,5 @@
 <?php
 function parseSyntax(&$value, $replaceNewlines = false, $intern = false, $mode = 'A') {
-	
 	set_error_handler('va_syntax_warning_handler', E_WARNING);
 	
 	try {
@@ -13,7 +12,7 @@ function parseSyntax(&$value, $replaceNewlines = false, $intern = false, $mode =
 		$media_path = get_site_url (1) . '/wp-content/uploads/';
 		$map_path = va_get_map_link ();
 		$comment_path = va_get_comments_link ();
-		$beta_parser = va_get_general_beta_parser();
+		$dbdoku_path = va_get_dbdoku_link();
 
 		if ($replaceNewlines) {
 			$value = nl2br ($value);
@@ -22,7 +21,9 @@ function parseSyntax(&$value, $replaceNewlines = false, $intern = false, $mode =
 		}
 		
 		//Beta code
-		$value = preg_replace_callback('/(?<!-)#1([^#]*)##/', function ($match) use (&$beta_parser){
+		$value = preg_replace_callback('/(?<!-)#1([^#]*)##/', function ($match){
+		    $beta_parser = va_parse_syntax_get_beta_parser();
+		    
 			$parse_res = $beta_parser->convert_to_original($match[1]);
 			if ($parse_res['string'])
 				return '<span style="font-family: arial unicode;">' . $parse_res['string'] . '</span>';
@@ -101,26 +102,29 @@ function parseSyntax(&$value, $replaceNewlines = false, $intern = false, $mode =
 		
 		$is_lex = false;
 		global $post;
-		if ($post && $post->post_title === 'KOMMENTARE') {
+		if (($post && $post->post_title === 'LexAlp') || (isset($_REQUEST['namespace']) && $_REQUEST['namespace'] === 'lex_alp')) {
 			$is_lex = true;
 		}
-		
+
 		// Kommentare
 		$value = preg_replace_callback ('/(?<!-)\[\[(([^\]]*)\|)?Kommentar:(.)(.*)\]\]/U', function ($treffer) use ($is_lex, $lang) {
 			global $comment_path;
 			$prefix = $treffer[3];
 			$id = $treffer[4];
+			
+			$link = $comment_path . '#' . $prefix . $id;
 			if ($is_lex) {
 				$start = '<a';
+				$link = 'javascript:localLink("' . $prefix . $id . '")';
 			} else {
 				$start = "<a target='_BLANK'";
 			}
 			
 			if ($treffer[1] == '') {
 				$name = getCommentHeadline ($prefix . $id, $lang);
-				return "$start href='$comment_path#$prefix$id'>$name</a>";
+				return "$start href='$link'>$name</a>";
 			} else {
-				return "$start href='$comment_path#$prefix$id'>$treffer[2]</a>";
+				return "$start href='$link'>$treffer[2]</a>";
 			}
 		}, $value);
 		
@@ -184,12 +188,25 @@ function parseSyntax(&$value, $replaceNewlines = false, $intern = false, $mode =
 		$value = preg_replace_callback ('/(?<!-)\[\[(([^\]]*)\|)?Seite:(.*)\]\]/U', function ($treffer) {
 			global $Ue;
 			
+			$fragment = false;
+			$pos_fragment = mb_strpos($treffer[3], '#');
+			if ($pos_fragment){
+				$fragment = mb_substr($treffer[3], $pos_fragment + 1);
+				$treffer[3] = mb_substr($treffer[3], 0, $pos_fragment);
+			}
+			
 			$dtext = NULL;
 			if ($treffer[3] == 'START'){
 				$link = get_home_url();
 			}
 			else if ($treffer[3] == 'EXPORT'){
 				$link = get_home_url() . '/export';
+			}			
+			else if ($treffer[3] == 'REGISTER'){
+				$link = get_home_url() . '/wp-login.php?action=register';
+			}
+			else if ($treffer[3] == 'CSTOOL'){
+				$link = get_home_url() . '/en/?page_id=1741';
 			}
 			else {
 				$page = get_page_by_title ($treffer[3]);
@@ -200,8 +217,23 @@ function parseSyntax(&$value, $replaceNewlines = false, $intern = false, $mode =
 				$dtext = $Ue[$treffer[3]];
 			}
 
+			if ($fragment){
+				$link .= '#' . $fragment;
+			}
+
 			if ($treffer[1] == '') {
 				return "<a href='" . $link . "'>" . ($dtext ?: $link) . "</a>";
+			} else {
+				return "<a href='" . $link . "'>" . $treffer[2] . "</a>";
+			}
+		}, $value);
+		
+		// Tabellen
+		$value = preg_replace_callback ('/(?<!-)\[\[(([^\]]*)\|)?Tabelle:(.*)\]\]/U', function ($treffer) use ($dbdoku_path) {
+			$link = $dbdoku_path . '&table=' . urlencode($treffer[3]);
+			
+			if ($treffer[1] == '') {
+				return "<a href='" . $link . "'>" . $treffer[3] . "</a>";
 			} else {
 				return "<a href='" . $link . "'>" . $treffer[2] . "</a>";
 			}
@@ -218,7 +250,10 @@ function parseSyntax(&$value, $replaceNewlines = false, $intern = false, $mode =
 			
 			// Link ohne Beschreibung
 			if (count ($parts) == 1) {
-				$eintrag = $parts[0];
+				if (mb_strpos($beschreibung, 'va/') === 0){
+					$beschreibung = get_home_url() . mb_substr($beschreibung, 2);
+				}
+				$eintrag = $beschreibung;
 			} 
 			else {
 				$image = stristr ($parts[1], "Bild:");
@@ -228,6 +263,9 @@ function parseSyntax(&$value, $replaceNewlines = false, $intern = false, $mode =
 				}			// Link mit Beschreibung
 				else {
 					$eintrag = $parts[1];
+					if (mb_strpos($eintrag, 'va/') === 0){
+						$eintrag = get_home_url() . mb_substr($eintrag, 2);
+					}
 				}
 			}
 			
@@ -363,10 +401,13 @@ function va_add_abrv($value) {
 			
 		$value = va_replace_in_text ('/(?<![\pL])(?<!Konst:)(' . implode('|', array_map(function ($abk){
 			return preg_quote($abk);
-		}, array_keys($abk_map))) . ')(?![\pL])/', function ($treffer) use (&$abk_map, &$abr_list) {
-			$cleaned_abr = str_replace ('.', 'DOT', $treffer[1]);
+		}, array_keys($abk_map))) . ')(?![\pL])/u', function ($treffer) use (&$abk_map, &$abr_list) {
+		    $cleaned_abr = str_replace (' ', 'SPACE', str_replace ('.', 'DOT', $treffer[1]));
 			if (! isset ($abr_list[$treffer[1]])) {
-				$abr_list[$treffer[1]] = '<div id="ABR_' . $cleaned_abr . '" style="display: none;">' . $abk_map[$treffer[1]] . '</div>';
+			    $abr_desc = $abk_map[$treffer[1]];
+			    parseSyntax($abr_desc);
+			    
+				$abr_list[$treffer[1]] = '<div id="ABR_' . $cleaned_abr . '" style="display: none;">' . $abr_desc . '</div>';
 			}
 			return '<span class="vaabr" data-vaabr="' . $cleaned_abr . '">' . $treffer[1] . '</span>';
 		}, $value);
@@ -405,5 +446,18 @@ function va_parse_list_syntax($char, $main, $sub, $value){
 		'<' . $sub . '>$1' , $value);
 	
 	return $value;
+}
+
+global $va_parse_syntax_beta_parser;
+$va_parse_syntax_beta_parser = NULL;
+
+function va_parse_syntax_get_beta_parser (){
+    global $va_parse_syntax_beta_parser;
+    
+    if (!$va_parse_syntax_beta_parser){
+        $va_parse_syntax_beta_parser = va_get_general_beta_parser();
+    }
+    
+    return $va_parse_syntax_beta_parser;
 }
 ?>

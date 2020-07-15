@@ -40,9 +40,10 @@ var TypeOccs;
 
 /**
  * @param {string|Object} p
+ * @param {jQuery=} n
  * 
  * @return {Array<string>|Array<Object>}
  */
-jQuery.prototype.jstree = function (p) {};
+jQuery.prototype.jstree = function (p, n) {};
 
 function checkNavBar(){}

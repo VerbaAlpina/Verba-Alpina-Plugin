@@ -34,7 +34,19 @@ h1, h2 {
 }
 
 .singleRecord svg path, .singleRecord svg rect {
-	fill: #2c879b;
+	fill: #2c879b !important;
+}
+
+.fullRecordInfo svg path, .singleRecord svg rect {
+	fill: red !important;
+}
+
+.originalRecord {
+	line-height: 1.5;
+}
+
+.originalRecord svg path, .singleRecord svg rect {
+	fill: #2c879b !important;
 }
 
 #IM_filter_popup_div h1 {
@@ -44,19 +56,6 @@ h1, h2 {
 #IM_filter_popup_div h1, .IM_filter_popup_div h2 {
 	color: #2c879b;
 	margin-bottom: 1em !important;
-}
-
-a.encyLink, span.encyLink{
-	margin-left: 5pt;
-	margin-right: 5pt;
-	padding-left : 2pt;
-	padding-right : 2pt;
-	border-radius: 5pt;
-	border: 1pt solid;
-	text-decoration: none;
-	font-weight: bold;
-	font-size: 110%;
-	color: blue;
 }
 
 .singleRecord {
@@ -115,19 +114,12 @@ a.encyLink, span.encyLink{
 
 .fullRecordInfo {
 	color: red;
+	line-height: 1.5;
 }
 
 .fullRecordInfo span {
 	font-size: 14px;
 	font-family: arial unicode;
-}
-
-.fullRecordInfo svg {
-	fill: red;
-}
-
-.originalRecord svg {
-	fill: #2c879b;
 }
 
 .informantDetails td {
@@ -151,6 +143,34 @@ html, body, #page, #main, #primary, #content, #IM_main_div{
     width: 100%;
     height: 100%;
     overflow-y: hidden;
+}
+
+
+
+.site {
+    max-width: 100% !important;
+}
+
+.upper_map_btn{
+    cursor: pointer;
+    margin-left: 5px;
+    border: 1px solid;
+    border-radius: 3px;
+    padding: 2px 3px 3px 3px;
+    font-size: 10px;
+    color: #373a3c;
+    background-color: #f3f3f3;
+    border-color: #8c8c8c;
+    position: relative;
+    top: -1px;
+}
+
+.upper_map_btn:hover{
+    background-color: #d4d4d4;
+}
+
+.upper_map_btn.active{
+   background-color: #e6e6e6
 }
 
 #main{
@@ -275,7 +295,7 @@ div.custom_control_base.leafletcustom{
 }
 
 .im_map_modal_body{
-   /* max-height: calc(100vh - 168px);*/
+    max-height: calc(100vh - 168px);
     overflow-y:auto;
 }
 
@@ -857,12 +877,12 @@ cursor: pointer;
 }
 
 .q-span{
-    top: 19px;
+    top: 21px;
     margin-left: -7px;
     position: absolute !important;
-    width: 10px !important;
-    height: 10px !important;
-    line-height: 10px !important;
+    width: 12px !important;
+    height: 12px !important;
+    line-height: 12px !important;
 }
 
  .q-stack{
@@ -931,12 +951,12 @@ color:black;
 }
 
  .q-stack1{
-    z-index: 1;
+ z-index: 1;
     font-size: 9pt!important;
-    line-height: 10px !important;
-    top: 2px;
-    width: 10px;
-    height: 10px;
+    line-height: 12px !important;
+    top: 0;
+    width: 12px;
+    height: 11px
 }
 
 #listcontainer{
@@ -1155,25 +1175,6 @@ opacity: 1.0;
     margin-right: 3px;
 }
 
-.mouse_on_polygon .leaflet-pixi-overlay > canvas{
-    cursor: pointer !important;
-}
-
-.aliasmarker_on{
-    transition-duration: 0.15s;
-    transition-timing-function: ease;
-    cursor: pointer;
-}
-
-.aliasmarker_on:hover{
-  transform: scale(1.3);
-  cursor: pointer;
-}
-
-.customLdivIcon > img{
-/*border-radius: 50%;
-*/}
-
 
 
 .ifw_tab_img{
@@ -1230,15 +1231,7 @@ opacity: 1.0;
     outline: none;
 }
 
-.customLdivIcon{
-    border-radius: 50%;
-    background: none;
-    border: none;
-    display: flex !important;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-}
+
 
 .htmlTypeListView table th {
 	font-weight: bold;

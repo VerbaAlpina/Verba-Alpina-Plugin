@@ -302,8 +302,6 @@ function glossar (){
 	}
 	
 	function adjustToScreen (){
-		if(jQuery.browser.chrome) //Chrome erlaubt das manuelle Ändern der Textfeldgröße nicht mehr, nachdem man einmal die Größe per Skript geändert hat...
-			return;
 		var height = document.getElementById('wpfooter').offsetTop;
 		var sheight = document.getElementById('topStuff').offsetHeight;
 		var theight = document.getElementById('divT').offsetHeight;

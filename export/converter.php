@@ -8,21 +8,23 @@ abstract class VA_Converter {
 	 * 3 => false (or missing) == element, string == attribute with this name
 	 */
 	protected static $fields = [
-		[['CONCAT(External_Id, "_v", Version, SUBSTRING(DATABASE(), 3))', 'Id_Instance'], true, true, 'id'],
+		[['CONCAT(External_Id, "_v", vrecord.Version, SUBSTRING(DATABASE(), 3))', 'Id_Instance'], true, true, 'id'],
 		['Instance', true],
 		['Instance_Encoding', true],
 		['Instance_Original', true],
 		['Instance_Source', true],
-		['Stimulus', true],
-		['Id_Concept', 'concept', false],
+		[['IF(Stimulus = "", "empty", Stimulus)', 'Stimulus'], true],
+		[['CONCAT("C", Id_Concept, "_v", vconcept.Version, SUBSTRING(DATABASE(), 3))', 'Id_Concept'], 'concept', true, 'id'],
 		[['IF(Name_D != "", CONCAT(Name_D, " (", Beschreibung_D, ")"), Beschreibung_D)', 'Concept_Description'], 'concept'],
 		[['IF(Konzepte.QID = 0, NULL, CONCAT("Q", Konzepte.QID))', 'QID'], 'concept'],
-		['Community_Name', true],
-		[['ST_AsText(ST_Envelope(Geodaten))', 'Community_Bounding_Box'], true],
+		[['CONCAT("A", Id_Community, "_v", vcommunity.Version, SUBSTRING(DATABASE(), 3))', 'Id_Community'], ['community'], true, 'id'],
+		['Community_Name', 'community'],
+		[['ST_AsText(ST_Envelope(Geodaten))', 'Community_Bounding_Box'], 'community'],
+		['Geonames_Id', 'community'],
 		['Year_Publication', true],
 		['Year_Survey', true],
 		['Informant_Lang', true],
-		['Id_Type', 'type', false],
+		[['IF(vtype.Version IS NOT NULL, CONCAT("L", Id_Type, "_v", vtype.Version, SUBSTRING(DATABASE(), 3)), NULL)', 'Id_Type'], 'type', true, 'id'],
 		[['Type', 'Type_Name'], 'type'],
 		['Type_Kind', 'type', true, 'kind'],
 		['Type_Lang', 'type'],
@@ -36,12 +38,15 @@ abstract class VA_Converter {
 		['Base_Type_Unsure', ['type', 'base_Type']]
 	];
 	
+	protected static $one_element_categories = ['community'];
+	
 	protected $data;
 	
 	public function __construct ($id, $db){
 		global $va_xxx;
 		
 		$query = $this->create_query($id, $db);
+		//va_query_log($query);
 		$va_xxx->select($db);
 		$this->data = $va_xxx->get_results($query, ARRAY_A);
 		
@@ -65,12 +70,18 @@ abstract class VA_Converter {
 			$condition = 'External_Id = "' . $id  . '"';
 		}
 		else {
-			throw new Exception('Unknown id type: ' . $id);
+			throw new ErrorException('Unknown id type: ' . $id);
 		}
 	
-		$from_clause = 'FROM ' . $db . '.z_ling LEFT JOIN ' . $db . '.Orte ON Id_Community = Id_Ort LEFT JOIN Konzepte ON Id_Konzept = Id_Concept LEFT JOIN A_Versionen ON id = External_Id LEFT JOIN Stimuli USING (Id_Stimulus)';
-		$where_clause = 'WHERE Id_Instance IN (SELECT Id_Instance FROM ' . $db . '.z_ling WHERE ' . $condition . ')';
-		$appendix = 'GROUP BY Id_Instance, Id_Concept, Id_Type, Id_Base_Type ORDER BY Id_Instance ASC, Type_Kind ASC, Id_Type ASC, Id_Base_Type ASC, Id_Concept ASC';
+		$from_clause = 'FROM (SELECT * FROM ' . $db . '.z_ling WHERE Id_Instance IN (SELECT Id_Instance FROM ' . $db . '.z_ling WHERE ' . $condition . ') GROUP BY Id_Instance, Id_Concept, Id_Type, Id_Base_Type) x
+			LEFT JOIN ' . $db . '.Orte ON Id_Community = Id_Ort 
+			LEFT JOIN ' . $db . '.Konzepte ON Id_Konzept = Id_Concept 
+			LEFT JOIN ' . $db . '.A_Versionen vrecord ON vrecord.id = External_Id
+			LEFT JOIN ' . $db . '.A_Versionen vconcept ON vconcept.id = CONCAT("C", Id_Concept)
+			LEFT JOIN ' . $db . '.A_Versionen vcommunity ON vcommunity.id = CONCAT("A", Id_Community)
+			LEFT JOIN ' . $db . '.A_Versionen vtype ON vtype.id = CONCAT("L", Id_Type) 
+			LEFT JOIN ' . $db . '.Stimuli USING (Id_Stimulus)';
+		$appendix = 'ORDER BY Id_Instance ASC, Type_Kind ASC, Id_Type ASC, Id_Base_Type ASC, Id_Concept ASC';
 											
 		return 'SELECT ' . implode(',', array_map(function ($e){
 			if (is_string($e[0])){
@@ -79,7 +90,7 @@ abstract class VA_Converter {
 			else {
 				return $e[0][0] . ' AS ' . $e[0][1];
 			}
-		}, self::$fields)) . ' ' . $from_clause . ' ' . $where_clause . ' ' . $appendix;
+		}, self::$fields)) . ' ' . $from_clause  . ' ' . $appendix;
 	}
 	
 	public abstract function export();
@@ -225,7 +236,7 @@ class VA_XML_Converter extends VA_Converter {
 	private $url;
 	
 	public function __construct ($id, $db){
-		$this->url = get_site_url();
+		$this->url = 'https://www.verba-alpina.gwi.uni-muenchen.de'; //get_site_url(); Use constant here to make it possible to create the dumps locally
 		parent::__construct($id, $db);
 	}
 	
@@ -267,10 +278,11 @@ class VA_XML_Converter extends VA_Converter {
 			
 			foreach (self::$fields as $field){
 				$field_name = is_string($field[0])? $field[0]: $field[0][1];
+				$row[$field_name] = trim(html_entity_decode(preg_replace('/[[:cntrl:]]/', '', $row[$field_name])));
 				
 				if ($field[1] === true){
 					if ($newInstance){
-						if ($field[3]){ //Attribute
+					    if (isset($field[3]) && $field[3]){ //Attribute
 							$current_data['attributes'][$field[3]] = $row[$field_name];
 						}
 						else {
@@ -302,7 +314,7 @@ class VA_XML_Converter extends VA_Converter {
 							
 							if ($index == $depth - 1){
 								if (!isset($field[2]) || $field[2]){
-									if ($field[3]){ //Attribute
+								    if (isset($field[3]) && $field[3]){ //Attribute
 										$arr[$hname][$row_sub_ids[$hname]]['attributes'][$field[3]] = $row[$field_name];
 									}
 									else {
@@ -361,12 +373,6 @@ class VA_XML_Converter extends VA_Converter {
 					if ($key == 'Instance_Source'){
 						$this->split_source($sub_node, $doc, $val);
 					}
-					else if ($key == 'Community_Bounding_Box'){
-						$this->split_bounding_box($sub_node, $doc, $val);
-					}
-					else if ($key == 'Community_Name'){
-						$this->split_comm_name($sub_node, $doc, $val);
-					}
 					else if ($key == 'Instance'){
 						$this->split_instance($sub_node, $doc, $val);
 					}
@@ -383,7 +389,7 @@ class VA_XML_Converter extends VA_Converter {
 	
 	
 	private function element_from_array (DOMDocument &$doc, $name, $arr){
-		
+
 		$node = $doc->createElementNS($this->url, self::underscore_to_camel($name . 's'));
 
 		foreach ($arr as $element){
@@ -401,14 +407,25 @@ class VA_XML_Converter extends VA_Converter {
 					}
 				}
 				else {
-					if ($this->add_empty || ($part !== '' && $part !== null)){
+					if ($key == 'Community_Bounding_Box'){
+						$this->split_bounding_box($sub_node, $doc, $part);
+					}
+					else if ($key == 'Community_Name'){
+						$this->split_comm_name($sub_node, $doc, $part);
+					}
+					else if ($this->add_empty || ($part !== '' && $part !== null)){
 						$this->append_text_element($sub_node, $doc, self::underscore_to_camel($key), $part);
 					}
 				}
 			}
+			
+			//No ...s parent tag needed
+			if (in_array($name, VA_Converter::$one_element_categories)){
+				return $sub_node;
+			}
+			
 			$node->appendChild($sub_node);
 		}
-		
 		return $node;
 	}
 	
@@ -458,6 +475,9 @@ class VA_XML_Converter extends VA_Converter {
 	}
 	
 	private function split_comm_name (DOMElement &$parent, DOMDocument &$doc, $source_str){
+		
+		$node = $doc->createElementNS($this->url, 'communityName');
+		
 		$index = mb_strpos($source_str, '###');
 		
 		$transl = [];
@@ -473,18 +493,23 @@ class VA_XML_Converter extends VA_Converter {
 			}
 		}
 		
-		$this->append_text_element($parent, $doc, 'officialName', $name);
+		$this->append_text_element($node, $doc, 'officialName', $name);
 		
 		if ($this->add_empty || $transl){
 			$tnode = $doc->createElementNS($this->url, 'translations');
 			foreach ($transl as $lang => $tname){
 				$this->append_text_element($tnode, $doc, 'translation', $tname, ['lang' => self::va_lang_to_iso($lang)]);
 			}
-			$parent->appendChild($tnode);
+			$node->appendChild($tnode);
 		}
+		
+		$parent->appendChild($node);
 	}
 
 	private function split_bounding_box (DOMElement $parent, DOMDocument $doc, $source_str){
+		
+		$node = $doc->createElementNS($this->url, 'communityBoundingBox');
+		
 		$source_str = substr($source_str, 9, -2);
 		$coords = explode(',', $source_str);
 		foreach ($coords as $coord){
@@ -494,7 +519,9 @@ class VA_XML_Converter extends VA_Converter {
 			$this->append_text_element($point, $doc, 'latitude', $latlng[1]);
 			$this->append_text_element($point, $doc, 'longitude', $latlng[0]);
 			
-			$parent->appendChild($point);
+			$node->appendChild($point);
 		}
+		
+		$parent->appendChild($node);
 	}
 }
