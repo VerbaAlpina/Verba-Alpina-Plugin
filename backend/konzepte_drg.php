@@ -81,11 +81,9 @@ function va_drg_concepts (){
 							"namespace" : "util",
 							"query" : "getConceptsForSelect",
 							"search" : params.term,
-							"ignore" : already
+							"ignore" : already,
+							"page": params.page || 1
 						};
-					},
-					"processResults": function (data){
-						return {"results": data};
 					}
 				}
 			};

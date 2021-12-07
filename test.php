@@ -275,7 +275,8 @@ function test (){
 
 	function tokensPruefen() {
 		jQuery.post(ajaxurl, {
-			"action" : "token_ops",
+			"action": "va",
+			"namespace" : "token_ops",
 			"stage" : "getTokens",
 			"type" : "ipa"
 		}, function(response) {
@@ -304,7 +305,8 @@ function test (){
 	
 	function tokensOriginal() {
 		jQuery.post(ajaxurl, {
-			"action" : "token_ops",
+			"action": "va",
+			"namespace" : "token_ops",
 			"stage" : "getTokens",
 			"type" : "original"
 		}, function(response) {

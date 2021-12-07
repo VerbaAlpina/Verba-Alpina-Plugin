@@ -10,7 +10,7 @@ function va_graph_page (){
 			SELECT 
 				Day, 
 				Date, 
-				SUM(COUNT_Sonstige) AS COUNT_Sonstige, 
+				SUM(COUNT_Other) AS COUNT_Other, 
 				SUM(COUNT_SI) AS COUNT_SI, 
 				SUM(COUNT_IT) AS COUNT_IT, 
 				SUM(COUNT_FR) AS COUNT_FR, 
@@ -24,7 +24,7 @@ function va_graph_page (){
 			(SELECT 
 				DATE_FORMAT(Erfasst_Am, '%a %b %d %Y') AS Day, 
 				Date(Erfasst_Am) AS Date, 
-				sum(IF(Wert NOT IN ('svn','aut','deu','fra','ita','che'), 1, 0)) as COUNT_Sonstige,
+				sum(IF(Wert NOT IN ('svn','aut','deu','fra','ita','che'), 1, 0)) as COUNT_Other,
 				sum(IF(Wert = 'svn', 1, 0)) as COUNT_SI,
 				sum(IF(Wert = 'ita', 1, 0)) as COUNT_IT,
 				sum(IF(Wert = 'fra', 1, 0)) as COUNT_FR,
@@ -44,7 +44,7 @@ function va_graph_page (){
 	
 	$num_days = $va_xxx->get_var("SELECT datediff(NOW(), '$start_date')");
 	
-	$reports = $va_xxx->get_results("SELECT Datum, Bericht FROM Berichte WHERE Datum >  '$start_date' ORDER BY Datum", ARRAY_A);
+	$reports = $va_xxx->get_results("SELECT Datum, Bericht_E AS Bericht FROM Berichte WHERE Datum >  '$start_date' ORDER BY Datum", ARRAY_A);
 	
 	wp_localize_script('toolsSkript', 'CS_DATA', $data);
 	wp_localize_script('toolsSkript', 'REPORTS', $reports);
@@ -57,7 +57,7 @@ function va_graph_page (){
 
 <script type="text/javascript">
 
-var colorMapping = {"Sonstige" : "black", "svn": "red", "ita" : "purple", "fra": "lightblue", "deu" : "green", "che" : "gold", "aut" : "darkblue"}
+var colorMapping = {"Other" : "black", "svn": "red", "ita" : "purple", "fra": "lightblue", "deu" : "green", "che" : "gold", "aut" : "darkblue"}
 
 jQuery(function (){
 	jQuery("#graphdiv").scrollLeft(<?php echo $num_days * $bar_width;?>);
@@ -250,16 +250,17 @@ jQuery(function (){
     var le = d3.select("#glegend").append("g");
 
     le.append("text")
-    	.text("1")
+    	.text("1 - n")
     	.attr("x", 60)
     	.attr("y", (countries.length + 1) * 19 - 30)
     	.attr("dy", "0.32em")
     	.attr("font-weight", "bold")
+    	.attr("font-size", 12)
     	.attr("fill", "olive")
     	.attr("text-anchor", "middle")
     
     le.append("text")
-    	.text("Anzahl unterschiedlicher Nutzer")
+    	.text("Number of distinct users")
     	.attr("x", 40)
     	.attr("y", (countries.length + 1) * 19 - 30)
     	.attr("dy", "0.32em");
@@ -312,7 +313,7 @@ function commWindow (str){
 <br />
 <br />
 
-Gesamteintragungen: <?php echo $va_xxx->get_var('SELECT COUNT(*) FROM Aeusserungen WHERE Id_Stimulus IN (SELECT Id_Stimulus FROM Stimuli WHERE Erhebung = "CROWD")');?>
+Total entries: <?php echo $va_xxx->get_var('SELECT COUNT(*) FROM Aeusserungen WHERE Id_Stimulus IN (SELECT Id_Stimulus FROM Stimuli WHERE Erhebung = "CROWD")');?>
 <br />
 <br />
 <div class="entry-content">
@@ -329,7 +330,7 @@ Gesamteintragungen: <?php echo $va_xxx->get_var('SELECT COUNT(*) FROM Aeusserung
 	}
 	?>
 	</ul>
-Anzahl Informanten: <?php echo $va_xxx->get_var("SELECT COUNT(*) FROM Informanten WHERE Erhebung = 'CROWD'");?>
+Number of informants: <?php echo $va_xxx->get_var("SELECT COUNT(*) FROM Informanten WHERE Erhebung = 'CROWD'");?>
 </div>
 <?php 
 }

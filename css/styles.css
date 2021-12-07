@@ -1,6 +1,6 @@
 @font-face {
-	font-family: code2003;
-	src: url('Code200365k.ttf');
+	font-family: doulosSIL;
+	src: url('../fonts/DoulosSIL-Regular.ttf');
 }
 
 /* Updates to data base */
@@ -11,6 +11,12 @@
 
 .changesSent {
 	background : #feddda;
+}
+
+html.no_overflow{
+  overflow: hidden;
+  touch-action: none;
+  -ms-touch-action: none;
 }
 
 /* Legend focus */
@@ -145,7 +151,11 @@ tr:not(.im_child_legend_element) .focused > td {
 }
 
 .chosen-container-multi .chosen-choices li.search-choice, #recordSummary {
-	font-family: arial unicode;
+	font-family: doulosSIL;
+}
+
+#tokenAuswahlLex_chosen li {
+	font-family: doulosSIL;
 }
 
 #translatorList_chosen .chosen-drop, #commTranslatorList_chosen .chosen-drop {
@@ -197,7 +207,15 @@ ol.footnotes p {
 
 .va-title {
 	position : relative;
-	font-family: 'Quicksand';
+	font-size: 25px !important;
+  -webkit-text-stroke: 0.2px;
+  transform-origin: 0 0;
+  letter-spacing: 0.02em;
+  -webkit-transform:scale(0.92,1); /* Safari and Chrome */
+  -moz-transform:scale(0.92,1); /* Firefox */
+  -ms-transform:scale(0.2,1); /* IE 9 */
+  -o-transform:scale(0.92,1); /* Opera */
+  transform:scale(0.92,1); /* W3C */
 }
 
 .va-title span.va-rel-link {
@@ -258,7 +276,7 @@ ol.footnotes p {
 	padding: 5px;
 	font-size: 18px;
 	cursor: pointer;
-	font-family: arial unicode;
+	font-family: doulosSIL;
 }
 
 .corrFieldFixd {
@@ -354,7 +372,7 @@ img.orcid {
 
 .entry-content table.ruleTable td.imageTranscriptionRule{
 	font-size: 300%;
-	font-family: arial unicode;
+	font-family: doulosSIL;
 	padding: 0px;
 }
 
@@ -378,6 +396,22 @@ body.lex{
     overflow-x: hidden;
 }
 
+body.lex #content{
+  overflow: hidden;
+}
+
+
+body.lex::-webkit-scrollbar {
+    width: 10px;
+    background-color: transparent;
+}
+
+body.lex::-webkit-scrollbar-thumb {
+    background-color: #a9a9a9;
+    border-radius: 4px;
+}
+
+
 #page.lex{
 	max-width: 100% !important;
 	background: transparent;
@@ -385,7 +419,7 @@ body.lex{
 }
 
 .lex_header{
-    left: 25%;
+    left: 0;
     position: fixed;
     top: 45px;
     right: 0;
@@ -395,6 +429,43 @@ body.lex{
     box-shadow: 3px 3px 3px 0px rgba(0,0,0,0.11);
     background: #dbe1e6;
     z-index: 2;   
+    transition: all 0.3s ease 0s;
+    -webkit-backface-visibility: hidden;
+}
+
+.lex_scrollup{
+   position: fixed;
+    right: 0;
+    bottom: 0;
+    font-size: 20px;
+    padding: 12px;
+    padding-right: 15px;
+    display: none;
+    cursor: pointer;
+}
+
+.lexlogowrapper{
+  display: inline-block;
+   position: relative;
+   transition: all 0.3s ease 0s;
+}
+
+.lex_header.shift{
+   padding-left: 0%;
+}
+
+.lexlogo.lexlogo{
+ position: relative;
+ transition: all 0.3s ease 0s;
+ left: 0;
+}
+
+.lexlogowrapper.shift .lexlogo.lexlogo{
+  margin-left: 0px;
+}
+
+.lexlogowrapper.shift .lexsearch{
+  margin-left: 0px;
 }
 
 .lex_header_cover{
@@ -402,22 +473,43 @@ body.lex{
     width: 100%;
     height: 100%;
     position: absolute;
-    background: url(http://localhost/VA/wp-content/uploads/20_2_titel.jpg) center center fixed;
-   filter: grayscale(100%);
+    background: url(http://localhost/VA/wp-content/uploads/21_1_titel.jpg) center center fixed;
+    filter: grayscale(100%);
 }
 
+.lex_main_load_cover{
+    display: none;
+    position: fixed;
+    width: 75%;
+    height: 100%;
+    top: 0;
+    left: 25%;
+    background: transparent;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+}
+
+.lex_main_load_cover.gallery{
+ position: absolute;
+}
+
+.lex_main_load_cover .sk-fading-circle .sk-circle:before{
+  background-color: #636363;
+}
 
 
 .lex_header_inner{
     padding-right: 15px;
-    padding-left: 22px;
+    padding-left: 15px;
     top:28px;
     position: relative;
 }
 
 .entry-content.lex{
     left: 25%;
-    position: fixed;
+    width: 75%;
+    position: relative;
     height: calc(100% - 215px);
     right: 0;
     overflow: auto;
@@ -428,6 +520,9 @@ body.lex{
     padding-left: 20px;
     overflow-x: hidden;
     padding-top: 25px;
+    transition:  all 0.3s ease 0s;
+    -webkit-backface-visibility: hidden;
+    color: #242424;
 }
 
 .lexhead{
@@ -436,7 +531,6 @@ body.lex{
     z-index: 3;
     margin-bottom: 12px;
 }
-
 
 
 .lexcontent{
@@ -456,6 +550,11 @@ body.lex{
     padding-right: 10px;
     z-index: 1;
     position: relative;
+    -webkit-backface-visibility: hidden;
+}
+
+.lex_articles:focus{
+   outline: none;
 }
 
 .lexsearch{
@@ -474,7 +573,21 @@ body.lex{
     z-index: 2;
 }
 
+.sub_head_content .fas{
+  width: 16px;
+  height: 16px;
+}
 
+.secRowLoading{
+    width: 100%;
+    position: absolute;
+    left: 0px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #1a67c75c;
+    border-top: 1px solid transparent;
+}
 
 .lexsearch > div{
 	color: transparent;
@@ -499,7 +612,7 @@ body.lex{
     height: 34px;
     font-size: 16px;
     margin: 0 auto;
-    padding-left: 15px;
+    margin-left: 15px;
     border-right: 1px solid #757575;
 }
 
@@ -529,6 +642,16 @@ body.lex{
     background: #f1d44a6b;
 }
 
+.front_image{
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    background-size: cover;
+    opacity: 0.25;
+    position: absolute;
+    background-position: center;
+}
+
 .lex_edit button{
     color: #444444;
     font-size: 14px;
@@ -545,7 +668,7 @@ body.lex{
 
 .lex_article .sep{
     border-left: 1px solid;
-    margin-left: 10px;
+    margin-left: 5px;
     margin-right: 5px;
 }
 
@@ -553,7 +676,7 @@ body.lex{
 	font-family: Helvetica, sans-serif;
 }
 
-.entry-content.lex::-webkit-scrollbar {
+/*.entry-content.lex::-webkit-scrollbar {
     width: 10px;
     background-color: transparent;
 }
@@ -561,19 +684,23 @@ body.lex{
 .entry-content.lex::-webkit-scrollbar-thumb {
     background-color: #a9a9a9;
     border-radius: 4px;
-}
+}*/
 
 .lexstartcontent{
     display: none;
+    backface-visibility: hidden;
 }
 
+.lex_edit{
+    width: 25px;
+    display: inline-flex;
+}
 
 .lexsidebar{
 	position: fixed;
     overflow: hidden;
     min-width: 190px;
     width: 25%;
-    top: 45px;
     left: 0;
     bottom: 0;
     background-color: #272d37f0;
@@ -582,15 +709,115 @@ body.lex{
     -webkit-box-shadow: 3px 3px 3px 0px rgba(0,0,0,0.15);
     -moz-box-shadow: 3px 3px 3px 0px rgba(0,0,0,0.15);
     box-shadow: 3px 3px 3px 0px rgba(0,0,0,0.15);
+    transition: left 0.4s ease-out;
 }
 
+.lexlisthr{
+    margin: 0px;
+    width: 20px;
+    background: #647086;
+    position: absolute;
+    bottom: 0px;
+}
+
+.lex_abc{
+    color: #7d899e;
+    position: absolute;
+    display: flex;
+    width: 34px;
+    height: calc(100% - 65px);
+    border-right: 1px solid #647086;
+    flex-direction: column;
+    justify-content: space-around;
+    top: 1px;
+    align-items: center;
+    padding-bottom: 5px;
+    min-height: 600px;
+    max-height: 1500px;
+}  
+
+.lex_abc > div{
+    display: flex;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    width: 100%;
+    justify-content: center;
+    height: 100%;
+    align-items: center;
+    position: relative;
+}
+
+.abc_wrap{
+    height: calc(100% - 65px);
+    position: absolute;
+    width: 35px;
+    margin-top: 65px;
+    overflow-y: hidden;
+}
+
+
+.abc_wrap::-webkit-scrollbar {
+    width: 6px;
+    background-color: transparent;
+}
+
+.abc_wrap::-webkit-scrollbar-thumb {
+    background-color: #647086a1;
+    border-radius: 4px;
+}
+
+.lex_abc > div.active{
+    cursor: pointer;
+}
+
+.lex_abc > div.active:hover{
+    color: white;
+}
+
+.lex_abc > div:not(.active){
+    color: #525b6b;
+}
+
+/*.lex_abc > div{
+  border-bottom: 1px solid #647086;
+}*/
 
 #scrollArea{
     width: 100%;
     height: calc(100% - 75px);
-    overflow: auto;
+    overflow-y: auto;
+    overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
      margin-top: 15px;
+     padding-left: 25px;
+}
+
+.lex_slide_uncollapse{
+    position: fixed;
+    color: white;
+    font-size: 20px;
+    top: 50px;
+    z-index: 10;
+    left: 5px;
+    color: #647086;
+    padding: 7px;
+    cursor: pointer;
+    display: none;
+}
+
+.lex_slide_collapse{
+  position: absolute;
+  font-size: 20px;
+  color: #647086;
+  right: 0px;
+  top: 12px;
+  cursor: pointer;
+  padding: 7px;
+  padding-right: 10px;
 }
 
 .lex_load_cover{
@@ -604,6 +831,7 @@ body.lex{
     margin: auto;
     background: rgb(20,20,20);
     background: linear-gradient(180deg, rgba(20,20,20,0) 0%, rgba(20,20,20,0.5032387955182073) 25%, rgba(20,20,20,0.6208858543417367) 50%, rgba(20,20,20,0.5032387955182073) 75%, rgba(20,20,20,0) 100%);
+    left: 0px;
 }
 
 .lex_load_cover .spinnerarea{
@@ -765,13 +993,21 @@ body.lex{
   color:rgb(120,120,120);
 }
 
+#lextitellist .title-string img.noTranslationImg {
+    padding-right: 5px;
+}
+
 .lexlist{
-	padding: 10px;
+	  padding: 10px;
     width: 100%;
     bottom: 0;
     border: none !important;
     outline: none !important;
+    padding-top: 0px;
+    padding-left: 15px;
+    padding-right: 15px;
 }
+
 
 .lexsidebar #scrollArea::-webkit-scrollbar {
     width: 10px;
@@ -784,11 +1020,8 @@ body.lex{
 }
 
 .lexsidebar li{
-	font-family: Quicksand;
-    padding-top: 10px;
-    padding-bottom: 10px;
+    font-family: Quicksand;
     padding-left: 8px;
-    padding-right: 5px; 
     border-bottom: 1px solid #647086;
     overflow: hidden;
     color: white;
@@ -797,14 +1030,46 @@ body.lex{
     -khtml-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
-    user-select: none;      
-               
+    user-select: none;
+    height: 34px;
+    display: inline-flex;
+    width: 100%;
+    align-items: center;
 }
 
+.lexsidebar li .title-string{
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    display: inline-flex;
+    padding-right: 10px;
+    max-width: calc(100% - 10px);
+    align-items: center;
+
+}
+
+.lexsidebar li .title-string .name{
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow-x: hidden;
+    padding-right: 5px;
+    height: 16px;
+    margin-top: 2px;
+}
+
+.lexsidebar li .title-string .type{
+    margin-top: 2px; 
+    padding-left: 5px;
+} 
 
 .active .list_marker{
-	display: inline;
+    display: inline;
 }
+
+.lexlist .active .list_marker{
+    display: inline-flex;
+    height: 20px;
+}
+
 
 .list_marker{
     position: relative;
@@ -867,10 +1132,11 @@ body.lex{
     color: #fff;
     border: none;
     border-bottom: 1px solid;
-    border-color: #647086;
-    margin-top: 25px;
+    border-color: #7d899e;
+    margin-top: 20px;
     border-radius: 0px;
     padding-left: 20px;
+    width: calc(100% - 15px);
 }
 
 .lexsidebar li:last-child {
@@ -878,14 +1144,14 @@ body.lex{
 }
 
 .lexsidebar .search input::placeholder {
-color: #647086;
+color: #7d899e;
 }
 
 .lexsidebar .search i.fas{
 	position: absolute;
     display: flex;
-    top: 33px;
-    color: #647086;
+    top: 28px;
+    color: #7d899e;
 }
 
 .lexsearch button{
@@ -918,6 +1184,11 @@ color: #647086;
     color: white;
 }
 
+.flipbutton:active{
+  transform: scale(0.95);
+  transition: all 0.2s ease;
+}
+
 .flipbutton {
     position: absolute;
     right: -15px;
@@ -925,7 +1196,7 @@ color: #647086;
     font-size: 12px;
     z-index: 2;
     background: #483030;
-    top: 50%;
+    top: 50px;
     padding: 2px 5px 2px 5px;
     box-shadow: -3px 3px 3px 0px rgba(0,0,0,0.15);
     background: #dbe1e6;
@@ -968,6 +1239,7 @@ color: #647086;
     opacity: 0;
     perspective: 3000px !important;
     max-height: 209px;
+    backface-visibility: hidden;
 }
 
 
@@ -986,20 +1258,6 @@ color: #647086;
 
 
 
-/*.backtable tr:last-child td{
-    border-bottom: 1px solid transparent !important;
-}*/
-
-
-
-
-
-/*.backtable .tablesorter-header-inner:focus{
-  border: none !important; 
-  background: transparent !important;
-  outline:0 !important;
-}*/
-
 .hiddenbackcontent th{
     color: white !important;
 }
@@ -1016,6 +1274,19 @@ color: #647086;
 .lex_article .f_content, .b_content{
     box-sizing:border-box;
     padding: 10px 15px 10px 15px;
+}
+
+.lex_article .f_content td{
+    border-top: 1px solid #717171;
+  }
+
+ .lex_article .f_content tbody tr:last-child td{
+   border-bottom:  1px solid #717171; 
+ }    
+ 
+.lex_article .f_content table{
+ width: calc(100% - 10px);
+ margin-top: 5px;
 }
 
 .lex_article.toggle_scale{
@@ -1057,7 +1328,6 @@ color: #647086;
 }
 
 
-
 .lex_article.open{
   transition: all .5s ease-in-out;
 }
@@ -1078,8 +1348,8 @@ color: #647086;
 .lex_read_more{
     position: absolute;
     bottom: 0;
-    width: calc(100% - 10px);
-    left: 10px;
+    width: 100%;
+    left: 0px;
     text-align: center;
     background: rgb(219,225,230);
     background: linear-gradient(180deg, rgba(219,225,230,0) 0%, rgba(219,225,230,1) 70%);
@@ -1103,7 +1373,6 @@ color: #647086;
 }
 
 
-
 .lex_articles .lex_article:last-child{
     border-bottom: none;
 }
@@ -1122,14 +1391,31 @@ color: #647086;
 .lex_article .sub_head{
     font-size: 16px;
     font-family: 'Quicksand', serif;
-    -webkit-touch-callout: none;
+   /* -webkit-touch-callout: none;
     -webkit-user-select: none;
     -khtml-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
-    user-select: none;      
+    user-select: none;*/      
                
 }
+
+#help_overlay{
+  position: fixed;
+  width: 40px;
+  height: 60px;
+  z-index: 10;
+  bottom: 0;
+  color: #56585a;
+  right: 15px;
+  display: flex;
+  font-size: 35px;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.9;
+}
+
+
 
 .back .back_body{
     padding: 5px;
@@ -1143,11 +1429,14 @@ color: #647086;
     font-size: 10px;
     padding: 2px 5px 2px 5px;
     position: relative;
-    border-radius: 4px;
-    top: -3px;
     margin-left: 5px;
     color: #444;
     box-shadow: inset 0 0 0 1px #444;
+    border: 1px solid transparent;
+}
+
+.lex_head_container .lex_id{    
+  top: -3px;
 }
 
 .back .lex_id{
@@ -1179,6 +1468,84 @@ color: #647086;
     padding-right: 35px;
 }
 
+.lex_image_btn{
+  color: rgb(68, 68, 68);
+  font-size: 16px;
+}
+
+#lexImageModal .modal-body
+{
+ padding: 0px;
+}
+
+
+
+#lexImageModal .modal-title
+{
+ display: inline-block;
+}
+
+#lexImageModal .carousel-cover{
+    position: absolute;
+    width: 100%;
+    height: 400px;
+    top: 0px;
+    left: 0px;
+    background: #fff;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#lexImageModal .carousel-indicators .active {
+    background-color: #fff;
+}
+
+#lexImageModal .carousel-indicators li {
+    position: relative;
+    -webkit-box-flex: 0;
+    -ms-flex: 0 1 auto;
+    flex: 0 1 auto;
+    width: 15px;
+    height: 5px;
+    margin: 3px !important;
+    text-indent: -999px;
+    background-color: rgba(255,255,255,.5);
+    border: none;
+}
+
+#lexImageModal .cc_control{
+    position: absolute;
+    top: calc(50% - 30px);
+    font-size: 24px;
+    color: #fff;
+    opacity: 0.7;
+    margin-left: 10px;
+    margin-right: 10px;
+}
+
+#lexImageModal .cc_control:hover{
+  opacity: 1.0;
+}
+
+#lexImageModal .carousel-control-prev {
+
+}
+
+#lexImageModal .carousel-control-next{
+
+}
+
+
+
+#lexImageModal .lex_carousel_img{
+    width: auto;
+    height: 400px;
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center;
+  }
 
 .actionbtn {
   border: none;
@@ -1222,8 +1589,10 @@ cursor: pointer;
     right: 16px;
 }
 
+
 .lexsep{
-	display: none;	
+  height: 34px;
+  border-left: 1px solid #757575;
 }
 
 .mobile_sidebar_bg{
@@ -1234,13 +1603,21 @@ cursor: pointer;
     opacity: 0.4;
     z-index: 3;
     display: none;
+    top: 0px;
 }
 
 .lexlogo{
-	opacity: 0.78;
+	 opacity: 0.78;
     height: 65px;
     margin-left: 2px;
     margin-top: 3px;
+    transition: all 0.3s ease 0s;
+   -webkit-backface-visibility: hidden;
+   display: inline-block;
+}
+
+.lexlogo.fadeOut{
+  opacity: 0.0;
 }
 
 .backtable{
@@ -1258,11 +1635,15 @@ backface-visibility: initial !important;
 transform-style: initial !important;
 }
 
-.backtable, .backtable th, .backtable tr, .backtable td{
+.backtable, .backtable th, .backtable tr:not(.second_row), .backtable td{
   background-color: transparent !important;
   color: white !important;
   font-family: 'Quicksand', serif !important;
   border-bottom: 1px solid white !important;
+}
+
+.backtable th{
+  font-weight: 300;
 }
 
 .backtable div:focus, .backtable th:focus, .backtable tr:focus, .backtable td:focus{
@@ -1284,6 +1665,12 @@ transform-style: initial !important;
 
 .backtable td{
     border-bottom: 1px solid white;
+    max-width: 300px;
+    min-width: 50px;
+}
+
+.second_row{
+    background: #1a67c75c;
 }
 
 .second_row > td{
@@ -1293,7 +1680,7 @@ transform-style: initial !important;
 .second_table{
   table-layout: fixed;
   margin-bottom: 5px !important;
-  background: transparent !important;
+  background: transparent;
 }
 
 .second_table td {
@@ -1321,11 +1708,306 @@ transform-style: initial !important;
 }
 
 
+.sidebarCollapse #scrollLex{
+  width: 100%;
+  left: 0px;
+}
+
+
+.va_version_container{
+      width: 100%;
+    height: 100vh;
+    position: absolute;
+}
+
+
+
+.va_versions{
+    margin: 0 auto;
+    width: 100%;
+    height: auto;
+    max-width: 1000px;
+    position: relative;
+    top: 186px;
+    padding-left: 20px;
+    padding-right: 20px;
+    padding-bottom: 10px;
+}
+
+.va_versions .version_div{
+    position: absolute;
+    top: 30px;
+    left: 20px;
+    font-size: 20px;
+    font-family: 'Quicksand';
+    color: white;
+    z-index: 10;
+}
+
+.va_versions .lex_article{
+ opacity: 1;
+}
+
+.va_versions .lex_article:hover{
+  cursor: pointer;
+ /* transform: scale(1.02);
+  transition-duration: 0.2s;*/
+}
+
+.va_versions .lex_article:hover .coverImageVersion{
+  opacity: 0.3;
+}
+
+
+.va_versions .lex_article .flipbutton {
+    top: 50px;
+}
+
+.va_versions .lex_article .flipbutton .text{
+   line-height: 20px;
+}
+
+.va_versions .lex_article .front{
+   height: 200px;
+    border-radius: 10px;
+}
+
+.va_versions .lex_main_load_cover{
+    left: 0;
+    z-index: 10;
+    width: 100%;
+    display: flex;
+}
+
+.va_versions .lex_main_load_cover .sk-fading-circle .sk-circle:before {
+    background-color: #dbdbdb;
+}
+
+.va_version_headline{
+    text-align: center;
+    top: 82px;
+    font-size: 40px;
+    font-family: Quicksand;
+    padding-bottom: 25px;
+    margin: 0 auto;
+    color: white;
+    display: flex;
+    align-self: center;
+    justify-content: center;
+    width: 100%;
+    position: fixed;
+}
+
+.va_version_headline .lexlogo{
+  opacity: 1.0;
+}
+
+
+.va_version_headline.fadeOut{
+  opacity: 0.0;
+}
+
+.va_versions .lexArticleVersionImage{
+  width: 100%;
+  height: 100%;
+  position: absolute;
+   left: 0px;
+}
+
+.va_versions .lex_article .head{
+    position: absolute;
+    right: 5px;
+    top: 10px;
+    display: none;
+}
+
+.va_versions .img_container{
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background-size: cover;
+    background-position-y: center;
+    background-position-x: center;
+    left: 0px;
+}
+
+.va_versions .coverImageVersion{
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: black;
+    left: 0;
+    z-index: 1;
+    top: 0;
+    opacity: 0.35;
+}
+
+.va_versions .back_body{
+  padding-top: 40px;
+  padding-right: 60px;
+  padding-left: 20px;
+  padding-bottom: 20px;
+  font-size: 14px;
+  line-height: 16px;
+  overflow-x: hidden;
+}
+
+.va_versions .b_content{
+ /* min-height: 1000px;*/
+}
+
+.va_versions .b_content .b_content_img{
+    background-size: cover;
+    background-position-y: center;
+    background-position-x: center;
+    opacity: 0.2;
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    z-index: -1;
+}
+
+.va_versions .year .line{
+    border-bottom: 2px solid white;
+    width: 85px;
+    position: relative;
+    top: -7px;
+    left: 6px;
+    display: inline-block;
+}
+
+.va_versions .year .line.inset{
+     left: 70px;
+     top: -5px;
+}
+
+.va_versions .year{
+    font-size: 28px;
+    position: relative;
+    display: inline-block;
+    left: -85px;
+    top: -15px;
+    color: white;
+      font-family: 'Kabel VA', sans-serif;
+  letter-spacing: -0.04em;
+}
+
+.charts{
+
+   overflow-x: auto;
+   display: flex;
+   align-items: flex-start;
+   width: calc(100% + 35px);
+}
+
+
+.charts::-webkit-scrollbar {
+  height: 8px;
+}
+
+/* Track */
+.charts::-webkit-scrollbar-track {
+  background: transparent; 
+}
+ 
+/* Handle */
+.charts::-webkit-scrollbar-thumb {
+  background: #ffffff75; 
+  border-radius: 4px;
+}
+
+/* Handle on hover */
+.charts::-webkit-scrollbar-thumb:hover {
+  background: #9999998c; 
+}
+
+
+.chart_container h4{
+/* position: absolute;*/
+
+}
+
+.chart_container{
+   min-height: 320px;
+    flex-grow: 3;
+    margin-bottom: 15px;
+  }
+
+.chart_container:not(:last-child){
+    border-right: 1px solid white;
+    margin-right: 15px;
+}
+
+.timeline_chart{
+  position: relative;
+  max-width: 300px;
+/*  display: inline-flex;*/
+}
+
+
+.va_versions .lex_article .front, .va_versions .lex_article .back{
+  max-height: initial;
+}
+
+.va_versions  .lex_article .head{
+  position: absolute;
+}
+
+.va_versions  .f_content, .va_versions .content{
+  padding: 0;
+}
+
+body.va_version_gallery{
+  background-color: #b1b1b1;
+}
+
+.va_versions .back_body h1 {
+    font-size: 20px;
+    font-family: 'Quicksand';
+}
+
+.va_versions .back_body h2{
+  margin-top: 10px;
+  font-size: 16px;
+  margin-bottom: 20px;
+}
+
+.va_versions .back_body ul{
+   list-style-type: disc;
+    margin-left: 25px;
+}
+
+.va_versions .back_body ul li{
+  margin-bottom: 5px;
+}
+
+.va_versions .wp-caption{
+ 
+  text-align: center;
+}
+
+.va_versions .wp-caption-text{
+   color: white !important;
+}
+
+
+/*.sidebarCollapse .lexcontent{
+  max-width: 1000px;
+}*/
+
+
 @media only screen and (max-width: 1055px) {
      .lexsidebar{
     	width: 35%;
     }
-    .entry-content.lex, .lex_header{
+
+/*    .lex_header{
+      padding-left: 35%;
+    }*/
+
+    .entry-content.lex{ 
       left: 35%;
       width: 65%;    
       margin-bottom: 20px;
@@ -1335,88 +2017,225 @@ transform-style: initial !important;
     	font-size: 50px;
     }
       .lexsearch {
-        width: 100%;
+        width: 500px;
     }
     .lexlogo{
         margin-top: 10px;
         height: 55px;   
-        margin-bottom: 18px;
+        margin-bottom: 5px;
     }
 }
 
+@media only screen and (min-width: 769px) {
+
+   .abc_wrap:hover{
+      overflow-y: auto;
+  }
+
+}
  
 
 @media only screen and (max-width: 768px) {
-    .lexsidebar {
-		display: none;
-		width: 100%;
-		background: #272d37;
-		top: 100%;
-		height: calc(100% - 185px);
-		border-top-left-radius: 8px;
-		border-top-right-radius: 8px;
-		transition: all .4s ease-out;
-		-webkit-box-shadow: 0px -1px 17px 0px rgba(0,0,0,0.25);
-		-moz-box-shadow: 0px -1px 17px 0px rgba(0,0,0,0.25);
-		box-shadow: 0px -1px 17px 0px rgba(0,0,0,0.25);
-    }
 
-    .entry-content.lex{
-    	left: 0;
-    	width: 100%;
-    }
-    .lexhead{
-    	font-size: 45px;
-    }
+        .va_version_gallery .back_body{
+          font-size: 12px;
+        }
 
-    .lexlogo{
-        margin-top: 3px;
-        height: 55px;
-    }
+        .va_versions .back_body h1,  .va_versions .back_body h2 {
+          font-size: 15px;
+        }
 
-    .lexmenubtn{
-    	display: block;
-    }
+
+        .lexsidebar {
+    		display: none;
+    		width: 100%;
+    		background: #272d37;
+    		top: 100%;
+    		height: calc(100% - 185px);
+    		border-top-left-radius: 8px;
+    		border-top-right-radius: 8px;
+    		transition: all .4s ease-out;
+    		-webkit-box-shadow: 0px -1px 17px 0px rgba(0,0,0,0.25);
+    		-moz-box-shadow: 0px -1px 17px 0px rgba(0,0,0,0.25);
+    		box-shadow: 0px -1px 17px 0px rgba(0,0,0,0.25);
+        }
+
+        .lexlogo.lexhead .lexlogo{
+          padding: 2px;
+        }
+
+        .lex_main_load_cover{
+          width: 100%;
+          left: 0px;
+          top: 0;
+          height: 185px;
+        }
+
+        .lex_slide_collapse{
+          display: none;
+        }
+
+        .lex_slide_uncollapse{
+          display: none;
+        }
+
+        .back{
+        	overflow: hidden;
+        }
+
+        .back_body{
+        	overflow: auto;
+        }
+
+        .entry-content.lex{
+        	left: 0;
+        	width: 100%;
+    	  	padding-right: 10px;
+        	padding-left: 0px;
+        }
+
+        .lexhead{
+        	font-size: 45px;
+        }
+
+        .lexlogo{
+            margin-top: 3px;
+            height: 55px;
+        }
+
+        .lexmenubtn{
+        	display: block;
+        }
+
 
     .lexsep{
-	display: block;	
-	height: 34px;
-    border-left: 1px solid #757575
-	}	
+    	display: block !important;	
+    }	
 
-  .lex_header {
-     left: 0;
-     width: 100%;
-  }
 
-.lex_article .head{
-    font-size: 16px;
+    .lex_header {
+         left: 0;
+         width: 100%;
+         padding-left: 0px;
+         height: 155px;
+      }
+
+    .lex_article .head{
+        font-size: 16px;
+    }
+
+    .lex_article .head .desc{
+      font-size: 11px;
+    }
+
+    .lex_article .f_content .content{
+      font-size: 12px;
+    }
+
+    .lex_article .lexfooter{
+      font-size: 12px;
+    }
+
+    .sub_head_content{
+      font-size: 14px;
+    }
+
+    .backtable td{
+       font-size: 10px;
+    }
+
+    .backtable th{
+       font-size: 10px;
+       min-width: 90px;
+    }
+
+    .lex_abc{
+      width: 60px;
+    }
+
+
+    .abc_wrap{
+      width: 60px;
+      overflow-y: auto;
+      z-index: 1;
+    }
+
+    .abc_wrap::-webkit-scrollbar-thumb {
+        background-color: transparent;
+    }
+
+    #scrollArea{
+        margin-left: 57px;
+        padding-left: 0px;
+    }
+
+    .lexstartcontent{
+      padding-left: 10px;
+      padding-right: 10px;
+    }
+
+    .lexlisthr{
+      width: 37px;
+    }
+
+    .lexlist{
+      width: calc(100% - 57px);
+    }
+
+      .lexsearch {
+            margin-left: 0px;
+      }
+
+    .lex_header_inner{
+      padding-left: 0px;
+      padding-right: 0px;
+    }
+
 }
 
-.lex_article .head .desc{
-  font-size: 11px;
+@media only screen and (max-width: 1150px) {
+
+    .va_versions .year{
+        left: -10px;
+    }
+
+    .va_versions .year .line.inset{
+      left: 0px;
+    }
 }
 
-.lex_article .f_content .content{
-  font-size: 12px;
+@media only screen and (max-width: 875px) and (min-width: 768px) {
+     .lexsearch {
+        width: 450px;
+    }
 }
 
-.lex_article .lexfooter{
-  font-size: 12px;
+@media only screen and (max-height: 800px) {
+    .abc_wrap {
+        height: calc(100% - 65px);
+    }
+    .abc_wrap {
+      font-size: 11px;
+     }
 }
 
-.sub_head_content{
-  font-size: 14px;
-}
-
-
+@media only screen and (min-height: 700px) {
+    .abc_wrap {
+        height: 100%;
+    }    
 }
 
 
 @media only screen and (max-width: 520px) {
     .lexsearch {
-        width: 100%;
+        width: 410px;
     }
+    .lexsearch input {
+      font-size: 14px;
+     }
+      .lexsearch input::placeholder {
+      font-size: 12px;
+     }
 }
 
 @media only screen and (max-width: 469px) {
@@ -1426,7 +2245,13 @@ transform-style: initial !important;
     .lexlogo{
         height: 45px;
         margin-top: 10px;
-        margin-bottom: 25px;
+    }
+
+}
+
+@media only screen and (max-width: 417px) {
+    .lexsearch {
+        width: 100%;
     }
 }
 
@@ -1443,7 +2268,6 @@ transform-style: initial !important;
      .lexlogo{
         height: 35px;
         margin-top: 15px;
-        margin-bottom: 30px;
     }
 }
 
@@ -1461,4 +2285,23 @@ a.encyLink, span.encyLink{
 
 img.noTranslationImg {
 	height: 1em;
+}
+
+.doku_example_table th {
+	padding: 4px;
+}
+
+.doku_example_table {
+	font-family: doulosSIL;
+}
+
+.entry-content figure {
+	text-align: center;
+}
+
+.fragment_anchor { 
+  content: "";
+  display: block;
+  height: 45px; 
+  margin: -45px 0 0 0;
 }

@@ -8,12 +8,15 @@ include_once('va_ajax_typification.php');
 include_once('va_ajax_edit_glossary.php');
 include_once('va_ajax_concept_tree.php');
 include_once('va_ajax_lex_alp.php');
+include_once('va_ajax_versions.php');
 include_once('va_ajax_overview.php');
 
 function va_ajax_handler (){
 	global $va_xxx;
 	global $admin;
 	global $va_mitarbeiter;
+	
+	$page_count = 20; //Used for pagination of select2 ajax calls
 	
 	$db = $va_xxx;
 	
@@ -24,8 +27,8 @@ function va_ajax_handler (){
 	}
 	
 	$intern = $admin || $va_mitarbeiter;
+
 	switch($_REQUEST['namespace']){
-		
 	    case 'token_ops':
 	        if($_POST['stage'] == 'getTokens'){
 	            switch ($_POST['type']){
@@ -66,6 +69,11 @@ function va_ajax_handler (){
 		//Lexicon Alpinum
 		case 'lex_alp':
 			va_ajax_lex_alp($db);
+		break;
+
+		//VA Versions Page
+		case 'va_versions':
+			va_ajax_versions($db);
 		break;
 		
 		//Edit comments
@@ -215,6 +223,55 @@ function va_ajax_handler (){
 				break;
 
 			switch ($_REQUEST['query']){
+				case 'compute':
+					try {
+						$quelle = va_filter_source_for_ipa($_POST['source']);
+						
+						$parser = new VA_BetaParser($quelle);
+						
+						$tokens = $_POST['data'];
+						
+						$transformations = '';
+						$errors = '';
+						$numComplete = 0;
+						
+						$warnings = [];
+						
+
+						foreach ($tokens as $token){
+							$token = stripslashes($token);
+							list($chars, $valid) = $parser->split_chars($token);
+							
+							if(!$valid){
+								$errors .= 'Record not valid: ' . $token . ' -> ' . html_entity_decode($chars) . "\n";
+							}
+							else {
+								$res = $parser->convert_to_ipa($chars);
+								if($res['string']){
+									$transformations .= $token . ' -> ' . $res['string'] . "\n";
+									$va_xxx->query("UPDATE Tokens SET IPA = '" . addslashes($res['string']) . "', Trennzeichen_IPA = (SELECT IPA FROM Codepage_IPA WHERE Art = 'Trennzeichen' AND Beta = Trennzeichen AND Erhebung = '$quelle') WHERE EXISTS (SELECT * FROM Stimuli WHERE Stimuli.Id_Stimulus = Tokens.Id_Stimulus AND Erhebung = '$quelle') AND Token = '" . addslashes($token) . "'");
+									$numComplete++;
+								}
+								else {
+									foreach ($res['output'] as $missing){
+										if (!in_array($missing[1], $warnings)){
+											$warnings[] = $missing[1];
+										}
+									}
+								}
+								
+							}								
+						}
+						
+						$errors .= implode("\n", $warnings) . "\n";
+
+						echo json_encode([$transformations, $errors, $numComplete, true]);
+					}
+					catch (Exception $e){
+						echo json_encode(['', $e->getMessage(), 0, false]);
+					}
+				break;
+				
 				case 'get_tokens':
 					$tokens = $va_xxx->get_col($va_xxx->prepare("
 						SELECT distinct Token 
@@ -224,69 +281,69 @@ function va_ajax_handler (){
 					echo json_encode($tokens);
 					break;
 					
-				case 'compute':
-					$tokens = json_decode(stripslashes($_POST['data']));
-					$missing_chars = array();
-					$quelle = $_POST['source'];
-					$transformations = '';
-					$errors = '';
+				// case 'compute':
+					// $tokens = json_decode(stripslashes($_POST['data']));
+					// $missing_chars = array();
+					// $quelle = $_POST['source'];
+					// $transformations = '';
+					// $errors = '';
 					
-					$akzente = $va_xxx->get_results("SELECT Beta, IPA FROM Codepage_IPA WHERE Art = 'Akzent' AND Erhebung = '$quelle'", ARRAY_N);
-					$vokale = $va_xxx->get_var("SELECT group_concat(DISTINCT SUBSTR(Beta, 1, 1) SEPARATOR '') FROM Codepage_IPA WHERE Art = 'Vokal' AND Erhebung = '$quelle'", 0, 0);
-					$numComplete = 0;
+					// $akzente = $va_xxx->get_results("SELECT Beta, IPA FROM Codepage_IPA WHERE Art = 'Akzent' AND Erhebung = '$quelle'", ARRAY_N);
+					// $vokale = $va_xxx->get_var("SELECT group_concat(DISTINCT SUBSTR(Beta, 1, 1) SEPARATOR '') FROM Codepage_IPA WHERE Art = 'Vokal' AND Erhebung = '$quelle'", 0, 0);
+					// $numComplete = 0;
 					
-					foreach ($tokens as $token){
-						$complete = true;
-						$result = '';
-						$akzentExplizit = false;
-						$indexLastVowel = false;
+					// foreach ($tokens as $token){
+						// $complete = true;
+						// $result = '';
+						// $akzentExplizit = false;
+						// $indexLastVowel = false;
 						
-						foreach ($token as $character) {
-							foreach ($akzente as $akzent) {
-								$ak_qu = preg_quote($akzent[0], '/');
-								$character = preg_replace_callback('/([' . $vokale . '][^' . $ak_qu . 'a-zA-Z]*)' . $ak_qu . '/', 
-									function ($matches) use (&$result, $akzent, &$akzentExplizit){
-										$result .= $akzent[1];
-										$akzentExplizit = true;
-										return $matches[1];
-								}, $character);
-							}
+						// foreach ($token as $character) {
+							// foreach ($akzente as $akzent) {
+								// $ak_qu = preg_quote($akzent[0], '/');
+								// $character = preg_replace_callback('/([' . $vokale . '][^' . $ak_qu . 'a-zA-Z]*)' . $ak_qu . '/', 
+									// function ($matches) use (&$result, $akzent, &$akzentExplizit){
+										// $result .= $akzent[1];
+										// $akzentExplizit = true;
+										// return $matches[1];
+								// }, $character);
+							// }
 							
-							$ipa = $va_xxx->get_var("SELECT IPA from Codepage_IPA WHERE Erhebung = '" . ($quelle == 'ALD-I'? 'ALD-II': $quelle) . "' AND Beta = '" . addcslashes($character, "\'") . "' AND IPA != ''");
-							if($ipa){
-								$result .= $ipa;
+							// $ipa = $va_xxx->get_var("SELECT IPA from Codepage_IPA WHERE Erhebung = '" . ($quelle == 'ALD-I'? 'ALD-II': $quelle) . "' AND Beta = '" . addcslashes($character, "\'") . "' AND IPA != ''");
+							// if($ipa){
+								// $result .= $ipa;
 								
-								if(strpos($vokale, $character[0]) !== false){
-									$indexLastVowel = mb_strlen($result) - mb_strlen($ipa);
-								}
-							}
-							else {
-								if(!in_array($character, $missing_chars)){
-									$missing_chars[] = $character;
-									$errors .= "Eintrag \"$character\" fehlt fuer \"" . ($quelle == 'ALD-I'? 'ALD-II': $quelle) . "\"!\n";
-								}
-								$complete = false;
-							}
-						}
+								// if(strpos($vokale, $character[0]) !== false){
+									// $indexLastVowel = mb_strlen($result) - mb_strlen($ipa);
+								// }
+							// }
+							// else {
+								// if(!in_array($character, $missing_chars)){
+									// $missing_chars[] = $character;
+									// $errors .= "Eintrag \"$character\" fehlt fuer \"" . ($quelle == 'ALD-I'? 'ALD-II': $quelle) . "\"!\n";
+								// }
+								// $complete = false;
+							// }
+						// }
 						
 						//Akzent auf letzer Silbe, falls nicht gesetzt
-						$addAccent = !$akzentExplizit && $indexLastVowel !== false && ($quelle === 'ALP' || $quelle === 'ALJA' || $quelle === 'ALL');
+						// $addAccent = !$akzentExplizit && $indexLastVowel !== false && ($quelle === 'ALP' || $quelle === 'ALJA' || $quelle === 'ALL');
 						
-						if($addAccent){
-							$result = mb_substr($result, 0, $indexLastVowel) . $akzente[0][1] . mb_substr($result, $indexLastVowel);
-						}
+						// if($addAccent){
+							// $result = mb_substr($result, 0, $indexLastVowel) . $akzente[0][1] . mb_substr($result, $indexLastVowel);
+						// }
 						
 						
-						if($complete){
-							$transformations .= implode('', $token) . ' -> ' . $result . ($addAccent? ' (Akzent hinzugefügt)' : '') . "\n";
-							$va_xxx->query("UPDATE Tokens SET IPA = '" . addslashes($result) . "', Trennzeichen_IPA = (SELECT IPA FROM Codepage_IPA WHERE Art = 'Trennzeichen' AND Beta = Trennzeichen AND Erhebung = '$quelle')
-						 WHERE EXISTS (SELECT * FROM Stimuli WHERE Stimuli.Id_Stimulus = Tokens.Id_Stimulus AND Erhebung = '$quelle') AND Token = '" . addslashes(implode('', $token)) . "'");
-							$numComplete++;
-						}
-					}
+						// if($complete){
+							// $transformations .= implode('', $token) . ' -> ' . $result . ($addAccent? ' (Akzent hinzugefügt)' : '') . "\n";
+							// $va_xxx->query("UPDATE Tokens SET IPA = '" . addslashes($result) . "', Trennzeichen_IPA = (SELECT IPA FROM Codepage_IPA WHERE Art = 'Trennzeichen' AND Beta = Trennzeichen AND Erhebung = '$quelle')
+						 // WHERE EXISTS (SELECT * FROM Stimuli WHERE Stimuli.Id_Stimulus = Tokens.Id_Stimulus AND Erhebung = '$quelle') AND Token = '" . addslashes(implode('', $token)) . "'");
+							// $numComplete++;
+						// }
+					// }
 					
-					echo json_encode(array($transformations, $errors, $numComplete));
-					break;
+					// echo json_encode(array($transformations, $errors, $numComplete));
+					// break;
 			}
 			
 			break;
@@ -533,23 +590,85 @@ function va_ajax_handler (){
 					break;
 					
 				case 'getConceptsForSelect':
+				    $start = ($_REQUEST['page'] - 1) * $page_count;
 					$where = '';
 					
-					if ($_REQUEST['ignore']){
-						$where = 'Id_Konzept NOT IN (' . implode(',', $_REQUEST['ignore']) . ') AND ';
+					if (isset($_REQUEST['ignore']) && $_REQUEST['ignore']){
+						$where .= 'Id_Konzept NOT IN (' . implode(',', $_REQUEST['ignore']) . ') AND ';
 					}
-				
-					$results = $db->get_results('SELECT Id_Konzept as id, IF(Name_D is not null and Name_d != "" AND Name_D != Beschreibung_D, CONCAT(Name_D, " (", Beschreibung_D, ")"), Beschreibung_D) as text FROM Konzepte WHERE ' . $where . '(Name_D LIKE "%' . esc_sql($_REQUEST['search']) . '%" OR Beschreibung_D LIKE "%' . esc_sql($_REQUEST['search']) . '%") ORDER BY text ASC', ARRAY_A);
+
+					if (isset($_REQUEST['ignore_gram']) && $_REQUEST['ignore_gram']){
+					    $where .= 'NOT Grammatikalisch AND ';
+					}
+
 					
-					echo json_encode($results);
+					$search = $_REQUEST['search']?? '';
+				
+					$res = $db->get_results('SELECT Id_Konzept as id, IF(Name_D is not null and Name_d != "" AND Name_D != Beschreibung_D, CONCAT(Name_D, " (", Beschreibung_D, ")"), Beschreibung_D) as text FROM Konzepte WHERE ' . $where . '(Name_D LIKE "%' . esc_sql($search) . '%" OR Beschreibung_D LIKE "%' . esc_sql($search) . '%") ORDER BY text ASC', ARRAY_A);
+					
+					va_sort_for_select($search, $res);
+					
+					echo json_encode([
+					    'results' => array_slice($res, $start, $page_count),
+					    'pagination'=> [
+					        'more' => $start + $page_count < count($res)
+					    ]
+					]);
+					//echo json_encode($results);
 				break;
 					
 				case 'getLemmasForSelect':
-					$sql = 'SELECT Id_lemma as id, subvocem as text FROM lemmata WHERE NOT Text_Referenz AND Quelle = %s AND subvocem LIKE "%' . esc_sql($_REQUEST['search']) . '%" ORDER BY subvocem ASC';
+				    if (!isset($_REQUEST['search'])){
+				        $_REQUEST['search'] = '';
+				    }
+				    
+					$search = va_remove_special_chars($_REQUEST['search']);
+					$sql = 'SELECT Id_lemma as id, subvocem as text FROM lemmata WHERE NOT Text_Referenz AND Quelle = %s AND subvocem COLLATE utf8_general_ci LIKE "%' . esc_sql($search) . '%" ORDER BY subvocem ASC';
 					$refs = $db->get_results($va_xxx->prepare($sql, $_REQUEST['source']), ARRAY_A);
 					
 					echo json_encode($refs);
 					break;
+					
+				case 'getMorphTypesForSelect':
+				    if (!isset($_REQUEST['search'])){
+				        $_REQUEST['search'] = '';
+				    }
+				    
+				    $start = ($_REQUEST['page'] - 1) * $page_count;
+				    $search = va_remove_accents($_REQUEST['search']);
+				    $sql = 'SELECT Id_morph_Typ as id, lex_unique(Orth, Sprache, Genus) as text FROM morph_Typen WHERE Quelle = "VA" AND Orth COLLATE "utf8_general_ci" LIKE "%' . esc_sql($search) . '%" ORDER BY Orth collate "utf8_general_ci"';
+				    $res = $db->get_results($sql, ARRAY_A);
+					
+					va_sort_for_select($search, $res, function ($x){return va_remove_accents($x);});
+					
+				    echo json_encode([
+				        'results' => array_slice($res, $start, $page_count),
+				        'pagination'=> [
+				            'more' => $start + $page_count < count($res)
+				        ]
+				    ]);
+				    break;
+				    
+				case 'getBaseTypesForSelect':
+				    $start = ($_REQUEST['page'] - 1) * $page_count;
+				    $search = va_remove_accents($_REQUEST['search']);
+				    $sql = 'SELECT Id_Basistyp as id, CONCAT(Orth, IF(Sprache != "", CONCAT(" (", Sprache, ")"), "")) as text FROM Basistypen WHERE Quelle = "VA" AND Orth COLLATE "utf8_general_ci" LIKE "%' . esc_sql($search) . '%" ORDER BY Orth';
+				    $res = $db->get_results($sql, ARRAY_A);
+					
+					va_sort_for_select($search, $res, function ($x){
+						if (mb_strpos($x, 0, 1) == '*'){
+							$x = mb_substr($x, 1);
+						}
+						return va_remove_accents($x);
+					});
+					
+				    echo json_encode([
+				        'results' => array_slice($res, $start, $page_count),
+				        'pagination'=> [
+				            'more' => $start + $page_count < count($res)
+				        ]
+				    ]);
+				    break;
 			}
 		break;
 		
@@ -658,16 +777,34 @@ function va_ajax_handler (){
 				switch ($_POST['query']){
 					case 'nextPage':
 						global $wpdb;
-						foreach ($_POST['answers'] as $answer){
-							if (is_array($answer['answer'])){
-								$answer['answer'] = implode('###', $answer['answer']);
+						if ($_POST['save'] == 'true'){
+							foreach ($_POST['answers'] as $answer){
+							    $sub_questions = false;
+								if (is_array($answer['answer'])){
+								    if(array_keys($answer['answer']) === range(0, count($answer['answer']) - 1)){ //Sequential
+								        $answer['answer'] = implode('###', $answer['answer']);
+								    }
+								    else {
+								        $sub_questions = true;
+								    }
+								}
+								
+								if ($sub_questions){
+								    $letter = 'a';
+								    foreach ($answer['answer'] as $sub_text => $sub_answer_text){
+								        $sub_answer = $answer;
+								        $sub_answer['answer'] = $sub_answer_text;
+								        $sub_answer['spec'] = $sub_text;
+								        
+								        $sub_answer['sub_question'] = $letter ++;
+								        
+								        va_quest_insert_answer($wpdb, $sub_answer);
+								    }
+								}
+								else {
+								    va_quest_insert_answer($wpdb, $answer);
+								}
 							}
-							
-							$answer['answer'] = stripslashes($answer['answer']);
-							$answer['question_text'] = strip_tags($wpdb->get_var($wpdb->prepare('SELECT meta_value FROM wp_postmeta WHERE post_id = %d AND meta_key = %s',
-								$answer['post_id'], ('fb_seite_' . $answer['page'] . '_fb_frage_' . $answer['question'] . '_fb_uberschrift'))));
-							
-							$wpdb->insert('questionnaire_results', $answer);
 						}
 						va_questionnaire_sub_page($_POST['page'] + 1, $_POST['post']);
 						break;
@@ -697,6 +834,23 @@ function va_ajax_handler (){
 	die;
 }
 
+function va_quest_insert_answer (&$db, $answer){
+    $answer['answer'] = stripslashes($answer['answer']);
+    $answer['question_text'] = strip_tags($db->get_var($db->prepare('SELECT meta_value FROM wp_postmeta WHERE post_id = %d AND meta_key = %s',
+    $answer['post_id'], ('fb_seite_' . $answer['page'] . '_fb_frage_' . $answer['question'] . '_fb_uberschrift'))));
+    
+    if (isset($answer['spec'])){
+        $answer['question_text'] .= ' (' . $answer['spec'] . ')';
+        unset($answer['spec']);
+    }
+    
+    if (!isset($answer['sub_question'])){
+        $answer['sub_question'] = '';
+    }
+    
+    $db->insert('questionnaire_results', $answer);
+}
+
 
 /**
  * Returns a string with %d's for integer list
@@ -716,5 +870,37 @@ function va_check_lock (&$db, $data){
     }
     ob_end_clean();
     return $res;
+}
+
+function va_sort_for_select ($search, &$dbres, $extraFun = false){
+	if (mb_strlen($search) > 1){
+		$search = mb_strtolower($search);
+		if ($extraFun){
+			$search = $extraFun($search);
+		}
+		
+		usort($dbres, function ($e1, $e2) use ($search, $extraFun){
+			$t1 = mb_strtolower($e1['text']);
+			$t2 = mb_strtolower($e2['text']);
+			
+			if ($extraFun){
+				$t1 = $extraFun($t1);
+				$t2 = $extraFun($t2);
+			}
+			
+			$pos1 = mb_strpos($t1, $search);
+			$pos2 = mb_strpos($t2, $search);
+			
+			if ($pos1 === 0 && $pos2 !== 0){
+				return -1;
+			}
+			
+			if ($pos2 === 0 && $pos1 !== 0){
+				return 1;
+			}
+			
+			return strcmp($t1, $t2);
+		});
+	}
 }
 ?>

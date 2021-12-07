@@ -88,7 +88,7 @@ function va_reference_page (){
 	
 	echo '<br /><br />';
 
-	$sources = ['TLIO', 'DRG'];
+	$sources = ['TLIO', 'DRG', 'GPSR', 'TLFi', 'Nuovo de Mauro', 'DIBS'];
 	
 	echo '<select autocomplete="off" id="source_select"><option value="0">Referenzwörterbuch auswählen</option>';
 	foreach ($sources as $source){
@@ -126,7 +126,11 @@ function va_references_show_candidates ($source, $num_chars, $num_lemmas, $show_
 	
 	$langs = [
 		'TLIO' => 'roa',
-		'DRG' => 'roa'
+		'DRG' => 'roa',
+		'GPSR' => 'roa',
+		'TLFi' => 'roa',
+		'Nuovo de Mauro' => 'roa',
+		'DIBS' => 'gem'
 	];
 
 	$lang = $langs[$source];

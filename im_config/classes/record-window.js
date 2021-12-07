@@ -29,11 +29,28 @@ function RecordInfoWindowContent (categoryID, elementID, overlayType, data){
 	 * @type {number}
 	 */
 	this.encoding = data["encoding"] * 1;
+
+
+	var concepts = data["concepts"].length == 0? false: data["concepts"].slice(0);
+	
+	/**
+	* @type{boolean|string}
+	*/
+	this.meaningLang = concepts === false? data["meanings"][0]: false; //Only set meaning lang if there are no concepts, since it it used to determine if concepts or meanings are shown
+	
+	if (concepts === false){
+		if (this.meaningLang){
+			concepts = data["meanings"][1];
+		}
+		else {
+			concepts = [""];
+		}
+	}
 	
 	/**
 	 * @type {Array<string>} 
 	 */
-	this.concepts = data["concepts"].length == 0? [""]: data["concepts"].slice(0);
+	this.concepts = concepts;
 	
 	/**
 	 * @type {Array<string>} 
@@ -58,6 +75,11 @@ function RecordInfoWindowContent (categoryID, elementID, overlayType, data){
 	 * @type {string} 
 	 */
 	this.geonamesID = data["geonames"];
+	
+	/**
+	* @type {string}
+	*/
+	this.ex_id = data["external_id"];
 	
 	/**
 	 * @type {Array<Object>}
@@ -129,42 +151,59 @@ function RecordInfoWindowContent (categoryID, elementID, overlayType, data){
 			if(this.encoding < 3 && originalString){
 				result += "<br /><br /><span>DST " + Ue["QUELLE"] + ": </span><span class='originalRecord'>" + originalString + "</span>";
 			}
+			
+			result += "<br /><br />VA-ID: " + this.ex_id;
+			result += "<br /><br /><a href='" + ajax_object.site_url +"?api=1&action=getRecord&id=" + this.ex_id + "&version=" + (ajax_object.db == "xxx"? ajax_object.max_db: ajax_object.db) + "' target='_BLANK' style='margin: 5px;'><i class='list_export_icon fas fa-file-download' title='" + Ue["API_LINK_RECORD"] + "'></i></a>";
+			
 			result += "</div><span>(" + Ue['EINZELBELEG'] + ")</span></td>";
 			if(index == 0  || optionManager.getOptionState("polymode") == "hex")
 				result += "<td><h2 class='community singleRecord'>" + this.communityName + geonames + "</h2></td>";
 			result += "</tr></table>";
 		}
-		result += "<br /><br />" + this.typeTable + "<br /><br /><table class='easy-table easy-table-default va_record_source_table'><tr><th>" + Ue["QUELLE"] + "</th><th>" + Ue["KONZEPT"] + "</th></tr>";
+		
+		if (this.meaningLang){
+			var meaningName = Ue["BEDEUTUNG"] + " " + Ue["QUELLE"] + " (" + this.meaningLang + ")";
+		}
+		else {
+			var meaningName = Ue["KONZEPT"];
+		}
+		
+		result += "<br /><br />" + this.typeTable + "<br /><br /><table class='easy-table easy-table-default va_record_source_table'><tr><th>" + Ue["QUELLE"] + "</th><th>" + meaningName + "</th></tr>";
 		
 		for (var /** number */ i = 0; i < this.sources.length; i++){
-			var /** string */ cid = this.concepts[i].substring(1);
-			var /** Array<Array<string>|string|null>> */ conceptArray = Concepts[cid];
-			var /**string */ conceptName;
-			var /**string */ conceptDescription;
-			if(conceptArray !== undefined){
-				conceptName = /** @type {string} */ (conceptArray[0]);
-				conceptDescription = /** @type {string} */ (conceptArray[1]);
+			if (this.concepts[i].match(/^C[0-9]+$/)){
+				var /** string */ cid = this.concepts[i].substring(1);
+				var /** Array<Array<string>|string|null>> */ conceptArray = Concepts[cid];
+				var /**string */ conceptName;
+				var /**string */ conceptDescription;
+				if(conceptArray !== undefined){
+					conceptName = /** @type {string} */ (conceptArray[0]);
+					conceptDescription = /** @type {string} */ (conceptArray[1]);
+				}
+				else {
+					conceptName = "";
+					conceptDescription = Ue["KEIN_KONZEPT"];
+				}
+				
+				var /** string */ wdataLink = "";
+				if(QIDS[cid]){
+					wdataLink = " <a target='_BLANK' href='https://www.wikidata.org/wiki/Q" + QIDS[cid] + "'>(Wikidata)</a>";
+				}
+				
+				let cdescr;
+				if (conceptName != "" && conceptName != conceptDescription){
+					cdescr = conceptDescription.replace("'", "&apos;");
+				}
+				else {
+					cdescr = "";
+					conceptName = conceptDescription;
+				}
+				
+				result += "<tr><td class='atlasSource'>" + this.sources[i] + "</td><td><span class='currentRecordWindowConcept' data-id='" + cid + "' data-concept-descr='" + cdescr + "'>" + conceptName + "</span>" + wdataLink + "</td></tr>";
 			}
 			else {
-				conceptName = "";
-				conceptDescription = Ue["KEIN_KONZEPT"];
+				result += "<tr><td class='atlasSource'>" + this.sources[i] + "</td><td>„" + this.concepts[i] + "“</td></tr>";
 			}
-			
-			var /** string */ wdataLink = "";
-			if(QIDS[cid]){
-				wdataLink = " <a target='_BLANK' href='https://www.wikidata.org/wiki/Q" + QIDS[cid] + "'>(Wikidata)</a>";
-			}
-			
-			let cdescr;
-			if (conceptName != "" && conceptName != conceptDescription){
-				cdescr = conceptDescription.replace("'", "&apos;");
-			}
-			else {
-				cdescr = "";
-				conceptName = conceptDescription;
-			}
-			
-			result += "<tr><td class='atlasSource'>" + this.sources[i] + "</td><td><span class='currentRecordWindowConcept' data-id='" + cid + "' data-concept-descr='" + cdescr + "'>" + conceptName + "</span>" + wdataLink + "</td></tr>";
 				
 		}
 		
@@ -215,6 +254,7 @@ function RecordInfoWindowContent (categoryID, elementID, overlayType, data){
 						res += jQuery(this).data("concept-descr") + "<br /><br />";
 					}
 					res += "VA-ID: C" + jQuery(this).data("id");
+					res += "<br /><br /><a href='" + ajax_object.site_url +"?api=1&action=getRecord&id=C" + jQuery(this).data("id") + "&version=" + (ajax_object.db == "xxx"? ajax_object.max_db: ajax_object.db) + "' target='_BLANK' style='margin: 5px;'><i class='list_export_icon fas fa-file-download' title='" + Ue["API_LINK_CONCEPT"] + "'></i></a>";
 					res += "<br /><br /><a href='" + ajax_object["lex_path"] + "#C" + jQuery(this).data("id") + "' target='_BLANK'>" + Ue["LEX_ALP_REF"] + "</a>";
 					return res;
 				},
@@ -371,7 +411,21 @@ function RecordInfoWindowContent (categoryID, elementID, overlayType, data){
 				"content" : {
 					text : function (){
 						let res = "VA-ID: L" + jQuery(this).data("id");
+						res += "<br /><br /><a href='" + ajax_object.site_url +"?api=1&action=getRecord&id=L" + jQuery(this).data("id") + "&version=" + (ajax_object.db == "xxx"? ajax_object.max_db: ajax_object.db) + "' target='_BLANK' style='margin: 5px;'><i class='list_export_icon fas fa-file-download' title='" + Ue["API_LINK_LEX"] + "'></i></a>";
 						res += "<br /><br /><a href='" + ajax_object["lex_path"] + "#L" + jQuery(this).data("id") + "' target='_BLANK'>" + Ue["LEX_ALP_REF"] + "</a>";
+						
+						let lidString = jQuery(this).data("lids") + "";
+						if (lidString){
+							res += "<br /><br />Wikidata: ";
+							let lids = lidString.split(",");
+							for (let i = 0; i < lids.length; i++){
+								if (i > 0){
+									res += ", ";
+								}
+								res += "<a target='_BLANK' href='https://www.wikidata.org/wiki/Lexeme:L" + lids[i] + "'>L" + lids[i] + "</a>";
+							}
+						}
+						
 						return res;
 					},
 					title: {
@@ -417,6 +471,7 @@ function RecordInfoWindowContent (categoryID, elementID, overlayType, data){
 				"content" : {
 					text : function (){
 						let res = "VA-ID: B" + jQuery(this).data("id");
+						res += "<br /><br /><a href='" + ajax_object.site_url +"?api=1&action=getRecord&id=B" + jQuery(this).data("id") + "&version=" + (ajax_object.db == "xxx"? ajax_object.max_db: ajax_object.db) + "' target='_BLANK' style='margin: 5px;'><i class='list_export_icon fas fa-file-download' title='" + Ue["API_LINK_BASE"] + "'></i></a>";
 						res += "<br /><br /><a href='" + ajax_object["lex_path"] + "#B" + jQuery(this).data("id") + "' target='_BLANK'>" + Ue["LEX_ALP_REF"] + "</a>";
 						return res;
 					},

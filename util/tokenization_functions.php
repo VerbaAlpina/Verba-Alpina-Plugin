@@ -118,8 +118,12 @@ function va_tokenize_for_stimulus ($id_stimulus, $preview){
 	global $va_xxx;
 
 	$records = $va_xxx->get_results('
-		SELECT Id_Aeusserung, Aeusserung, Klassifizierung, Aeusserungen.Bemerkung, Sprache, Stimuli.Erhebung, GROUP_CONCAT(Id_Konzept) AS Konzepte, Id_Stimulus, Id_Informant, Erfasst_Von, Erfasst_Am
-		FROM Aeusserungen JOIN Stimuli USING (Id_Stimulus) JOIN Informanten USING (Id_Informant) LEFT JOIN VTBL_Aeusserung_Konzept USING (Id_Aeusserung)
+		SELECT Id_Aeusserung, Aeusserung, Klassifizierung, Aeusserungen.Bemerkung, Sprache, Stimuli.Erhebung, GROUP_CONCAT(DISTINCT Id_Konzept) AS Konzepte, GROUP_CONCAT(DISTINCT Id_Bedeutung) AS Bedeutungen, Id_Stimulus, Id_Informant, Erfasst_Von, Erfasst_Am, Id_Dialekt
+		FROM Aeusserungen 
+			JOIN Stimuli USING (Id_Stimulus) 
+			JOIN Informanten USING (Id_Informant) 
+			LEFT JOIN VTBL_Aeusserung_Konzept USING (Id_Aeusserung)
+			LEFT JOIN VTBL_Aeusserung_Bedeutung USING (Id_Aeusserung)
 		WHERE Not Tokenisiert AND Aeusserung NOT LIKE "<%>" AND Id_Stimulus ' . stripslashes($id_stimulus) .'
 		GROUP BY Id_Aeusserung', ARRAY_A);
 	
@@ -147,6 +151,7 @@ function va_tokenize_for_stimulus ($id_stimulus, $preview){
 			$res = $tokenizer->tokenize($record['Aeusserung'], 
 				['class' => $record['Klassifizierung'], 
 				'concepts' => ($record['Konzepte']? explode(',', $record['Konzepte']) : []),
+				'meanings' => ($record['Bedeutungen']? explode(',', $record['Bedeutungen']) : []),
 				'notes' => $record['Bemerkung'],
 				'lang' => $record['Sprache']
 			]);
@@ -194,6 +199,9 @@ function va_tokenize_for_stimulus ($id_stimulus, $preview){
 				$concepts = $group['Konzepte'];
 				unset($group['Konzepte']);
 				
+				$meanings = $group['Bedeutungen'];
+				unset($group['Bedeutungen']);
+				
 				$mtype = $group['MTyp'];
 				unset($group['MTyp']);
 				
@@ -207,6 +215,10 @@ function va_tokenize_for_stimulus ($id_stimulus, $preview){
 				
 				foreach ($concepts as $concept){
 					$inserts[$index++] = ['VTBL_Tokengruppe_Konzept', ['Id_Tokengruppe' => '###ID' . $index_group . '###', 'Id_Konzept' => $concept], $current_id];
+				}
+				
+				foreach ($meanings as $meaning){
+					$inserts[$index++] = ['VTBL_Tokengruppe_Bedeutung', ['Id_Tokengruppe' => '###ID' . $index_group . '###', 'Id_Bedeutung' => $meaning], $current_id];
 				}
 				
 				if ($mtype){
@@ -230,6 +242,9 @@ function va_tokenize_for_stimulus ($id_stimulus, $preview){
 				$concepts = $token['Konzepte'];
 				unset($token['Konzepte']);
 				
+				$meanings = $token['Bedeutungen'];
+				unset($token['Bedeutungen']);
+				
 				$mtype = $token['MTyp'];
 				unset($token['MTyp']);
 				
@@ -241,6 +256,7 @@ function va_tokenize_for_stimulus ($id_stimulus, $preview){
 				$token['Id_Informant'] = $record['Id_Informant'];
 				$token['Erfasst_Von'] = $record['Erfasst_Von'];
 				$token['Erfasst_Am'] = $record['Erfasst_Am'];
+				$token['Id_Dialekt'] = $record['Id_Dialekt'];
 				
 				if ($token['Id_Tokengruppe']){
 					$token['Id_Tokengruppe'] = '###ID' . $group_mapping[substr($token['Id_Tokengruppe'], 3)] . '###';
@@ -251,6 +267,10 @@ function va_tokenize_for_stimulus ($id_stimulus, $preview){
 				
 				foreach ($concepts as $concept){
 					$inserts[$index++] = ['VTBL_Token_Konzept', ['Id_Token' => '###ID' . $index_token . '###', 'Id_Konzept' => $concept], $current_id];
+				}
+				
+				foreach ($meanings as $meaning){
+					$inserts[$index++] = ['VTBL_Token_Bedeutung', ['Id_Token' => '###ID' . $index_token . '###', 'Id_Bedeutung' => $meaning], $current_id];
 				}
 				
 				if ($mtype){
@@ -323,7 +343,7 @@ function va_tokenize_for_stimulus ($id_stimulus, $preview){
 				}
 				
 				if($va_xxx->insert($insert[0], $insert[1]) === false){
-					echo 'Error: ' . $va_xxx->last_error;
+					echo 'Error: ' . $va_xxx->last_error . ' (' . $insert[0] . ': ' . json_encode($insert[1]) . ')';
 					$va_xxx->query('ROLLBACK');
 					die;
 				}
@@ -428,18 +448,25 @@ function va_tokenization_info_for_stimulus ($id_stimulus) {
 	return json_encode([$table, $result[0]]);
 }
 
-function va_create_tokenizer ($source){
-	
+function va_filter_source_for_ipa ($source){
 	if($source == 'ALD-I'){
-		$sourceUsed = 'ALD-II';
+		return 'ALD-II';
 	}
 	else if($source == 'SDSFB'){
-		$sourceUsed = 'SDS';
+		return 'SDS';
+	}
+	else if($source == 'SAOFB'){
+		return 'SAO';
 	}
 	else {
-		$sourceUsed = $source;
+		return $source;
 	}
+}
+
+function va_create_tokenizer ($source){
 	
+	$sourceUsed = va_filter_source_for_ipa($source);
+
 	global $va_xxx;
 	$beta = $va_xxx->get_var($va_xxx->prepare('SELECT VA_Beta FROM Bibliographie WHERE Abkuerzung = %s', $sourceUsed));
 	
@@ -490,7 +517,7 @@ function va_create_tokenizer ($source){
 			break;
 	}
 	
-	if($source == 'CROWD' || $va_xxx->get_var($va_xxx->prepare('SELECT VA_Beta FROM Bibliographie WHERE Abkuerzung = %s', $source))){
+	if($source == 'CROWD' || $source == 'VSI' || $va_xxx->get_var($va_xxx->prepare('SELECT VA_Beta FROM Bibliographie WHERE Abkuerzung = %s', $source))){
 		$tokenizer->addReplacementRegex('/\s+</', '<');
 		$tokenizer->addReplacementRegex('/>\s+/', '>');
 		
@@ -564,7 +591,6 @@ function va_add_original_and_ipa ($tokenizer, $tokens, $global, $extraData){
 			}
 			
 			$res = $parser->convert_to_original($chars);
-			error_log(json_encode($chars) . ' -> ' . json_encode($res));
 			if($res['string']){
 				$token['Original'] = $res['string'];
 			}
@@ -591,8 +617,8 @@ function va_add_original_and_ipa ($tokenizer, $tokens, $global, $extraData){
 
 function va_tokenize_handle_groups_and_concepts ($tokenizer, $tokens, $global, $extraData){
 	
-	if(empty($extraData['concepts'])){
-		throw new TokenizerException('No concepts given!');
+	if(empty($extraData['concepts']) && empty($extraData['meanings'])){
+		throw new TokenizerException('No concepts or meanings given!');
 	}
 	
 	$global['groups'] = [];
@@ -627,9 +653,11 @@ function va_tokenize_handle_groups_and_concepts ($tokenizer, $tokens, $global, $
 			$group[0]['Id_Tokengruppe'] = NULL;
 			if (in_array($token['Token'], $schars)){
 				$group[0]['Konzepte'] = [779];
+				$group[0]['Bedeutungen'] = [];
 			}
 			else {
 				$group[0]['Konzepte'] = $extraData['concepts'];
+				$group[0]['Bedeutungen'] = $extraData['meanings'];
 			}
 		}
 		else {
@@ -646,6 +674,7 @@ function va_tokenize_handle_groups_and_concepts ($tokenizer, $tokens, $global, $
 				}
 				else if (in_array($token['Token'], $schars)){
 					$group[$index]['Konzepte'] = [779];
+					$group[$index]['Bedeutungen'] = [];
 				}
 			}
 			
@@ -654,6 +683,7 @@ function va_tokenize_handle_groups_and_concepts ($tokenizer, $tokens, $global, $
 				$group[0]['Id_Tokengruppe'] = NULL;
 				$group[1]['Id_Tokengruppe'] = NULL;
 				$group[1]['Konzepte'] = $extraData['concepts'];
+				$group[1]['Bedeutungen'] = $extraData['meanings'];
 				
 				if($group[1]['Genus'] == ''){
 					$group[1]['Genus'] = $group_gender_from_article;
@@ -664,6 +694,7 @@ function va_tokenize_handle_groups_and_concepts ($tokenizer, $tokens, $global, $
 				$group[0]['Id_Tokengruppe'] = NULL;
 				$group[1]['Id_Tokengruppe'] = NULL;
 				$group[1]['Konzepte'] = $extraData['concepts'];
+				$group[1]['Bedeutungen'] = $extraData['meanings'];
 			}
 			//special char + token + special char => no group
 			else if ($len == 3 && $isConcept($group[0], 779) && $isConcept($group[2], 779)){
@@ -671,6 +702,7 @@ function va_tokenize_handle_groups_and_concepts ($tokenizer, $tokens, $global, $
 				$group[1]['Id_Tokengruppe'] = NULL;
 				$group[2]['Id_Tokengruppe'] = NULL;
 				$group[1]['Konzepte'] = $extraData['concepts'];
+				$group[1]['Bedeutungen'] = $extraData['meanings'];
 				
 				//Move notes to "real" token
 				$group[1]['Bemerkung'] = $group[2]['Bemerkung'];
@@ -681,6 +713,7 @@ function va_tokenize_handle_groups_and_concepts ($tokenizer, $tokens, $global, $
 				$group[0]['Id_Tokengruppe'] = NULL;
 				$group[1]['Id_Tokengruppe'] = NULL;
 				$group[1]['Konzepte'] = $extraData['concepts'];
+				$group[1]['Bedeutungen'] = $extraData['meanings'];
 				$group[2]['Id_Tokengruppe'] = NULL;
 				
 				if($group[1]['Genus'] == ''){
@@ -696,6 +729,7 @@ function va_tokenize_handle_groups_and_concepts ($tokenizer, $tokens, $global, $
 				$group[0]['Id_Tokengruppe'] = NULL;
 				$group[1]['Id_Tokengruppe'] = NULL;
 				$group[2]['Konzepte'] = $extraData['concepts'];
+				$group[1]['Bedeutungen'] = $extraData['meanings'];
 				$group[2]['Id_Tokengruppe'] = NULL;
 				
 				if($group[2]['Genus'] == ''){
@@ -716,12 +750,15 @@ function va_tokenize_handle_groups_and_concepts ($tokenizer, $tokens, $global, $
 					$group_gender = $group[$len - 1]['Genus'];
 				}
 				
-				$global['groups'][] = ['Genus' => $group_gender, 'Bemerkung' => $group_notes, 'Konzepte' => $extraData['concepts'], 'MTyp' => NULL, 'PTyp' => NULL];
+				$global['groups'][] = ['Genus' => $group_gender, 'Bemerkung' => $group_notes, 'Konzepte' => $extraData['concepts'], 'Bedeutungen' => $extraData['meanings'], 'MTyp' => NULL, 'PTyp' => NULL];
 				
 				foreach ($group as $index => $token){
 					$group[$index]['Id_Tokengruppe'] = 'NEW' . $indexGroup;
 					if(!array_key_exists('Konzepte', $group[$index])){
 						$group[$index]['Konzepte'] = [];
+					}
+					if(!array_key_exists('Bedeutungen', $group[$index])){
+						$group[$index]['Bedeutungen'] = [];
 					}
 					if(!$isConcept($group[$index], 699)){
 						$group[$index]['Genus'] = '';
@@ -730,7 +767,7 @@ function va_tokenize_handle_groups_and_concepts ($tokenizer, $tokens, $global, $
 				}
 			}
 		}
-		
+
 		foreach ($group as $token){
 			$result[] = $token;
 		}

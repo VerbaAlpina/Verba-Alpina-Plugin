@@ -62,7 +62,43 @@ function SQL_Filter (defaultVal){
 		input.appendChild(document.createTextNode(this.defaultVal));
 		
 		div.appendChild(input);
-
+		
+		var headlineGroup = document.createElement("h1");
+		headlineGroup.appendChild(document.createTextNode(Ue["GRUPPIERUNG"] + " (" + Ue["OPTIONAL"] + ")"));
+		div.appendChild(headlineGroup);
+		
+		var groupField = document.createElement("input");
+		groupField["type"] = "text";
+		groupField["autocomplete"] = "off";
+		groupField["id"] = "va_sql_group";
+		groupField["style"]["margin-left"] = "5px";
+		groupField["style"]["width"] = "80%";
+		
+		var br = document.createElement("br");
+		div.appendChild(br);
+		
+		div.appendChild(document.createTextNode("GROUP BY "));
+		div.appendChild(groupField);
+		
+		var icon2 = document.createElement("i");
+		icon2["className"] = "far fa-question-circle";
+		icon2["id"] = "va_sql_group_help";
+		icon2["style"]["marginLeft"] = "10px";
+		text.appendChild(icon2);
+		
+		div.appendChild(icon2);
+		
+		div.appendChild(document.createTextNode(Ue["NAME"] + " " + Ue["GRUPPIERUNG"]));
+		
+		var groupNameField = document.createElement("input");
+		groupNameField["type"] = "text";
+		groupNameField["autocomplete"] = "off";
+		groupNameField["id"] = "va_sql_group_name";
+		groupNameField["style"]["margin-left"] = "5px";
+		groupNameField["style"]["margin-top"] = "10px";
+		
+		div.appendChild(groupNameField);
+	
 		return div;
 	};
 	
@@ -76,6 +112,11 @@ function SQL_Filter (defaultVal){
 	this.storeData = function (data){
 		data["where"] = jQuery("#va_sql_textarea").val();
 		data["query_name"] = jQuery("#va_sql_name").val();
+		data["groupingSQL"] = jQuery("#va_sql_group").val();
+		data["groupingName"] = jQuery("#va_sql_group_name").val();
+		if (data["groupingSQL"]){
+			data["subElementCategory"] = categories.CustomSub;
+		}
 
 		/*
 		 * Give every new query a new id, except an older query is reloaded
@@ -119,6 +160,8 @@ function SQL_Filter (defaultVal){
 	this.setValues = function (data, element, categoryId, elementId){
 		jQuery("#va_sql_textarea").val(data["where"]);
 		jQuery("#va_sql_name").val(data["query_name"]);
+		jQuery("#va_sql_group").val(data["groupingSQL"]);
+		jQuery("#va_sql_group_name").val(data["groupingName"]);
 		this.oldID = data["id"];
 	};
 	
@@ -133,8 +176,8 @@ function SQL_Filter (defaultVal){
 	 * 
 	 */
 	this.afterAppending = function (element, mainCategoryId, elementId){
-		
 		addMouseOverHelpSingleElement(jQuery(element).find("#va_sql_help"), /** @type{string} */ (jQuery("#va_sql_help_div").html()));
+		addMouseOverHelpSingleElement(jQuery(element).find("#va_sql_group_help"), /** @type{string} */ (jQuery("#va_sql_group_help_div").html()));
 	};
 	
 	/**

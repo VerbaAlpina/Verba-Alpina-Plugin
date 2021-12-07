@@ -12,7 +12,8 @@ function DescriptionList (){
 		var description = new TokenDescription (this, ++currentId, ajaxObject["Art"], ajaxObject["Id_Typ"], 
 			ajaxObject["Token"], ajaxObject["IPA"], ajaxObject["Original"], ajaxObject["Id_Stimulus"], ajaxObject["Erhebung"], 
 			ajaxObject["Genus"], ajaxObject["Konzepte"], ajaxObject["Informanten"], ajaxObject["Tokengruppe"], ajaxObject["Bemerkungen"], 
-			ajaxObject["Id_morph_Typ"],	ajaxObject["Typ"], ajaxObject["Relevanz"], ajaxObject["TokenIds"], ajaxObject["Aeusserungen"], ajaxObject["AeusserungIds"]);
+			ajaxObject["Id_morph_Typ"],	ajaxObject["Typ"], ajaxObject["Relevanz"], ajaxObject["TokenIds"], ajaxObject["Aeusserungen"], 
+			ajaxObject["AeusserungIds"], ajaxObject["Problem"]);
 		list[currentId] = description;
 		if(ortho[description.name] == undefined){
 			ortho[description.name] = []
@@ -97,7 +98,7 @@ function DescriptionList (){
  * @param {number} id_vatype
  * @param {number} vatype
  */
-function TokenDescription (owner, id, kind, id_type, token, ipa, original, id_stimulus, source, gender, concepts, informants, group, remarks, id_vatype, vatype, relevance, idlist, aelist, aeidlist){
+function TokenDescription (owner, id, kind, id_type, token, ipa, original, id_stimulus, source, gender, concepts, informants, group, remarks, id_vatype, vatype, relevance, idlist, aelist, aeidlist, problem){
 	this.id = id;
 	this.kind = kind;
 	this.id_type = id_type;
@@ -132,6 +133,8 @@ function TokenDescription (owner, id, kind, id_type, token, ipa, original, id_st
 	this.vatype = vatype;
 	this.id_vatype = id_vatype;
 	
+	this.problem = problem;
+	
 	this.shortenInformants = function (){
 		if(this.informants.length > 50){
 			var sub = this.informants.substring(0,50);
@@ -149,11 +152,15 @@ function TokenDescription (owner, id, kind, id_type, token, ipa, original, id_st
 		if(this.concepts.length == 0){
 			style += "font-style: italic;";
 		}
-		if (this.relevant != "1"){
+		
+		if (this.problem){
+			style += "background: red;";
+		}
+		else if (this.relevant != "1"){
 			style += "background: #e1e1e1;";
 		}
 		var number = this.owner.getNumber(this.name, this.id);
-		return '<option value="' + this.id + '" style="' + style + '">' + this.name + (number == -1? "": " [" + number + "]") + '</option>';
+		return '<option ' + (this.problem? " disabled": "") + ' value="' + this.id + '" style="' + style + '">' + this.name + (number == -1? "": " [" + number + "]") + '</option>';
 	};
 	
 	this.createTableRow = function (){
@@ -171,7 +178,10 @@ function TokenDescription (owner, id, kind, id_type, token, ipa, original, id_st
 		else
 			result += "<td><span class='chosen-like-button" + (DATA.writeMode? " chosen-like-button-del" : "") + "'><span>" 
 				+ this.vatype + "</span><a class='deleteTypification' /></span></td>";
-		result += "<td><input type='button' class='button button-secondary correctButton' value='" + TRANSLATIONS.CORRECT + "' /></td>";
+		result += "<td><input type='button' class='button button-secondary correctButton' value='" + TRANSLATIONS.CORRECT + "' />";
+		if(this.vatype == null){
+			result += "<input type='button' class='button button-secondary problemButton' value='" + TRANSLATIONS.PROBLEM + "' /></td>";
+		}
 		result += "</tr>";
 		return result;
 	};
@@ -180,8 +190,8 @@ function TokenDescription (owner, id, kind, id_type, token, ipa, original, id_st
 		if(id){
 			if(this.conceptLoadingList.indexOf(id) === -1){
 				return "<span class='chosen-like-button" + (DATA.writeMode? " chosen-like-button-del" : "") + "' id='" + id + "'><span>" 
-					+ jQuery("#konzeptAuswahl option[value=" + id + "]").text() 
-					+ "</span><a class='deleteConcept' /></span>";
+					+ Concepts[id]
+					+ "</span><a class='deleteConcept'></a></span>";
 			}
 			else {
 				return "<img src='" + DATA.loadingUrl + "' />";
@@ -262,21 +272,37 @@ function setMorphTypeData (data){
 	jQuery(e["Genus"]).val(data.type.Genus).trigger("chosen:updated");
 	jQuery(e["Kommentar_Intern"]).val(data.type.Kommentar_Intern);
 
-	jQuery("#auswahlBestandteile").val(data.parts).trigger("chosen:updated");
+	if (data.parts && data.parts.length > 0){
+		jQuery.post(ajaxurl, {
+			"action" : "va",
+			"namespace" : "typification",
+			"query" : "getPartsMorph",
+			"ids" : data.parts
+		}, function (response){
+			var partdata = JSON.parse(response);
+			for (let i = 0; i < partdata.length; i++){
+				var option = new Option(partdata[i].text, partdata[i].id, false, true);
+				jQuery("#auswahlBestandteile").append(option);
+			}
+			jQuery("#auswahlBestandteile").trigger("change");
+		});
+	}
 	
-	jQuery.post(ajaxurl, {
-		"action" : "va",
-		"namespace" : "typification",
-		"query" : "getReferencesMorph",
-		"ids" : data.refs
-	}, function (response){
-		var refdata = JSON.parse(response);
-		for (let i = 0; i < refdata.length; i++){
-			var option = new Option(refdata[i].text, refdata[i].id, false, true);
-			jQuery("#auswahlReferenz").append(option);
-		}
-		jQuery("#auswahlReferenz").trigger("change");
-	});
+	if (data.refs && data.refs.length > 0){
+		jQuery.post(ajaxurl, {
+			"action" : "va",
+			"namespace" : "typification",
+			"query" : "getReferencesMorph",
+			"ids" : data.refs
+		}, function (response){
+			var refdata = JSON.parse(response);
+			for (let i = 0; i < refdata.length; i++){
+				var option = new Option(refdata[i].text, refdata[i].id, false, true);
+				jQuery("#auswahlReferenz").append(option);
+			}
+			jQuery("#auswahlReferenz").trigger("change");
+		});
+	}
 	
 	
 	//jQuery("#auswahlBasistyp").val(data.btypes).trigger("chosen:updated");
@@ -384,8 +410,9 @@ function openMorphTypeDialog (){
 		"minWidth" : 700,
 		"modal": true,
 		"close" : function (){
-			jQuery("#VATypeOverlay select:not(#auswahlReferenz)").chosen("destroy");
-			jQuery("#VATypeOverlay #auswahlReferenz").select2("destroy"); 
+			jQuery("#VATypeOverlay select:not(#auswahlReferenz,#auswahlBestandteile)").chosen("destroy");
+			jQuery("#VATypeOverlay #auswahlReferenz").select2("destroy");
+			jQuery("#VATypeOverlay #auswahlBestandteile").select2("destroy"); 
 		}
 	});
 	
@@ -408,12 +435,32 @@ function openMorphTypeDialog (){
 			},
 			"processResults": function (data){
 				return {"results": data};
-			}
+			},
+			"delay": 250
 		},
 		"minimumInputLength" : 2
 	});
 	
-	jQuery("#VATypeOverlay select[multiple=multiple], #auswahlBasistyp").chosen({"allow_single_deselect" : true, "width": "600px", "normalize_search_text" : removeDiacriticsPlusSpecial, "search_contains": true});
+	jQuery("#auswahlBestandteile").select2({
+		ajax: {
+			"url": ajaxurl,
+			"type" : "POST",
+			"dataType": "json",
+			"data": function (params) {
+				var query = {
+					"action" : "va",
+					"namespace" : "util",
+					"query" : "getMorphTypesForSelect",
+					"search": params.term,
+					"page": params.page || 1
+				}
+	
+	      		return query;
+			}
+		}
+	});
+	
+	jQuery("#VATypeOverlay #auswahlBasistyp").chosen({"allow_single_deselect" : true, "width": "600px", "normalize_search_text" : removeDiacriticsPlusSpecial, "search_contains": true});
 }
 
 function closeMorphDialog (){
@@ -456,7 +503,8 @@ function openBaseTypeDialog (closingFunction){
 			},
 			"processResults": function (data){
 				return {"results": data};
-			}
+			},
+			"delay": 250
 		},
 		"minimumInputLength" : 2
 	});
@@ -464,6 +512,72 @@ function openBaseTypeDialog (closingFunction){
 	jQuery("#VABasetypeOverlay select:not(#auswahlReferenzBasetype)").val([]).chosen({"allow_single_deselect" : true, "width": "400px", "normalize_search_text" : removeDiacriticsPlusSpecial, "search_contains": true});
 }
 
+function addBaseType (id, type, unsure){
+	var btypeSpan = "<span class='chosen-like-button chosen-like-button-del'><span>" + type + "</span><a class='deleteBaseType'></a></span>";
+	jQuery("#baseTypeTable").append("<tr data-bid='" + id + "'><td>" + btypeSpan + "</td><td><input type='checkbox'" + (unsure? " checked": "") + " />Unsicher</td></tr>");
+	jQuery("#auswahlBasistyp").find("option[value=" + id + "]").prop("disabled", true);
+	jQuery("#auswahlBasistyp").val([]).trigger("chosen:updated");
+}
+
 function closeBaseTypeDialog (){
 	jQuery("#VABasetypeOverlay").dialog("close");
+}
+
+function saveBaseType (){
+	var data = getBaseTypeData();
+	
+	if(data.type.Orth == ""){
+		alert(TRANSLATIONS.ERROR_ORTH);
+		return;
+	}
+	
+	if(!data.type.Sprache){
+		alert("Das Feld \"Sprache\" darf nicht leer sein!");
+		return;
+	}
+
+	jQuery.post(ajaxurl, data, function (response){
+		try {
+			if(response.startsWith("Fehler")){
+				alert(response);
+				return;
+			}
+			
+			var typeInfo = JSON.parse(response);
+			closeBaseTypeDialog();
+			
+			jQuery('#auswahlBasistyp').append("<option value='" + typeInfo["Id"] + "'>" + typeInfo["Name"] + "</option>").trigger("chosen:updated");
+		}
+		catch (e) {
+			alert(e + "(" + response + ")");
+		}
+	});
+}
+
+function addListenersForCreateLexType (){
+	jQuery(document).on("click", "#newVAType", openMorphTypeDialog);
+	jQuery("#newMTypeButton").click(saveMorphType);
+	jQuery("#newBTypeButton").click(saveBaseType);
+
+	jQuery("#newBaseTypeButton").click(function (){
+		openBaseTypeDialog();
+	});
+
+	jQuery("#auswahlBasistyp").change(function (){
+		addBaseType(this.value, jQuery(this).find("option:selected").text(), false);
+	});
+	
+	jQuery(document).on("click", ".deleteBaseType", function (){
+		jQuery("#auswahlBasistyp option[value=" + jQuery(this).closest("tr").data("bid") + "]").prop("disabled", false);
+		jQuery("#auswahlBasistyp").trigger("chosen:updated");
+		jQuery(this).closest("tr").remove();
+	});
+	
+	jQuery("#newReferenceButton").click(function () {
+		showTableEntryDialog('NeueReferenzFuerZuweisung', null, selectModes.Chosen, DATA.dbname);
+	});
+	
+	jQuery("#newBasetypeReferenceButton").click(function (){
+		showTableEntryDialog('NeueReferenzFuerBasistyp', null, selectModes.Chosen, DATA.dbname);
+	});
 }

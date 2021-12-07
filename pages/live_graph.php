@@ -8,6 +8,10 @@ function va_live_graph_page (){
 
 <style>
 
+.live_graph .site-info{
+	padding-left: 15px;
+}
+
 .node {
   cursor: pointer;
 }
@@ -67,6 +71,7 @@ function va_live_graph_page (){
 */
 .text_node{
 	font-size: 22px;
+	text-shadow: 1px 1px #000000;
 }
 
 .text_leaf{
@@ -87,7 +92,7 @@ function va_live_graph_page (){
 }
 
 .cur_date{
-    font-size: 10px;
+    font-size: 13px;
     padding-left: 15px;
 }
 
@@ -119,15 +124,15 @@ function va_live_graph_page (){
 
 		$partner_data = $va_xxx->get_results('SELECT DISTINCT Name as name, "partner" as type FROM `kooperationspartner` WHERE Status = "fix"');
 		$quellen_data = $va_xxx->get_results('SELECT `Erhebung` as name, "quellen" as type, COUNT(*) as size FROM `stimuli` JOIN tokens ON stimuli.ID_Stimulus=tokens.ID_Stimulus GROUP BY `Erhebung`');
-		$lang_data    = $va_xxx->get_results('SELECT Sprache as name, "lang_data" as type, count(*) as size FROM vtbl_token_morph_typ JOIN morph_typen on vtbl_token_morph_typ.Id_morph_Typ = morph_typen.ID_morph_Typ AND morph_typen.Quelle = "VA" WHERE morph_typen.ID_morph_Typ != 4144 GROUP BY Sprache');
+		$lang_data    = $va_xxx->get_results('SELECT Sprache as name, "lang_data" as type, count(*) as size FROM vtbl_token_morph_typ JOIN morph_typen on vtbl_token_morph_typ.Id_morph_Typ = morph_typen.ID_morph_Typ AND morph_typen.Quelle = "VA" WHERE morph_typen.ID_morph_Typ != 4144 AND Sprache != "" GROUP BY Sprache');
 
 		foreach ($partner_data as &$value) {
-		     $value->size = 500;
+		     $value->size = 1800; // SIZE FOR PARTNER NODES 
 		}
 
 		foreach ($lang_data as &$value) {
-			if($value->name == "ger")$value->name = $Ue['L_GRAPH_GERMANISCH'];  
-			if($value->name == "rom")$value->name = $Ue['L_GRAPH_ROMANISCH']; 
+			if($value->name == "gem")$value->name = $Ue['L_GRAPH_GERMANISCH'];  
+			if($value->name == "roa")$value->name = $Ue['L_GRAPH_ROMANISCH']; 
 			if($value->name == "sla")$value->name = $Ue['L_GRAPH_SLAWISCH']; 
 		}
 
@@ -179,6 +184,7 @@ var window_width;
 	jQuery(function (){
 		window_width = window.innerWidth;
 		createCirclePacking();
+		jQuery('body').addClass('live_graph')
 
 			var currentdate = new Date(); 
 			var datetime = currentdate.getDate() + "/"
@@ -289,11 +295,12 @@ var window_width;
 
 		  	 			var str2 = all_parts[j].substring(d.r-1,all_parts[j].length);
 		  	 			all_parts[j] = str1;
-		  	 			if(all_parts[j+1]!=undefined){
-		  	 			all_parts[j+1] = str2 + " " + all_parts[j+1];
+
+		  	 			if(all_parts[j+1]!=undefined && str2 != undefined){
+		  	 				all_parts[j+1] = str2 + " " + all_parts[j+1];
 		  	 			}
 		  	 			else{
-		  	 				all_parts.push(str2);
+		  	 			 	if(str2)all_parts.push(str2);
 		  	 			}
 
 		  	 		}
@@ -305,33 +312,36 @@ var window_width;
 		  	 	var k=0;	
 
 		  	 	for(var j = 0; j<all_parts.length;j++){
-		  	 		if((first_part + all_parts[k]).length<d.r){
+		  	 		if(((first_part + all_parts[k]).length<d.r)&&all_parts[k]){
 		  	 		first_part+= all_parts[k] + " ";
 		  	 		k++;
 		  	 		}
 		  	 		else break;
 		  	 	}
 
-		  	 	parts = [first_part];
+		  	 	if(first_part) parts = [first_part];
+
+
 
 		  	 	if(string.length>d.r){ 
 	  	 		var second_part = "";	
 	  	 	 	 	for(var j =0; j<all_parts.length;j++){
-			  	 		if((second_part + all_parts[k]).length<d.r){
+			  	 		if(((second_part + all_parts[k]).length<d.r)&&all_parts[k]){
 			  	 		second_part+= all_parts[k] + " ";
 			  	 		k++;
 			  	 		}
 			  	 		else break;
 			  	 	}
 	  	 			i= 0.0;
-	  	 		 parts.push(second_part);
+	  	 		if(second_part) parts.push(second_part);
 		  	    }
+
 
 
 		  	 	if(string.length>d.r*2){ 
 	  	 		var third_part = "";	
 	  	 	 	 	for(var j =0; j<all_parts.length;j++){
-			  	 		if((third_part + all_parts[k]).length<d.r){
+			  	 		if(((third_part + all_parts[k]).length<d.r)&&all_parts[k]){
 			  	 		third_part+= all_parts[k] + " ";
 			  	 		k++;
 			  	 		}
@@ -340,7 +350,7 @@ var window_width;
 	  	 			i= -0.5;
 	  	 			third_part = third_part.substring(0,third_part.length-4);
 	  	 			third_part += "...";
-	  	 		 parts.push(third_part);
+	  	 		if(third_part) parts.push(third_part);
 		  	    }
 
 		  	  //   var first_part = string.substring(0, d.r);
@@ -356,9 +366,10 @@ var window_width;
 	  	 		// 	i = -0.5;
 		  	 	// };
 
-	
+				
 		  	 
 		 	 }
+
 	
 		       for(var key in parts){
 		       	var str = parts[key];

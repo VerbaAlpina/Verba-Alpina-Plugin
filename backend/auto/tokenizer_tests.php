@@ -2174,7 +2174,138 @@ function va_tokenize_test() {
 					'warnings' => []
 				]
 			]
-		]
+		],
+	    
+	    [
+	        'CROWD',
+	        'caṣelànte (di caseificio)',
+	        [
+	            'class' => 'B',
+	            'concepts' => [110],
+	            'notes' => '',
+	            'lang' => 'rom'
+	        ],
+	        [
+	            'tokens' => [
+	                [
+	                    'Token' => 'caṣelànte',
+	                    'IPA' => '',
+	                    'Original' => '',
+	                    'Trennzeichen' => NULL,
+	                    'Trennzeichen_IPA' => NULL,
+	                    'Trennzeichen_Original' => NULL,
+	                    'Ebene_1' => 1,
+	                    'Ebene_2' => 1,
+	                    'Ebene_3' => 1,
+	                    'Bemerkung' => 'di caseificio',
+	                    'Genus' => '',
+	                    'Konzepte' => [110],
+	                    'Id_Tokengruppe' => NULL,
+	                    'MTyp' => NULL,
+	                    'PTyp' => NULL
+	                ]
+	            ],
+	            'global' => [
+	                'groups' => [],
+	                'mtypes' => [],
+	                'ptypes' => [],
+	                'warnings' => []
+	            ]
+	        ]
+	    ],
+	    
+	    [
+	        'SAO',
+	        'do-a2f <n.>, dea2f*a2 <pl.>',
+	        [
+	            'class' => 'B',
+	            'concepts' => [7198],
+	            'notes' => '',
+	            'lang' => 'ger'
+	        ],
+	        [
+	            'tokens' => [
+	                [
+	                    'Token' => 'do-a2f',
+	                    'IPA' => '',
+	                    'Original' => 'dōɒf',
+	                    'Trennzeichen' => NULL,
+	                    'Trennzeichen_IPA' => NULL,
+	                    'Trennzeichen_Original' => NULL,
+	                    'Ebene_1' => 1,
+	                    'Ebene_2' => 1,
+	                    'Ebene_3' => 1,
+	                    'Bemerkung' => 'n.',
+	                    'Genus' => 'n',
+	                    'Konzepte' => [7198],
+	                    'Id_Tokengruppe' => NULL,
+	                    'MTyp' => NULL,
+	                    'PTyp' => NULL
+	                ],
+	                [
+	                    'Token' => 'dea2f*a2',
+	                    'IPA' => '',
+	                    'Original' => 'deɒf͓ɒ',
+	                    'Trennzeichen' => NULL,
+	                    'Trennzeichen_IPA' => NULL,
+	                    'Trennzeichen_Original' => NULL,
+	                    'Ebene_1' => 1,
+	                    'Ebene_2' => 2,
+	                    'Ebene_3' => 1,
+	                    'Bemerkung' => 'pl.',
+	                    'Genus' => '',
+	                    'Konzepte' => [7198],
+	                    'Id_Tokengruppe' => NULL,
+	                    'MTyp' => NULL,
+	                    'PTyp' => NULL
+	                ]
+	            ],
+	            'global' => [
+	                'groups' => [],
+	                'mtypes' => [],
+	                'ptypes' => [],
+	                'warnings' => ['Missing character in SAO-IPA codepage: o-', 'Missing character in SAO-IPA codepage: f', 'Missing character in SAO-IPA codepage: f*']
+	            ]
+	        ]
+	    ],
+		
+		[
+	        'VSI',
+	        'agnei <pl., "-" durch "agn" ersetzt>',
+	        [
+	            'class' => 'B',
+	            'concepts' => [1287],
+	            'notes' => 'eingeklammert',
+	            'lang' => 'rom'
+	        ],
+	        [
+	            'tokens' => [
+	                [
+	                    'Token' => 'agnei',
+	                    'IPA' => '',
+	                    'Original' => '',
+	                    'Trennzeichen' => NULL,
+	                    'Trennzeichen_IPA' => NULL,
+	                    'Trennzeichen_Original' => NULL,
+	                    'Ebene_1' => 1,
+	                    'Ebene_2' => 1,
+	                    'Ebene_3' => 1,
+	                    'Bemerkung' => 'eingeklammert pl., "-" durch "agn" ersetzt',
+	                    'Genus' => '',
+	                    'Konzepte' => [1287],
+	                    'Id_Tokengruppe' => NULL,
+	                    'MTyp' => NULL,
+	                    'PTyp' => NULL
+	                ]
+	            ],
+	            'global' => [
+	                'groups' => [],
+	                'mtypes' => [],
+	                'ptypes' => [],
+	                'warnings' => []
+	            ]
+	        ]
+	    ]
 	];
 	
 	foreach ( $tests as $index => $test ) {

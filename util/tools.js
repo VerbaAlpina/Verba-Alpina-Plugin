@@ -599,3 +599,21 @@ function whichTransitionEvent() {
         }
     }
 }
+
+
+function showBrowserZoomWarning(message){
+
+	if(jQuery('.browserZoomWarning').length==0){
+
+		var warning = jQuery('<div class="browserZoomWarning"></div>');
+		var close = jQuery('<div class="warningClose"><i class="fa fa-times" aria-hidden="true"></i></div>')
+		warning.text(message)
+		jQuery('body').append(warning)
+		warning.append(close)
+		close.on('click',function(){
+			warning.remove()
+		})
+
+	}
+
+}

@@ -1,5 +1,5 @@
 <?php
-function parseSyntax(&$value, $replaceNewlines = false, $intern = false, $mode = 'A') {
+function parseSyntax(&$value, $replaceNewlines = false, $intern = false, $mode = 'A', $add_bib = false) {
 	set_error_handler('va_syntax_warning_handler', E_WARNING);
 	
 	try {
@@ -26,7 +26,7 @@ function parseSyntax(&$value, $replaceNewlines = false, $intern = false, $mode =
 		    
 			$parse_res = $beta_parser->convert_to_original($match[1]);
 			if ($parse_res['string'])
-				return '<span style="font-family: arial unicode;">' . $parse_res['string'] . '</span>';
+				return '<span style="font-family: doulosSil;">' . $parse_res['string'] . '</span>';
 			return '<span style="background: red;">' . $match[1] . '</span>';
 		}, $value);
 		
@@ -49,22 +49,44 @@ function parseSyntax(&$value, $replaceNewlines = false, $intern = false, $mode =
 		$value = preg_replace ('/(-\[\[.*\]\])/U', '<code>$1</code>', $value);
 		
 		// Bilder
-		$value = preg_replace ('/(?<!-)\[\[Bild:([^\|]*)\]\]/U', "<br /><img src=\"$media_path$1\" /><br />", $value);
+		$value = preg_replace ('/(?<!-)\[\[Bild:([^\|]*)\]\]/U', "<br /><figure><a href=\"$media_path$1\" target='_BLANK'><img src=\"$media_path$1\" /></a></figure><br />", $value);
 		
 		$value = preg_replace_callback ('/(?<!-)\[\[Bild:(.*)\|(.*)\]\]/U', function ($treffer) {
 			global $media_path;
-			if (strpos ($treffer[2], ':')) {
-				$parts = explode (':', $treffer[2]);
-				if (strcasecmp ($parts[0], 'Breite')) {
-					return "<br /><img src=\"$media_path$treffer[1]\" width=\"$parts[1]px\" /><br />";
-				} else if (strcasecmp ($parts[0], 'Höhe')) {
-					return "<br /><img src=\"$media_path$treffer[1]\" height=\"$parts[1]px\" /><br />";
-				} else {
-					return "<br /><img src=\"$media_path$treffer[1]\"><br />";
+			
+			$parts = explode('|', $treffer[2]);
+			
+			$width = false;
+			$height = false;
+			$cap = '';
+			
+			foreach ($parts as $part){
+				if (strpos ($part, ':')) {
+					$data = explode (':', $part);
+					if (mb_strtolower($data[0]) === 'breite') {
+						$width = $data[1] . 'px';
+					} 
+					if (mb_strtolower($data[0]) === 'höhe') {
+						$height = $data[1] . 'px';
+					}
+					if (mb_strtolower($data[0]) === 'bu') {
+						$cap = '<figcaption class="wp-caption"><span class="wp-caption-text">' . $data[1] . '</span></figcaption>';
+					}
 				}
-			} else {
-				return "<br /><img src=\"$media_path$treffer[1]\"  width=\"$treffer[2]\" /><br />";
+				else {
+					$width = $treffer[2];
+				}
 			}
+			
+			$attr = '';
+			if ($width){
+				$attr .= "  width=\"$width\"";
+			}
+			if ($height){
+				$attr .= "  height=\"$height\"";
+			}
+			
+			return "<br /><figure><a href=\"$media_path$treffer[1]\" target='_BLANK'><img src=\"$media_path$treffer[1]\"$attr /></a>$cap</figure><br />";
 		}, $value);
 		
 		// Themenkarte
@@ -128,7 +150,7 @@ function parseSyntax(&$value, $replaceNewlines = false, $intern = false, $mode =
 			}
 		}, $value);
 		
-		parseBiblio ($value);
+		parseBiblio ($value, $add_bib);
 		
 		// Ergänzungen/Änderungen
 		$value = preg_replace_callback ('#(<|\[\[)neu(?: fertig="[IFSREL]*")?(>|\]\])#', function ($treffer) use ($intern) {
@@ -166,6 +188,7 @@ function parseSyntax(&$value, $replaceNewlines = false, $intern = false, $mode =
 			$atts['db'] = $va_current_db_name;
 			$atts['query'] = str_replace('<br />', '', $treffer[1]);
 			$atts['login'] = 'va_wordpress';
+			
 			if (count ($treffer) > 2) {
 				$params = explode ('|', $treffer[2]);
 				foreach ( $params as $p ) {
@@ -195,6 +218,18 @@ function parseSyntax(&$value, $replaceNewlines = false, $intern = false, $mode =
 				$treffer[3] = mb_substr($treffer[3], 0, $pos_fragment);
 			}
 			
+			$additional_params = [];
+			$pos_params = mb_strrpos($treffer[3], '&');
+			if ($pos_params){
+			    $pstring = mb_substr($treffer[3], $pos_params + 1);
+			    $pairs = explode('&', $pstring);
+			    foreach ($pairs as $pair){
+			        $parr = explode('=', $pair);
+			        $additional_params[$parr[0]] = $parr[1];
+			    }
+			    $treffer[3] = mb_substr($treffer[3], 0, $pos_params);
+			}
+			
 			$dtext = NULL;
 			if ($treffer[3] == 'START'){
 				$link = get_home_url();
@@ -216,6 +251,9 @@ function parseSyntax(&$value, $replaceNewlines = false, $intern = false, $mode =
 				$link = get_page_link ($page->ID);
 				$dtext = $Ue[$treffer[3]];
 			}
+			if ($additional_params){
+			    $link = add_query_arg($additional_params, $link);
+			}
 
 			if ($fragment){
 				$link .= '#' . $fragment;
@@ -232,10 +270,14 @@ function parseSyntax(&$value, $replaceNewlines = false, $intern = false, $mode =
 		$value = preg_replace_callback ('/(?<!-)\[\[(([^\]]*)\|)?Tabelle:(.*)\]\]/U', function ($treffer) use ($dbdoku_path) {
 			$link = $dbdoku_path . '&table=' . urlencode($treffer[3]);
 			
+			$link = add_query_arg('dev', 1, $link); //TODO remove!!!
+			
+			global $vadb;
+			$exists = $vadb->get_var($vadb->prepare('SELECT id_tabelle FROM doku_tabellen WHERE Name = %s',$treffer[3]));
 			if ($treffer[1] == '') {
-				return "<a href='" . $link . "'>" . $treffer[3] . "</a>";
+				return "<a style='" . ($exists? '': 'background: #ffe6e6') . "' href='" . $link . "'>" . $treffer[3] . "</a>";
 			} else {
-				return "<a href='" . $link . "'>" . $treffer[2] . "</a>";
+				return "<a style='" . ($exists? '': 'background: #ffe6e6') . "' href='" . $link . "'>" . $treffer[2] . "</a>";
 			}
 		}, $value);
 		
@@ -341,11 +383,9 @@ function va_create_bibl_html($abk, $descr = null) {
 	];
 }
 
-function va_add_bibl_div($code, $content, &$codesBibl) {
+function va_add_bibl_div($code, $abk, $content, &$codesBibl) {
 	if (! array_key_exists ($code, $codesBibl)) {
-		$codesBibl[$code] = "<div id='$code' style='display: none;'>
-			$content
-			</div>";
+		$codesBibl[$code] = [$abk, $content];
 	}
 }
 
@@ -359,20 +399,35 @@ function getCommentHeadline($id, $lang) {
 	return $vadb->get_var ($vadb->prepare ("SELECT getEntryName(%s, %s)", $id, $lang));
 }
 
-function parseBiblio(&$text) {
-	$codesBibl = array();
+function parseBiblio(&$text, $add_bib) {
+	global $Ue;
+	
+	$codesBibl = [];
 	
 	$text = preg_replace_callback ('/([^-])\[\[(([^\[]*)\|)?Bibl:([^\[]*)\]\]/', function ($treffer) use (&$codesBibl) {
 		global $vadb;
 		$b = $vadb->get_results ("SELECT Autor, Titel, Ort, Jahr, Download_URL, Band, Enthalten_In, Seiten, Verlag FROM Bibliographie WHERE Abkuerzung = '$treffer[4]'", 'ARRAY_N');
 		$abk = $treffer[3] ? $treffer[3] : null;
 		list ($code, $html) = va_create_bibl_html ($treffer[4], $abk);
-		va_add_bibl_div ($code, ((sizeof ($b) == 0) ? 'Eintrag nicht gefunden' : va_format_bibliography ($b[0][0], $b[0][1], $b[0][3], $b[0][2], $b[0][4], $b[0][5], $b[0][6], $b[0][7], $b[0][8])), $codesBibl);
+		va_add_bibl_div ($code, $abk?: $treffer[4], ((sizeof ($b) == 0) ? 'Eintrag nicht gefunden' : va_format_bibliography ($b[0][0], $b[0][1], $b[0][3], $b[0][2], $b[0][4], $b[0][5], $b[0][6], $b[0][7], $b[0][8])), $codesBibl);
 		return $treffer[1] . $html;
 	}, 
 	$text);
 	
-	$text .= implode ('', $codesBibl);
+	if ($add_bib && $codesBibl){
+		uasort($codesBibl, function ($e1, $e2){
+			return strcmp($e1[0], $e2[0]);
+		});
+		
+		$text .= '<hr><h3>' . $Ue['BIBLIOGRAPHIE'] . '</h3><ul>';
+		
+		foreach ($codesBibl as $val){
+			$text .= '<li><b>' . $val[0] . '</b> = ' . str_replace("\n<br /><br />\n", '. ', $val[1]) . '</li>';
+		}
+		$text .= '</ul>';
+	}
+
+	$text .= implode ('', array_map(function ($k, $v){return "<div id='$k' style='display: none;'>{$v[1]}</div>";}, array_keys($codesBibl), array_values($codesBibl)));
 }
 
 function va_add_abrv($value) {

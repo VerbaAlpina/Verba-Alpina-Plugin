@@ -164,7 +164,7 @@ function ladeGlossar (){
 				}
 				
 				if($intern && $va_current_db_name == 'va_xxx'){
-					echo '&nbsp;<a href="' . get_admin_url(1) . '?page=glossar&entry=' . $e['Id_Eintrag'] . '" target="_BLANK" style="font-size: 50%">(' . $Ue['BEARBEITEN'] . ')</a>';
+					echo '&nbsp;<a href="' . get_admin_url(1) . '?page=va&entry=' . $e['Id_Eintrag'] . '" target="_BLANK" style="font-size: 50%">(' . $Ue['BEARBEITEN'] . ')</a>';
 				}
 				if($va_current_db_name != 'va_xxx'){
 					$cite_text = va_create_glossary_citation($e['Id_Eintrag'], $Ue);

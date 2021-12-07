@@ -23,16 +23,20 @@ function va_show_db_doku (){
 	}
 	else {
 		list ($doku, $missing, $outdated_corr, $outdated_wrong, $doku_unconn) = va_check_table_state();
+		echo htmlentities(json_encode([$doku, $missing, $outdated_corr, $outdated_wrong, $doku_unconn]));
 
-		foreach ($doku as $table_name => $tdata){
-			echo va_get_table_docu($table_name, $tdata);
-		}
+		// foreach ($doku as $table_name => $tdata){
+			// echo va_get_table_docu($table_name, $tdata);
+		// }
 	}
 	
 	echo '</div>';
 }
 
 function va_get_table_docu ($table_name, $table_data = NULL){
+	
+	//TODO Versionierung!!!!!
+	global $va_xxx;
 	
 	$proc_path = 'https://github.com/VerbaAlpina/SQL/tree/master/procedures/';
 	
@@ -53,18 +57,38 @@ function va_get_table_docu ($table_name, $table_data = NULL){
 	    ]
 	];
 	
+	$auto_update = [
+		'trigger' => 'Die Daten in dieser Tabelle werden sofort bei einer Änderung der jeweils zugrundeliegenden Primärtabellen mit Hilfe eines [[Triggers|https://dev.mysql.com/doc/refman/8.0/en/triggers.html]] aktualisiert.',
+		'daily' => 'Die Daten in dieser Tabelle werden (mindestens) einmal täglich aus den jeweils zugrundeliegenden Primärtabellen neu erstellt.'
+	];
+	
 	if (!$table_data){
-		$table_data = va_get_docu_data($table_name);
+		try {
+			$table_data = va_get_docu_data($table_name);
+		}
+		catch (Exception $e) {
+			echo '<span style="color:red;">' . $e->getMessage() . '</span>';
+			return;
+		}
 	}
-
-	$content = '<h2>' . $table_name . '</h2>';
+	
+	$content = '<h2' . ($table_data['veraltet']? ' style="color: red;"': '') . '>' . $table_name . '</h2>';
+	
+	if ($table_data['veraltet']){
+		$content .= '<b>Diese Tabelle ist veraltet und existiert (in dieser Form) nicht mehr.</b>';
+		return $content;
+	}
 	
 	foreach ($prefixes as $prefix => $ptext){
 		if (mb_strpos(mb_strtolower($table_name), mb_strtolower($prefix)) === 0){
 			$content .= '<div><b>Vorbemerkung</b><br /><br />' . $ptext;
 			
-			if ($table_data['procedure']){
-				$content .= '<br /><br />Die Inhalte dieser Tabelle werden durch die folgende Prozedur erstellt: <a target="_BLANK" href="' . $proc_path . $table_data['procedure'] . '.sql">' . mb_substr($table_data['procedure'], mb_strpos($table_data['procedure'], '/') + 1) . '</a>';
+			if ($table_data['prozedur']){
+				$content .= '<br /><br />Die Inhalte dieser Tabelle werden durch die folgende Prozedur erstellt: <a target="_BLANK" href="' . $proc_path . $table_data['prozedur'] . '.sql">' . mb_substr($table_data['prozedur'], mb_strpos($table_data['prozedur'], '/') + 1) . '</a>';
+			}
+			
+			if ($table_data['auto_update']){
+				$content .= '<br /><br />' . $auto_update[$table_data['auto_update']];
 			}
 			
 			$content .= '</div><br /><br />';
@@ -72,8 +96,8 @@ function va_get_table_docu ($table_name, $table_data = NULL){
 		}
 	}
 	
-	if ($table_data['description']){
-		$content .= '<div><b>Beschreibung</b><br /><br />' . $table_data['description'] . '</div>';
+	if ($table_data['beschreibung']){
+		$content .= '<div><b>Beschreibung</b><br /><br />' . $table_data['beschreibung'] . '</div>';
 	}
 	else {
 		$content .= '<div style="color: red;">Tabellenbeschreibung fehlt!</div>';
@@ -87,6 +111,10 @@ function va_get_table_docu ($table_name, $table_data = NULL){
 	
 	$content .= '<table><tr><th>Spaltenname</th><th>Datentyp</th><th>Mögliche Werte</th><th>Beschreibung</th></tr>';
 	foreach ($table_data['col_descriptions'] as $col_name => $col_data){
+		if ($col_data['veraltet']){
+			continue;
+		}
+		
 		$col_name = mb_strtolower($col_name);
 		
 		foreach (str_split($col_data['schluessel']) as $key_part){
@@ -118,6 +146,87 @@ function va_get_table_docu ($table_name, $table_data = NULL){
 		$content .= '<tr><td>' . $col_name . '</td><td>' . $ctype_str . '</td><td>' . ($col_data['werte']?: 'beliebig') . '</td><td>' . ($col_data['beschreibung']?: '<span style="color: red;">Spaltenbeschreibung fehlt!</span>') . '</td></tr>';
 	}
 	$content .= '</table>';
+
+	if ($table_data['ausschnitt']){
+		
+		$cols_missing = false;
+		
+		if ($table_data['ausschnitt'] === 'DEFAULT'){
+			$select_cols = [];
+			foreach ($table_data['col_descriptions'] as $col_name => $col_data){
+				if ($col_data['veraltet']){
+					continue;
+				}
+				$select_cols[] = in_array($col_data['typ'], ['point', 'geometry'])? 'AsText(' . $col_name . ') AS ' . $col_name : $col_name;
+			}
+			$example_data = $va_xxx->get_results('SELECT ' . implode($select_cols, ',') . ' FROM ' . $table_name . ' ORDER BY RAND() LIMIT 10', ARRAY_A);
+		}
+		else if (strpos($table_data['ausschnitt'], 'DEFAULT-EXCEPT(') === 0){
+			$excl_cols = explode(',', substr($table_data['ausschnitt'], 15, -1));
+			$select_cols = [];
+			foreach ($table_data['col_descriptions'] as $col_name => $col_data){
+				if (!in_array($col_name, $excl_cols)){
+					$select_cols[] = in_array($col_data['typ'], ['point', 'geometry'])? 'AsText(' . $col_name . ') AS ' . $col_name: $col_name;
+				}
+				else {
+					$cols_missing = true;
+				}
+			}
+			error_log('SELECT ' . implode($select_cols, ',') . ' FROM ' . $table_name . ' ORDER BY RAND() LIMIT 10');
+			$example_data = $va_xxx->get_results('SELECT ' . implode($select_cols, ',') . ' FROM ' . $table_name . ' ORDER BY RAND() LIMIT 10', ARRAY_A);
+		}
+		else {
+			$example_data = $va_xxx->get_results($table_data['ausschnitt'], ARRAY_A);
+		}
+		if (count ($example_data) > 0){
+			$grey_found = false;
+			$content .= '<div><b>Ausschnitt</b><br /><br />';
+		
+			if ($table_data['ausschnitt_beschreibung']){
+				$content .= $table_data['ausschnitt_beschreibung'] . '<br /><br />';
+			}
+			$styles = [];
+			
+			$replacement = '<div style="overflow: auto; height: 300px"><table class="doku_example_table"><thead>';
+			foreach (array_keys($example_data[0]) as $col_name) {
+				$style = '';
+				if (!array_key_exists($col_name, $table_data['col_descriptions'])){
+					$style .= ' color: silver; text-transform: none;';
+					$grey_found = true;
+				}
+				$styles[$col_name] = $style;
+				
+				$col_title = $col_name;
+				$pos_dollar = strrpos($col_name, '$');
+				if ($pos_dollar !== false){
+					$col_title = substr($col_name, 0, $pos_dollar) . ' ([[Tabelle:' . substr($col_name, $pos_dollar + 1) . ']])';
+				}
+				
+				$replacement .= '<th style="' . $style . 'position: sticky; top: 0; background: white;">' . htmlentities($col_title) . '</th>';
+			}
+			$replacement .= '</tr></thead><tbody>';
+
+			foreach ($example_data as $row) {
+				$replacement .= '<tr>';
+				foreach ($row as $col_name => $value) {
+					$replacement .= '<td style="' . $styles[$col_name] . '">' . htmlentities(addslashes($value)) . '</td>';
+				}
+				$replacement .= '</tr>';
+			}
+			$content .= $replacement . '</tbody></table></div>';
+			
+			if ($grey_found){
+				$content .= '<br /<br />(Ausgegraute Spalten sind in der Tabelle selbst nicht enthalten. Sie kommen durch den [[Join|https://dev.mysql.com/doc/refman/8.0/en/join.html]] mit anderen Tabellen zustande und dienen dazu die Beispielsdaten der primären Tabelle besser verständlich zu machen.)';
+			}
+			
+			if ($cols_missing){
+				$content .= '<br /<br />(Eine oder mehrere Spalten dieser Tabelle werden nicht dargestellt.)';
+			}
+		}
+		
+		// global $va_current_db_name;
+		// $content .= sth_parseSQL(['db' => $va_current_db_name, 'query' => str_replace('<br />', '', $table_data['ausschnitt']),  'login' => 'va_wordpress', 'height' => '300px']);
+	}
 	
 	parseSyntax($content, true, true);
 	return $content;
@@ -126,8 +235,12 @@ function va_get_table_docu ($table_name, $table_data = NULL){
 function va_get_docu_data ($table_name){
 	global $va_xxx;
 	
-	$sql = 'SELECT id_tabelle, name, beschreibung, prozedur, veraltet FROM doku_tabellen WHERE name = %s';
+	$sql = 'SELECT id_tabelle, beschreibung, prozedur, auto_update, ausschnitt_beschreibung, ausschnitt, veraltet FROM doku_tabellen WHERE name = %s';
 	$table_docu = $va_xxx->get_row($va_xxx->prepare($sql, $table_name), ARRAY_A);
+	
+	if (!$table_docu){
+		throw new Exception('Die Tabelle "' . $table_name . '" existiert nicht!');
+	}
 	
 	$sql = 'SELECT id_spalte, id_tabelle, name, typ, schluessel, optional, werte, beschreibung, veraltet FROM doku_spalten WHERE id_tabelle = ' . $table_docu['id_tabelle'];
 	$cols_docu = $va_xxx->get_results($sql, ARRAY_A);
@@ -137,7 +250,9 @@ function va_get_docu_data ($table_name){
 		$cdata_arr[$col_docu['name']] = $col_docu;
 	}
 	
-	return ['description' => $table_docu['beschreibung'], 'procedure' => $table_docu['prozedur'], 'col_descriptions' => $cdata_arr];
+	
+	$table_docu['col_descriptions'] = $cdata_arr;
+	return $table_docu;
 }
 
 function va_check_table_state (){
@@ -146,7 +261,7 @@ function va_check_table_state (){
 	$sql = 'SELECT table_name FROM information_schema.tables WHERE table_schema = "va_xxx" ORDER BY table_name ASC';
 	$tables_existing = $va_xxx->get_col($sql);
 	
-	$sql = 'SELECT id_tabelle, name, beschreibung, prozedur, veraltet FROM doku_tabellen';
+	$sql = 'SELECT id_tabelle, name, beschreibung, prozedur, auto_update ausschnitt_beschreibung, ausschnitt, veraltet FROM doku_tabellen';
 	$tables_docu = $va_xxx->get_results($sql, ARRAY_A);
 	$tables_docu_map = [];
 	foreach ($tables_docu as $td){
@@ -186,7 +301,7 @@ function va_check_table_state (){
 				$tdescr = '';
 			}
 			
-			$data = ['name' => $table_name, 'beschreibung' => $tdescr, 'veraltet' => 0];
+			$data = ['name' => $table_name, 'beschreibung' => $tdescr, 'veraltet' => 0, 'prozedur' => null, 'auto_update' => null, 'ausschnitt_beschreibung' => null, 'ausschnitt' => null, 'veraltet' => false];
 			$va_xxx->insert('doku_tabellen', $data);
 			
 			$data['id_tabelle'] = $va_xxx->insert_id;
@@ -301,7 +416,7 @@ function va_check_table_state (){
 				}
 			}
 			
-			$doku[$table_name] = ['description' => $data['beschreibung'], 'procedure' => $data['prozedur'], 'col_descriptions' => $cdata_arr];
+			$doku[$table_name] = ['beschreibung' => $data['beschreibung'], 'prozedur' => $data['prozedur'], 'auto_update' => $table_docu['auto_update'], 'ausschnitt_beschreibung' => $table_docu['ausschnitt_beschreibung'], 'ausschnitt' => $table_docu['ausschnitt'], 'col_descriptions' => $cdata_arr, 'veraltet' => $table_docu['veraltet']];
 		}
 	}
 	

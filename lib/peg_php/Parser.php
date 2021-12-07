@@ -98,7 +98,7 @@ final class Parser
      */
     private function parseLiteral($operator, $input, $offset)
     {
-        if (substr($input, $offset, strlen($operator[1])) === $operator[1]) {
+        if (mb_substr($input, $offset, mb_strlen($operator[1])) === $operator[1]) {
             return Result::match(strlen($operator[1]), $operator[1], $offset);
         }
 
@@ -141,7 +141,7 @@ final class Parser
         
         $matches = [];
         $matchLen = 0;
-        $inputLen = strlen($input);
+        $inputLen = mb_strlen($input);
 
         $i = 0;
         while (++$i <= $max) {
@@ -173,9 +173,9 @@ final class Parser
      */
     private function parseCharacterClass($operator, $input, $offset)
     {
-        $regex = '{^['.$operator[1].']}';
+        $regex = '{^['.$operator[1].']}u';
 
-        if (preg_match($regex, substr($input, $offset), $match)) {
+        if (preg_match($regex, mb_substr($input, $offset), $match)) {
             return Result::match(1, $match[0], $offset);
         }
 
@@ -248,8 +248,8 @@ final class Parser
      */
     private function parseAny($operator, $input, $offset)
     {
-        if ((strlen($input) - $offset) >= 1) {
-            return Result::match(1, substr($input, $offset, 1), $offset);
+        if ((mb_strlen($input) - $offset) >= 1) {
+            return Result::match(1, mb_substr($input, $offset, 1), $offset);
         }
 
         return Result::noMatch($offset);

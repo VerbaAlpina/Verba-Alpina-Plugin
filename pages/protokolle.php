@@ -19,24 +19,8 @@
 				break;
 				
 			case 'new':
-				$time = $va_xxx->get_row('SELECT 
-												DATE_ADD(Datum,  INTERVAL 7 DAY) as Datum,
-												Beginn,
-												next_person (DATE_ADD(Datum,  INTERVAL 7 DAY), Protokollant) as Protokollant
-											FROM Protokolle WHERE Id_Protokoll = (SELECT max(Id_Protokoll) FROM Protokolle)', ARRAY_A, 0);
-				
-				$default_link = 'https://lmu-munich.zoom.us/j/95275082216?pwd=TTlnbDdqY3l4N21LMnVxdVZ1d2pWQT09';
-				if ($default_link){
-					$time['link'] = $default_link;
-				}
-											
-				$va_xxx->insert('Protokolle', $time);
-				$id_new = $va_xxx->insert_id;
-				$va_xxx->query("INSERT INTO VTBL_Protokolle_Teilnehmer (Id_Protokoll, Person, Anwesend, Kommentar) 
-									SELECT " . $id_new . ", Kuerzel, 0, IF(Art = 'hk', 'Teilnahme nicht obligat.', '') 
-									FROM Personen JOIN Stellen USING (Kuerzel) 
-									WHERE Art in ('hk', 'prom', 'postdoc', 'leitung') AND Startdatum < '" . $time['Datum'] . "' AND (Enddatum IS NULL OR Enddatum > '" . $time['Datum'] . "')");
-				echo json_encode(array($id_new, $time['Datum']));
+				$res = va_create_new_protocol();
+				echo json_encode($res);
 				break;
 				
 				
@@ -95,7 +79,7 @@
 				break;
 				
 			case 'deleteTop':
-				$va_xxx->delete('Protokolle_TOPs', array('Id_Protokoll' => $_POST['pid'], 'Nummer' => $_POST['number']));
+				$result = $va_xxx->delete('Protokolle_TOPs', array('Id_Protokoll' => $_POST['pid'], 'Nummer' => $_POST['number']));
 				if($result === false){
 					echo 'error';
 				}
@@ -103,6 +87,31 @@
 					echo 'success';
 				}
 				break; 
+				
+			case 'skipTop':
+			    $new_pdata = false;
+			    $next_pid = $va_xxx->get_var($va_xxx->prepare('SELECT MIN(Id_Protokoll) FROM Protokolle WHERE Id_Protokoll > %d', $_POST['pid']));
+			    if (!$next_pid){
+			        $new_pdata = va_create_new_protocol();
+			        $next_pid = $new_pdata[0];
+			    }
+			    
+			    $old_top_data = $va_xxx->get_row($va_xxx->prepare('SELECT Inhalt, Datum FROM Protokolle JOIN Protokolle_TOPs USING (Id_Protokoll) WHERE Id_Protokoll = %d AND Nummer = %d', $_POST['pid'], $_POST['number']), ARRAY_A);
+			    $new_top_number = $va_xxx->get_var($va_xxx->prepare('SELECT max(Nummer) FROM Protokolle_TOPs WHERE Id_Protokoll = %d', $next_pid)) + 1;
+			    $result = $va_xxx->update('Protokolle_TOPs', [
+                        'Id_Protokoll' => $next_pid,
+                        'Nummer' => $new_top_number, 
+			        'Inhalt' => 'Dieser TOP wurde vom ' . date('d.m.Y', strtotime($old_top_data['Datum'])) . " verschoben\n -------------------------------------- \n" . $old_top_data['Inhalt']
+			        ],
+			        ['Id_Protokoll' => $_POST['pid'], 'Nummer' => $_POST['number']]);
+			    
+			    if($result === false){
+			        echo 'error';
+			    }
+			    else {
+			        echo json_encode($new_pdata);
+			    }
+			    break; 
 				
 			case 'add_top':
 			    $new_top_number = $va_xxx->get_var($va_xxx->prepare('SELECT max(Nummer) FROM Protokolle_TOPs WHERE Id_Protokoll = %d', $_POST['pid'])) + 1;
@@ -130,6 +139,14 @@
 	function protokolle (){
 		global $va_xxx;
 		$protokolle = $va_xxx->get_results('SELECT * FROM Protokolle ORDER BY DATUM DESC', ARRAY_A);
+		
+		$current_p_id = false;
+		$now = date('Y-m-d');
+		foreach ($protokolle as $ip => $protokoll){
+			if (!$current_p_id && $protokoll['Datum'] < $now){
+				$current_p_id = $ip - 1;
+			}
+		}
 
 		if(isset($_GET['mode'])){
 		    $edit = $_GET['mode'] === 'edit';
@@ -142,6 +159,40 @@
 			var url = "<?php echo get_permalink();?>";
 		
 			jQuery(function (){
+
+				//Select next protocol closest to current date 
+
+				/*var today = new Date();
+				var protolist = jQuery("#protocolList option");
+
+			    protolist.each(function(){
+
+	                var datestring = jQuery(this).text().split("(")[0];
+	              
+	                const date = new Date(datestring);
+	                const diffTime = Math.abs(date - today);
+	                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); //select next only if not the same day as protocol (today)
+
+	                if(date<today && diffDays>1){
+	             
+	                    if(!window.location.href.split("protocol")[1]){
+	                    	    var val;
+	                    	    if(jQuery(this).prev().length>0)val = jQuery(this).prev().attr('value');
+	                    	    else val = jQuery(this).attr('value');
+	                    	
+                    	    jQuery("#protocolList").val(val);
+	                    	var url = window.location.href + "&protocol="+val;
+	                    	window.location.href = url;
+
+	                    }
+	             
+	                 return false;
+
+	                };
+				
+			    })*/
+
+
 
 				jQuery("#protocol_insert_top_confirm_button").on("click", addTopConfirmed);
 
@@ -181,8 +232,14 @@
 				});
 				
 				<?php
-				if(isset($_GET['protocol']))
+				if(isset($_GET['protocol'])){
 					echo 'jQuery("#protocolList").val("' . $_GET['protocol'] . '");';
+				}
+				else if ($current_p_id && $current_p_id > 0){
+					$cid = $protokolle[$current_p_id]['Id_Protokoll'];
+					echo 'jQuery("#protocolList").val("' . $cid . '");';
+					echo 'History.pushState({"id" : ' . $cid . '}, "", getUrl(' . $cid . '));';
+				}
 				?>
 				
 				<?php
@@ -447,6 +504,31 @@
 					}
 				});
 			}
+
+			function skipTop (number){
+				jQuery.post(ajax_object.ajaxurl, {
+					"action" : "va_protocols",
+					"query" : "skipTop",
+					"pid" : jQuery("#protocolNumber").text().trim(),
+					"number" : number
+				}, function (response){
+					try {
+						let data = JSON.parse(response);
+
+						jQuery("#protocolTOP" + number).remove();
+
+						if (data){
+    						jQuery("#protocolList").prepend(jQuery("<option>", {
+    							value: data[0],
+    							text: data[1] + " (" + data[0] + ")"
+    						}));
+						}
+					}
+					catch (e){
+						alert(response);
+					}
+				});
+			}
 			
 			function changeMode (val){
 				var pid = jQuery("#protocolNumber").text().trim();
@@ -472,28 +554,28 @@
 		
 		<div class="entry-content">
 			
-			<div id="protocolSelection" style="border-style: solid;	border-width: 1px; padding: 3px;">
+			<div id="protocolSelection" style="border-style: solid;	border-width: 1px; padding: 10px;">
 				Protokoll: 
 				<select id="protocolList">
 					<?php
-					foreach ($protokolle as $protokoll){
+					foreach ($protokolle as $ip => $protokoll){
 						echo '<option value="' . $protokoll['Id_Protokoll'] . '">' . $protokoll['Datum'] . ' (' . $protokoll['Id_Protokoll'] . ')' . '</option>';
 					}
 					?>
 				</select>
 
-				Suche: 
+				<span style="margin-left: 10px;">Suche:</span> 
 				<input id="searchBox" type="text" />
 				
-				<input type="button" style="float : right" class="button button-primary" value="Neues Protokoll" onClick="newProtocol();" />
+				<button type="button" style="font-size: 12px; color: #757575; float : right" class="button button-primary"  onClick="newProtocol();" > <i class="fas fa-plus"></i> Neues Protokoll</button>
 				
 				<br />
 				
 				<?php
 				if(current_user_can('va_transcripts_write')){
 				?>
-				<div>
-					Modus:&nbsp;&nbsp;&nbsp;
+				<div style="margin-top: 10px;">
+					<span style="margin-right: 14px;">Modus:</span>
 					<select id="modeList" onChange="changeMode(this.value);">
 						<option value="read">Lesen</option>
 						<option value="edit">Bearbeiten</option>
@@ -528,7 +610,12 @@
 					if(!isset($edit)){
 						$edit = false;
 					}
-					showProtocol($protokolle[0], $edit);
+					if ($current_p_id && $current_p_id > 0){
+						showProtocol($protokolle[$current_p_id], $edit);
+					}
+					else {
+						showProtocol($protokolle[0], $edit);
+					}
 				}
 				?>
 			</div>
@@ -661,7 +748,7 @@
 				</td>
 				<?php
 				if($editMode){
-					echo '<tr><td>Link</td><td>' . inputField (62, 500, 'protocolLink', $row['link']) . '</td>';
+				    echo '<tr><td>Link</td><td>' . inputField (62, 500, 'protocolLink', (isset($row['link'])? $row['link']: '')) . '</td>';
 				}
 				else if (isset($row['link'])){
 					echo '<tr><td>Link</td><td><a href="' . $row['link'] . '">' . $row['link'] . '</a></td>';
@@ -744,7 +831,7 @@
 			?>
 		</h3>
 
-		<div id="protocolTextArea">
+		<div id="protocolTextArea" style="margin-bottom: 50px;">
 	
 			<?php
 	
@@ -766,8 +853,9 @@
 		$result .= '<a name="' . $number . '"></a>';
 		$result .= '<h4 style="font-weight: bold; font-size: 120%;">' . $number . ') ';
 		if($editMode){
-			$result .= inputField(62, 500, 'protocolTitle' . $number, $title);
+			$result .= inputField(55, 500, 'protocolTitle' . $number, $title);
 			$result .= '&nbsp;<a href="javaScript:deleteTop(' . $number . ');">Löschen</a>';
+			$result .= '&nbsp;<a href="javaScript:skipTop(' . $number . ');">Verschieben</a>';
 		}
 		else {
 			$result .= $title;
@@ -859,5 +947,29 @@
 			FROM Protokolle_TOPs JOIN Protokolle USING (Id_Protokoll)
 			WHERE MATCH(Titel, Inhalt) AGAINST (' . $searchString . ' IN BOOLEAN MODE)
 			ORDER BY Datum DESC" , ARRAY_A);
+	}
+	
+	function va_create_new_protocol (){
+	    global $va_xxx;
+	    
+	    $time = $va_xxx->get_row('SELECT
+												DATE_ADD(Datum,  INTERVAL 7 DAY) as Datum,
+												Beginn,
+												next_person (DATE_ADD(Datum,  INTERVAL 7 DAY), Protokollant) as Protokollant
+											FROM Protokolle WHERE Id_Protokoll = (SELECT max(Id_Protokoll) FROM Protokolle)', ARRAY_A, 0);
+	    
+	    $default_link = 'https://lmu-munich.zoom.us/j/95275082216?pwd=TTlnbDdqY3l4N21LMnVxdVZ1d2pWQT09';
+	    if ($default_link){
+	        $time['link'] = $default_link;
+	    }
+	    
+	    $va_xxx->insert('Protokolle', $time);
+	    $id_new = $va_xxx->insert_id;
+	    $va_xxx->query("INSERT INTO VTBL_Protokolle_Teilnehmer (Id_Protokoll, Person, Anwesend, Kommentar)
+									SELECT " . $id_new . ", Kuerzel, 0, IF(Art = 'hk', 'Teilnahme nicht obligat.', '')
+									FROM Personen JOIN Stellen USING (Kuerzel)
+									WHERE Art in ('hk', 'prom', 'postdoc', 'leitung') AND Startdatum < '" . $time['Datum'] . "' AND (Enddatum IS NULL OR Enddatum > '" . $time['Datum'] . "')");
+	    
+	    return [$id_new, $time['Datum']];
 	}
 ?>

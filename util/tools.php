@@ -36,6 +36,10 @@ function va_get_glossary_link ($id = null, $lang = null){
 }
 
 function va_blog_id_from_lang ($lang){
+    if (!is_multisite()){
+        return 1; //Local installation
+    }
+    
 	switch ($lang){
 		case 'F':
 			return 5;
@@ -198,7 +202,7 @@ function va_format_bibliography ($author, $title, $year, $loc, $link, $band, $in
 		if($loc != '')
 			$res .= ', ' . $loc;
 		if($in != '')
-			$res .= ', in ' . $in;
+			$res .= ', in: ' . $in;
 		if($band != '')
 			$res .= ', vol. ' . $band;
 		if($verlag != '')
@@ -322,7 +326,7 @@ function va_create_glossary_citation ($id, &$Ue){
 	$vyear = substr($va_current_db_name, 3, 2);
 	$vnumber = substr($va_current_db_name, 5);
 	
-	$res = implode(' / ', $authors) . ': s.v. “' . $data[0] . '”, in: VerbaAlpina-' . substr(get_locale(), 0, 2) . ' '
+	$res = implode(' / ', $authors) .' (20' . substr($data[2], 0, 2) . '): s.v. “' . $data[0] . '”, in: VerbaAlpina-' . substr(get_locale(), 0, 2) . ' '
  	 . $vyear . '/' . $vnumber;
 	
 	$pub_data = [];
@@ -514,7 +518,7 @@ function va_create_comment_citation ($id, &$Ue){
  	$link = va_get_comments_doi_link(substr($va_current_db_name, 3, 3), $id);
  
  	return	implode(' / ', $authors) . ': s.v. “' . $title . '”, in: VerbaAlpina-' . substr(get_locale(), 0, 2) . ' ' .
- 			substr($va_current_db_name, 3, 2) . '/' . substr($va_current_db_name, 5) . ', Lexicon alpinum, ' . $link;
+ 			substr($va_current_db_name, 3, 2) . '/' . substr($va_current_db_name, 5) . ', Lexicon Alpinum, ' . $link;
 }
  
  function va_version_newer_than ($version){
@@ -545,6 +549,24 @@ function va_create_comment_citation ($id, &$Ue){
  		return $last_rev_in_version;
  	}
  }
+ 
+function va_get_first_post_version ($post_id){
+	global $wpdb;
+	global $va_xxx;
+	
+	$first_rev = $wpdb->get_var($wpdb->prepare('SELECT post_date FROM ' . va_get_post_table() . ' WHERE post_parent = %d and post_type ="revision" ORDER BY post_date ASC LIMIT 1', $post_id));
+	if (!$first_rev){
+		return 'xxx';
+	}
+
+	$version = $va_xxx->get_var($va_xxx->prepare('SELECT Nummer FROM Versionen WHERE Erstellt_Am > %s ORDER BY Nummer ASC LIMIT 1', $first_rev));
+	
+	if (!$version){
+		return 'xxx';
+	}
+	
+	return $version;
+}
  
  function va_get_post_table (){
  	$blog_id = get_current_blog_id();
@@ -819,36 +841,133 @@ function va_get_comment_text ($id, $lang, $internal, $db = false){
         $db = $vadb;
     }
 	
-	if (true /*!va_version_newer_than('va_181')*/){ //TODO change
-		$content = $db->get_var($db->prepare('SELECT comment FROM im_comments WHERE Id = %s AND Language = %s', $id, $lang));
-		
-		$content = trim($content);
-		
-		if (!$content){
-			return '';
-		}
-		
-		parseSyntax($content, true, $internal);
-		
-		return $content;
+    global $Ue;
+    
+    $ids = explode('+', substr($id, 1));
+    
+    $content = '';
+    foreach ($ids as $sid){
+        $comment = $db->get_var($db->prepare('SELECT comment FROM im_comments WHERE Id = %s AND Language = %s', substr($id, 0, 1) . $sid, $lang));
+        if ($comment){
+            $content .= '<div>' . trim($comment) . '</div>';
+        }
+    }
+	
+	$info_str = '';
+	if (mb_substr($id, 0, 1) === 'L'){
+	    
+	    $genders = [];
+	    $orth = '';
+	    $llang = '';
+	    $affix = '';
+	    $prefix = '';
+	    $infix = '';
+	    $suffix = '';
+	    $pos = '';
+	    foreach ($ids as $sid){
+		    $lex_data = $db->get_row($db->prepare('SELECT Id_morph_Typ, Orth, Sprache, Wortart, Affix, Praefix, Infix, Suffix, Genus FROM morph_Typen WHERE Id_morph_Typ = %d', $sid), ARRAY_A);
+		    if (!$orth){
+		        $orth = $lex_data['Orth'];
+		    }
+		    if (!$llang){
+		        $llang = $lex_data['Sprache'];
+		    }
+		    if (!$affix){
+		        $affix = $lex_data['Affix'];
+		    }
+		    if (!$prefix){
+		        $prefix = $lex_data['Praefix'];
+		    }
+		    if (!$infix){
+		        $infix = $lex_data['Infix'];
+		    }
+		    if (!$suffix){
+		        $suffix = $lex_data['Suffix'];
+		    }
+		    if ($pos){
+		        $pos = $lex_data['Wortart'];
+		    }
+		    $genders[$lex_data['Id_morph_Typ']] = $lex_data['Genus'];
+	    }
+	    
+	    $info_str .= '<table><tr><td>' . $Ue['MORPH_TYP'] . '</td><td>' . $orth . '</td></tr>';
+	    $info_str .= '<tr><td>' . $Ue['SPRACHFAMILIE'] . '</td><td>' . $llang . '</td></tr>';
+	    $first = true;
+	    foreach ($genders as $lid => $gender){
+	        $info_str .= '<tr><td>' . ($first? $Ue['GENUS']: '') . '</td><td>' . ($gender?: $Ue['GENUS_']) . ' <span class="lex_id">L' . $lid . '</span></td></tr>';
+	        $first = false;
+	    }
+	    
+	    if ($prefix || $infix || $suffix){
+	        if ($prefix){
+	            $info_str .= '<tr><td>' . $Ue['PRAEFIX'] . '</td><td>' . $prefix . '</td></tr>';
+	        }
+	        if ($infix){
+	            $info_str .= '<tr><td>' . $Ue['INFIX'] . '</td><td>' . $infix . '</td></tr>';
+	        }
+	        if ($suffix){
+	            $info_str .= '<tr><td>' . $Ue['SUFFIX'] . '</td><td>' . $suffix . '</td></tr>';
+	        }
+	    }
+	    else if ($affix){
+	        $info_str .= '<tr><td>' . $Ue['AFFIX'] . '</td><td>' . $affix . '</td></tr>';
+	    }
+	    
+	    if ($pos){
+	        $info_str .= '<tr><td>' . $Ue['WORTART'] . '</td><td>' . $pos . '</td></tr>';
+	    }
+	    
+	    $info_str .= '</table>';
+	    
+	    $ref_data = $db->get_results($db->prepare('SELECT Lemmata.Quelle, Subvocem, Bibl_Verweis, Link, Genera, Text_Referenz FROM Lemmata JOIN VTBL_morph_Typ_Lemma USING (Id_Lemma)
+            WHERE Id_morph_Typ = %d AND Lemmata.Quelle != "VA"', mb_substr($id, 1)), ARRAY_A);
+	    
+	    if (count($ref_data) > 0){
+	        $info_str .= '<b>' . $Ue['TYP_REFERENZEN'] . '</b>:<br /><table>';
+	        
+	        foreach ($ref_data as $ref){
+	            $info_str .= '<tr><td>[[Bibl:' . $ref['Quelle'] . ']]</td><td>' . ($ref['Text_Referenz']? 's. v. ': '') . $ref['Subvocem'] . '</td>';
+	            if ($ref['Link']){
+	                $info_str .= '<td><a target="_BLANK" href="' . $ref['Link'] . '">Link</a></td>';
+	            }
+	            else {
+	                $info_str .= '<td>' . $ref['Bibl_Verweis'] . '</td>';
+	            }
+	            $info_str .= '</tr>';
+	        }
+
+	        $info_str .= '</table>';
+	    }
+	    
+	    $part_data = $db->get_col($db->prepare('SELECT m.Id_morph_Typ
+            FROM VTBL_morph_Typ_Bestandteile v JOIN morph_Typen m ON m.Id_morph_Typ = v.Id_Bestandteil
+            WHERE v.Id_morph_Typ = %d AND v.Id_Bestandteil != %d', mb_substr($id, 1), mb_substr($id, 1)));
+	    
+	    if ($part_data){
+	        $info_str .= '<b>' . $Ue['BESTANDTEILE'] . '</b>:<br /><ul>';
+	        foreach ($part_data as $part){
+	            $info_str .= '<li>[[Kommentar:L' . $part . ']]</li>';
+	        }
+	        $info_str .= '</ul>';
+	    }
+	    
+	    $super_data = $db->get_col($db->prepare('SELECT m.Id_morph_Typ
+            FROM VTBL_morph_Typ_Bestandteile v JOIN morph_Typen m ON m.Id_morph_Typ = v.Id_morph_Typ
+            WHERE v.Id_Bestandteil = %d AND v.Id_morph_Typ != %d', mb_substr($id, 1), mb_substr($id, 1)));
+	    
+	    if ($super_data){
+	        $info_str .= '<b>' . $Ue['BESTANDTEIL_VON'] . '</b>:<br /><ul>';
+	        foreach ($super_data as $part){
+	            $info_str .= '<li>[[Kommentar:L' . $part . ']]</li>';
+	        }
+	        $info_str .= '</ul>';
+	    }
 	}
 
-	$date_cache = $db->get_var($db->prepare('SELECT geaendert FROM a_text_cache WHERE Typ = "kommentar" AND Id = %s AND Sprache = %s', $id, $lang));
-	$date_comment = $db->get_var($db->prepare('SELECT changed FROM im_comments WHERE Id = %s AND Language = %s', $id, $lang));
+	$content = $info_str . $content;
+	parseSyntax($content, true, $internal);
 	
-	if ($date_cache && $date_cache > $date_comment){
-		return $db->get_var($db->prepare('SELECT Inhalt FROM a_text_cache WHERE Typ = "kommentar" AND Id = %s AND Sprache = %s', $id, $lang));
-	}
-	else {
-		$content = $db->get_var($db->prepare('SELECT comment FROM im_comments WHERE Id = %s AND Language = %s', $id, $lang));
-		
-		parseSyntax($content, true, $internal);
-		
-		$db->query($db->prepare("REPLACE INTO a_text_cache (Typ, Id, Sprache, Intern, Inhalt) VALUES ('kommentar', %s, %s, %d, %s)",
-				$id, $lang, ($internal? 1: 0), $content));
-		
-		return $content;
-	}
+	return $content;
 }
 
 function va_concept_compare ($t1, $t2, $search){
@@ -918,13 +1037,17 @@ function va_get_comment_title ($id, $lang, $from_db = true, &$Ue = NULL, $db = N
 		case 'B':
 		    $type_data = $db->get_row($db->prepare('SELECT Orth, Sprache FROM Basistypen WHERE Id_Basistyp = %d', $key), ARRAY_A);
 		    $title = va_format_base_type('<em>' . $type_data['Orth'] . '</em>', $type_data['Sprache'], '0', $Ue);
-			return '<span class="name">' . $title . '</span> - ' . '<span class="type">'.$Ue['BASISTYP'].'</span>';
+			return '<span class="name" title="'.strip_tags($title).'">' . $title . '</span> - ' . '<span class="type">'.$Ue['BASISTYP'].'</span>';
 			break;
 			
 		case 'L':
-		    $type_data = $db->get_row($db->prepare('SELECT Orth, Sprache, Wortart, Genus, Affix FROM morph_Typen WHERE Id_morph_Typ = %d', $key), ARRAY_A);
-		    $title = va_format_lex_type('<em>' . $type_data['Orth'] . '</em>', $type_data['Sprache'], $type_data['Wortart'], $type_data['Genus'], $type_data['Affix']);
-		    return '<span class="name">' . $title . '</span> - ' . '<span class="type">'.$Ue['MORPH_TYP'].'</span>';
+		    $pos_plus = strpos($key, '+');
+		    if ($pos_plus !== false){
+                $key = substr($key, 0, $pos_plus); //Only use first id for title
+		    }
+		    $type_data = $db->get_row($db->prepare('SELECT Orth, Sprache, Wortart, Affix FROM morph_Typen WHERE Id_morph_Typ = %d', $key), ARRAY_A);
+		    $title = va_format_lex_type('<em>' . $type_data['Orth'] . '</em>', $type_data['Sprache'], $type_data['Wortart'], null, $type_data['Affix']);
+		    return '<span class="name" title="'.strip_tags($title).'">' . $title . '</span> - ' . '<span class="type">'.$Ue['MORPH_TYP'].'</span>';
 			break;
 			
 		case 'C':
@@ -942,10 +1065,10 @@ function va_get_comment_title ($id, $lang, $from_db = true, &$Ue = NULL, $db = N
 			}
 			    
 			if ($name && $name != $desc){
-				$title .= '<span class="name">' .$name . '</span>'. ' - ' . '<span class="type">'.$Ue['KONZEPT'].'</span>';
+				$title .= '<span class="name" title="'.$name.'">' .$name . '</span><span> - </span><span class="type">'.$Ue['KONZEPT'].'</span>';
 			}
 			else {
-				$title .= '<span class="name">'. $desc . ' - </span><span class="type">'.$Ue['KONZEPT'].'</span>';
+				$title .= '<span class="name" title="'.$desc.'">'. $desc . '</span><span> - </span><span class="type">'.$Ue['KONZEPT'].'</span>';
 			}
 			return $title;
 			break;
@@ -1076,7 +1199,7 @@ function va_get_lex_alp_header_data ($from_db = true, &$db = NULL){
         global $lang;
         global $vadb;
         
-        $sql = 'select Id, Title_Html, QID from a_lex_titles alt where lang = %s order by Sort_Number ASC';
+        $sql = 'select Id, Title_Html from a_lex_titles alt where lang = %s order by Sort_Number ASC';
         return $vadb->get_results($vadb->prepare($sql, $lang), ARRAY_A);
     }
     
@@ -1086,13 +1209,31 @@ function va_get_lex_alp_header_data ($from_db = true, &$db = NULL){
         $Ue = va_get_translations($db, $lang);
         
         $concepts = $db->get_results('
-            SELECT DISTINCT CONCAT("C", Id_Konzept) AS Id, IF(QID != 0 AND QID IS NOT NULL, QID, NULL) AS QID 
+            SELECT DISTINCT CONCAT("C", Id_Konzept) AS Id
             FROM A_Anzahl_Konzept_Belege JOIN Konzepte USING (Id_Konzept) 
             WHERE Id_Konzept != 2195 AND Id_Konzept != 2197 AND Anzahl_Allein_AK > 0 AND Relevanz AND (Name_' . $lang . ' != "" OR Id_Ueberkonzept = 707)', ARRAY_A);
-        $mtypes = $db->get_results('SELECT DISTINCT CONCAT("L", Id_Type) AS Id, NULL AS QID FROM z_ling WHERE Id_Type != 6977 AND Type_Kind = "L" AND Source_Typing = "VA"', ARRAY_A);
-        $btypes = $db->get_results('SELECT DISTINCT CONCAT("B", Id_Base_Type) AS Id, NULL AS QID FROM z_ling WHERE Id_Base_Type IS NOT NULL', ARRAY_A);
+        $mtypes_distinct = $db->get_results('SELECT DISTINCT Id_Type AS Id, Type, Type_Lang, POS FROM z_ling WHERE Id_Type != 6977 AND Type_Kind = "L" AND Source_Typing = "VA" ORDER BY Type, Type_Lang, POS', ARRAY_A);
+        $mtypes_grouped = [];
+        $last_orth = null;
+        $last_lang = null;
+        $last_pos = null;
+        $cids = [];
+        foreach ($mtypes_distinct as $cmtype){
+            if (($last_orth != $cmtype['Type'] || $last_lang != $cmtype['Type_Lang'] || $last_pos != $cmtype['POS'])){
+                if ($cids){
+                    $mtypes_grouped[] = ['Id' => 'L' . implode('+', $cids)];
+                    $cids = [];
+                }
+                $last_orth = $cmtype['Type'];
+                $last_lang = $cmtype['Type_Lang'];
+                $last_pos = $cmtype['POS'];
+            }
+            $cids[] = $cmtype['Id'];
+        }
+        $mtypes_grouped[] = ['Id' => 'L' . implode('+', $cids)];
+        $btypes = $db->get_results('SELECT DISTINCT CONCAT("B", Id_Base_Type) AS Id FROM z_ling WHERE Id_Base_Type IS NOT NULL', ARRAY_A);
         
-        $comment_data = array_merge($concepts, $mtypes, $btypes);
+        $comment_data = array_merge($concepts, $mtypes_grouped, $btypes);
         
         foreach ($comment_data as $index => $comment){
             $comment_data[$index]['Title_Html'] = va_get_comment_title($comment['Id'], $lang, false, $Ue, $db);
@@ -1103,8 +1244,8 @@ function va_get_lex_alp_header_data ($from_db = true, &$db = NULL){
         }
         
         usort($comment_data, function ($e1, $e2){
-            $str1 = preg_replace('/[^a-zA-Z]/', '', str_replace('<em>', '', remove_accents($e1['Title'])));
-            $str2 = preg_replace('/[^a-zA-Z]/', '', str_replace('<em>', '', remove_accents($e2['Title'])));
+            $str1 = preg_replace('/[^a-zA-Z]/', '', str_replace('<em>', '', va_remove_accents($e1['Title'])));
+            $str2 = preg_replace('/[^a-zA-Z]/', '', str_replace('<em>', '', va_remove_accents($e2['Title'])));
             $strcmp = strcasecmp($str1, $str2);
             
             if ($strcmp === 0){
@@ -1119,6 +1260,17 @@ function va_get_lex_alp_header_data ($from_db = true, &$db = NULL){
     }
     
     return $insert_data;
+}
+
+function va_remove_accents ($str){
+	global $useEnglishLocale;
+	$useEnglishLocale = true;
+	
+	$str = str_replace('ṭ', 't', $str);
+	$res = remove_accents($str);
+	
+	$useEnglishLocale = false;
+	return $res;
 }
 
 function va_insert_multiple (&$db, $table, $data, $param_str, $packet_size = 500){

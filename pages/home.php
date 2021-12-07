@@ -70,20 +70,26 @@ function showStartPage (){
 		}
 
 		.cite_btn{
-	    margin-left: 5px;
-		font-size: 12px;
-		border-radius: 2px;
-		padding: 3px 5px 3px 5px;
-		box-shadow: 0 2px 6px rgba(100, 100, 100, 0.3);
-	    background: #47864c;
-	    color: white;
-        opacity: 0.65;
-       }
+				margin-left: 5px;
+				font-size: 12px;
+				border-radius: 2px;
+				padding: 3px 5px 3px 5px;
+				box-shadow: 0 2px 6px rgba(100, 100, 100, 0.3);
+				background: #47864c;
+				color: white;
+				opacity: 0.65;
+				text-decoration: none;
+    }
 
        .cite_btn:hover{
        		cursor: pointer;
        		opacity: 1.0;
        }
+
+   		 a.buttonlink{
+   			text-decoration: none !important;
+   			outline: none !important;
+   		}
 
         .social_icons_container{
            margin-left: 5px;
@@ -144,6 +150,15 @@ function showStartPage (){
 			.start_options_right{
 			top:28px;
 			}
+
+      .social_icons_container > span{
+           margin-left: 3px;
+      }
+
+      .cite_btn:not(.timeline){
+      	 margin-left: 0px;
+      }
+
 		}	
 
 	</style>
@@ -152,7 +167,7 @@ function showStartPage (){
 		jQuery(function (){
 			addBiblioQTips(jQuery(".entry-content"));
 
-		jQuery('.cite_btn').on('click',function(){
+		jQuery('.cite_btn.cite').on('click',function(){
 			jQuery('#cite_modal').modal();
 		})
 
@@ -232,7 +247,12 @@ function showStartPage (){
 
 		
 		<h3><?php echo $Ue['DAS_PROJEKT']; ?>	
-			<span class="cite_btn"><i class="fas fa-book" style="padding-right: 2px;"></i>
+
+			<a class="buttonlink" href="<?php echo get_permalink( get_page_by_title( 'Versionen' ) ) ?>"><span class="cite_btn timeline" style="margin-right:5px"><i class="fas fa-history" style="padding-right: 2px;"></i>
+			Timeline
+			</span></a>
+
+			<span class="cite_btn cite"><i class="fas fa-book" style="padding-right: 2px;"></i>
 			<?php echo $Ue['ZITIEREN']; ?>
 			</span>
 

@@ -6,7 +6,7 @@
 
 //Compare with https://core.trac.wordpress.org/ticket/25280
 /**
-* @type {{ajaxurl : string, db : string, site_url : string, va_staff : string, dev : string, next_version: string}}
+* @type {{ajaxurl : string, db : string, site_url : string, va_staff : string, dev : string, next_version: string, max_db: string}}
 */
 var ajax_object;
 

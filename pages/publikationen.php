@@ -112,6 +112,7 @@ function intPub (){
 						<td>
 							<?php if($v['Beschreibung1']) echo '<a href="' . $v['URL1'] . '">' . $Ue[$v['Beschreibung1']] . '</a>' ?>
 							<?php if($v['Beschreibung2']) echo '<a href="' . $v['URL2'] . '">' . $Ue[$v['Beschreibung2']] . '</a>' ?>
+							<?php if($v['Beschreibung3']) echo '<a href="' . $v['URL3'] . '">' . $Ue[$v['Beschreibung3']] . '</a>' ?>
 						</td>
 					</tr>
 					<?php
@@ -166,9 +167,9 @@ function infoMat (){
 		
 		<div style="margin-bottom: 10px;">
 
-			<div class="entry-small_head_indent" ><a href="https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/VerbaAlpina_Pressetext_deutsch_VA2.pdf"><?php echo $Ue['PRESSTEXT_DE'];?></a></div>
-				<div class="entry-small_head_indent" ><a href="https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/VerbaAlpina_Pressetext_italienisch_VA2.pdf"><?php echo $Ue['PRESSTEXT_ITA'];?></a></div>
-					<div class="entry-small_head_indent" ><a href="https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/VerbaAlpina_Pressetext_franzoesisch_VA2.pdf"><?php echo $Ue['PRESSTEXT_FR'];?></a></div>
+			<div class="entry-small_head_indent" ><a href="https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/VerbaAlpina_Pressetext_deutsch_VA3.pdf"><?php echo $Ue['PRESSTEXT_DE'];?></a></div>
+				<div class="entry-small_head_indent" ><a href="https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/VerbaAlpina_Pressetext_italienisch_VA3.pdf"><?php echo $Ue['PRESSTEXT_ITA'];?></a></div>
+					<div class="entry-small_head_indent" ><a href="https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/VerbaAlpina_Pressetext_franzoesisch_VA3.pdf"><?php echo $Ue['PRESSTEXT_FR'];?></a></div>
 
 	    </div>				
 
@@ -302,10 +303,15 @@ function va_echo_page (){
 
 	$res = '<div class="entry-content"><ul>';
 	
-	$entries = $va_xxx->get_results('SELECT Datum, Medium, Link FROM Echo ORDER BY Datum DESC', ARRAY_A);
+	$entries = $va_xxx->get_results('SELECT Datum, Medium, Link, tot FROM Echo ORDER BY Datum DESC', ARRAY_A);
 	
 	foreach ($entries as $entry){
-		$res.= '<li>' . date('d.m.Y', strtotime($entry['Datum'])) . ' - ' . '<a href="' . $entry['Link'] . '" target="_BLANK">' . $entry['Medium'] . '</a></li>';
+		if ($entry['tot']){
+			$res.= '<li>' . date('d.m.Y', strtotime($entry['Datum'])) . ' - ' . '<a style="color: red" href="' . $entry['Link'] . '" target="_BLANK">' . $entry['Medium'] . '</a> (' . str_replace('%s', date('d.m.Y', strtotime($entry['tot'])), $Ue['LINK_TOT']) . ')</li>';
+		}
+		else {
+			$res.= '<li>' . date('d.m.Y', strtotime($entry['Datum'])) . ' - ' . '<a href="' . $entry['Link'] . '" target="_BLANK">' . $entry['Medium'] . '</a></li>';
+		}
 	}
 	
 	$res .= '</ul></div><br /><br /><br />';

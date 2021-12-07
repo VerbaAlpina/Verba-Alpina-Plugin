@@ -21,17 +21,11 @@ function ipa_page (){
 		?>
 		};
 		
-		var parserBeta;
-		var parserBSA;
-		var parserALD;
+		var step = 50;
 
 		jQuery(function (){
 			jQuery("#ipaSelectSource").val("0");
 			jQuery("#IPAonlyMissing").prop("checked", true);
-			parserBeta = peg.generate(jQuery("#grammarBeta").val());
-			parserBSA = peg.generate(jQuery("#grammarBSA").val());
-			parserALD = peg.generate(jQuery("#grammarALD").val());
-			jQuery("#grammarBeta").toggle(false);
 			
 			jQuery("#ipaSelectSource").on("change", function (){
 				if(this.value != "0"){
@@ -67,29 +61,8 @@ function ipa_page (){
 				"source" : source,
 				"all" : all
 			}, function(response) {
-				var list = [];
-				tokens = JSON.parse(response);
-				for (var i = 0, j = tokens.length; i < j; i++) {
-					try {
-						if(source == "BSA"){
-							var tokenL = parserBSA.parse(tokens[i]);
-						}
-						else if (source == "ALD-I" || source == "ALD-II"){
-							var tokenL = parserALD.parse(tokens[i]);
-						}
-						else {
-							var tokenL = parserBeta.parse(tokens[i]);
-						}
-						list.push(tokenL);
-					} catch (err) {
-						jQuery("#ipaErrors").val(jQuery("#ipaErrors").val() + "Token: " + tokens[i] + " ungültig!  (" + err + ")\n\n");
-						jQuery("#numberHandled").val(jQuery("#numberHandled").val() * 1 + 1);
-					}
-				};
-
-				
-				computeIPAForTokens(list, 0, 50, source);				
-				
+				var list = JSON.parse(response);
+				computeIPAForTokens(list, 0, step, source);
 			});
 		}
 		
@@ -102,15 +75,48 @@ function ipa_page (){
 					"namespace" : "ipa",
 					"query" : "compute",
 					"source" : source,
-					"data" : JSON.stringify(subList)
+					"data" : subList
 				}, function(response) {
-					var textArray = JSON.parse(response);
-					jQuery("#ipaResults").val(jQuery("#ipaResults").val() + textArray[0]);
-					jQuery("#ipaErrors").val(jQuery("#ipaErrors").val() + textArray[1]);
+					var resData = JSON.parse(response);
+					jQuery("#ipaResults").val(jQuery("#ipaResults").val() + resData[0]);
+					jQuery("#ipaErrors").val(jQuery("#ipaErrors").val() + resData[1]);
+					
+					if (!resData[3]){
+						jQuery("#IPARegular").toggle(true);
+						jQuery("#IPALoading").toggle(false);
+						return;
+					}
+					
+					
 					jQuery("#numberHandled").val(jQuery("#numberHandled").val() * 1 + subList.length);
-					tokenNumbers[source][1] -= textArray[2] * 1;
+					tokenNumbers[source][1] -= resData[2] * 1;
 					jQuery("#numberWithout").val(tokenNumbers[source][1]);
-					computeIPAForTokens(list, index + step, step, source);		
+					computeIPAForTokens(list, index + step, step, source);	
+						
+					
+					/*var list = [];
+					tokens = JSON.parse(response);
+					for (var i = 0, j = tokens.length; i < j; i++) {
+						try {
+							if(source == "BSA"){
+								var tokenL = parserBSA.parse(tokens[i]);
+							}
+							else if (source == "ALD-I" || source == "ALD-II"){
+								var tokenL = parserALD.parse(tokens[i]);
+							}
+							else {
+								var tokenL = parserBeta.parse(tokens[i]);
+							}
+							list.push(tokenL);
+						} catch (err) {
+							jQuery("#ipaErrors").val(jQuery("#ipaErrors").val() + "Token: " + tokens[i] + " ungültig!  (" + err + ")\n\n");
+							jQuery("#numberHandled").val(jQuery("#numberHandled").val() * 1 + 1);
+						}
+					};
+
+					
+					computeIPAForTokens(list, 0, 50, source);	*/			
+					
 				});
 			}
 			else {
@@ -178,12 +184,6 @@ function ipa_page (){
 				<td><textarea id="ipaErrors" cols="120" rows="20"></textarea></td>
 			</tr>
 		</table>
-	</div>
-	
-	<div style="display : none">
-		<textarea id="grammarBeta"><?php echo file_get_contents(plugin_dir_path(__FILE__) . 'grammatik_transkr.txt'); ?></textarea>
-		<textarea id="grammarBSA"><?php echo file_get_contents(plugin_dir_path(__FILE__) . 'grammatik_bsa.txt'); ?></textarea>
-		<textarea id="grammarALD"><?php echo file_get_contents(plugin_dir_path(__FILE__) . 'grammatik_ald.txt'); ?></textarea>
 	</div>
 	<?php
 }

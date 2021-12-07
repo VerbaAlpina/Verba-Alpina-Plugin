@@ -9,7 +9,8 @@ var categories = {
 	BaseType : 4,
 	ExtraLing : 5,
 	Polygon : 6,
-	Custom : 7
+	Custom : 7,
+	CustomSub: 8
 };
 
 //TODO fix eling error if z_geo is empty, at least "no data" should be shown again
@@ -387,8 +388,7 @@ function showOutsideOnlyElements(show){
 
 jQuery(document).on("im_map_initialized", function (){
 
-	if(ajax_object.db != "xxx")
-		categoryManager.addAjaxData("db", ajax_object.db);
+	categoryManager.addAjaxData("db", ajax_object.db);
 	
 	categoryManager.addInfoWindowContentConstructor("record", RecordInfoWindowContent);
 	categoryManager.addInfoWindowContentConstructor("informant", InformantInfoWindowContent);
@@ -397,6 +397,11 @@ jQuery(document).on("im_map_initialized", function (){
 	
 	if (PATH["tk"] == undefined){
 		categoryManager.loadData(6, "A17", "custom", {"subElementCategory" : -1});
+	}
+	
+	let loc = optionManager.getOptionState("location") || optionManager.getOptionState("municipality");
+	if (loc){
+		gotoLocation(loc.substring(1) * 1, true);
 	}
 	
 	commentManager.commentTabOpened = /** @param {jQuery} element */ function (element){
@@ -455,7 +460,7 @@ jQuery(document).on("im_edit_mode_stopped", function (){
 jQuery(document).on("im_syn_map_before_loading", function (event, mapInfos, data){
 	var /** string */ tdb = mapInfos["Options"]["tdb"];
 	
-	if(tdb == ajax_object["next_version"]){ //Future version
+	if(tdb == ajax_object["next_version"] || ajax_object["local_db"]){ //Future version
 		tdb = "xxx";
 	}
 	
@@ -534,7 +539,7 @@ jQuery(document).on("im_add_options", function (){
 //		}));
 //	}
 	
-	if(ajax_object.va_staff == "1") {
+	if(ajax_object.va_staff == "1" && mapInterfaceType == MapInterfaceType.GoogleMaps) {
 		var /** BoolOption */ printOption = new BoolOption(false, TRANSLATIONS["DRUCKFASSUNG"], function (val, details){
 			mapInterface.showPrintVersion(val);
 		}, false);
@@ -555,10 +560,12 @@ jQuery(document).on("im_add_options", function (){
 			success: function(data){
 				/** @type {GoogleMapsInterface} */ (mapInterface).addMapStyle("empty", data);
 				
-				printOption.setEnabled(true);
-				
-				if(optionManager.getOptionState("print")){
-					mapInterface.showPrintVersion(true);
+				if (printOption){
+					printOption.setEnabled(true);
+					
+					if(optionManager.getOptionState("print")){
+						mapInterface.showPrintVersion(true);
+					}
 				}
 			}
 		});
@@ -586,7 +593,7 @@ jQuery(document).on("im_show_edit_mode",
 	* @return {undefined}
 	*/
 	function (event, paramObject){
-		paramObject.result = ajax_object.db == "xxx";
+		paramObject.result = false; //ajax_object.db == "xxx";
 	}
 );
 
@@ -655,15 +662,15 @@ function createConceptToolTipContent (id){
 	if((conceptName && conceptName != conceptDescr) || conceptImg){
 		var /** Element */ result = document.createElement("div");
 		
-		if(conceptImg){
-			var /** Element */ img = document.createElement("img");
-			img["src"] = concept[4];
-			img["style"]["display"] = "block";
-			img["style"]["margin"] = "auto";
-			img["style"]["max-width"] = "100%";
-			result.appendChild(img);
-			result.appendChild(document.createElement("br"));
-		}
+		//if(conceptImg){
+		//	var /** Element */ img = document.createElement("img");
+		//	img["src"] = concept[4];
+		//	img["style"]["display"] = "block";
+		//	img["style"]["margin"] = "auto";
+		//	img["style"]["max-width"] = "100%";
+		//	result.appendChild(img);
+		//	result.appendChild(document.createElement("br"));
+		//}
 		
 		if(conceptName && conceptName != conceptDescr){
 			var /** Element */ span = document.createElement("span");
@@ -750,7 +757,7 @@ categoryManager.registerCategory (
 		"nameEmpty" : Ue["NICHT_TYPISIERT"],
 		"elementID" : "phonTypeSelect",
 		"filterComponents" : [
-			new GroupingComponent([categories.Concept], categories.Concept, new Sorter([alphabetSorter, numRecSorter]), undefined, lingTags),
+			new GroupingComponent([categories.Concept], categories.Concept, true, new Sorter([alphabetSorter, numRecSorter]), undefined, lingTags),
 			new MarkingComponent(lingTagFunction)],
 		"countNames" : [Ue["BELEG"], Ue["BELEGE"]],
 		"textForNewComment" : Ue["KOMMENTAR_PTYP_SCHREIBEN"]
@@ -765,7 +772,7 @@ categoryManager.registerCategory (
 		"nameEmpty" : Ue["NICHT_TYPISIERT"],
 		"elementID" : "morphTypeSelect",
 		"filterComponents" : [
-			new GroupingComponent([/*categories.PhoneticType, */categories.Concept], categories.Concept, new Sorter([alphabetSorter, numRecSorter]), undefined, lingTags),
+			new GroupingComponent([/*categories.PhoneticType, */categories.Concept], categories.Concept, true, new Sorter([alphabetSorter, numRecSorter]), undefined, lingTags),
 			new MarkingComponent(lingTagFunction),
 			new TypeGenderFilterComponent()],
 		"countNames" : [Ue["BELEG"], Ue["BELEGE"]],
@@ -809,7 +816,7 @@ categoryManager.registerCategory (
 		"nameEmpty" : Ue["NICHT_TYPISIERT"],
 		"elementID" : "baseTypeSelect",
 		"filterComponents" : [
-			new GroupingComponent([/*categories.PhoneticType, */categories.MorphologicType, categories.Concept], categories.Concept, new Sorter([alphabetSorter, numRecSorter]), undefined, lingTags),
+			new GroupingComponent([/*categories.PhoneticType, */categories.MorphologicType, categories.Concept], categories.Concept, true, new Sorter([alphabetSorter, numRecSorter]), undefined, lingTags),
 			new MarkingComponent(lingTagFunction)],
 		"countNames" : [Ue["BELEG"], Ue["BELEGE"]],
 		"textForNewComment" :Ue["KOMMENTAR_BASIS_SCHREIBEN"]
@@ -832,6 +839,7 @@ categoryManager.registerCategory (
 			new GroupingComponent(
 				[/*categories.PhoneticType, */categories.MorphologicType, categories.BaseType], 
 				categories.MorphologicType, 
+				true,
 				new Sorter([alphabetSorter, new LanguageFamilySortComponent (), numRecSorter]), 
 				conceptSorterFunc,
 				lingTags
@@ -887,7 +895,7 @@ var /** function (number, string): Array<{tag:string, name:string}> */ elingGrou
 };
 
 var /** TagComponent */ elingTag = new TagComponent(elingTagFunction);
-var /** GroupingComponent */ elingGroupingE = new GroupingComponent([], undefined, undefined, undefined, elingGroupFunction)
+var /** GroupingComponent */ elingGroupingE = new GroupingComponent([], undefined, true, undefined, undefined, elingGroupFunction)
 
 categoryManager.registerCategory (
 	buildCategoryInformation ({
@@ -928,7 +936,7 @@ var /** GroupingComponent */ elingGroupingP = new GroupingComponent(function (ca
 		return "LAND";
 	}
 	return undefined;
-}, undefined, undefined, elingGroupFunction);
+}, true, undefined, undefined, elingGroupFunction);
 
 var /** EditConfiguration */ polyEditConfig = new EditConfiguration();
 polyEditConfig.allowGeoDataChange(OverlayType.PointSymbol, function (elementID){
@@ -984,6 +992,23 @@ categoryManager.registerCategory (
 			}
 			
 			return element.filterData["query_name"];
+		}
+	})
+);
+
+//Pseudo category for grouped sql result sub types
+categoryManager.registerCategory (
+	buildCategoryInformation ({
+		"categoryID" : categories.CustomSub,
+		"categoryPrefix" : "Y",
+		"name" : Ue["EIGENE_KATEGORIE"],
+		"nameEmpty" : Ue["EMPTY"],
+		"elementID" : undefined,
+		"costumGetNameFunction" : function (key){
+			return key.substring(1);
+		},
+		"subLegendNameFun" : function (filterData){
+			return filterData["groupingName"];
 		}
 	})
 );

@@ -377,7 +377,57 @@ if (function_exists ('acf_add_local_field_group')) :
 										'ajax' => 0,
 										'placeholder' => '',
 										'return_format' => 'value',
-									)
+									),
+								    array(
+								        'key' => 'field_fb_text_teile',
+								        'label' => 'Unterteilung',
+								        'name' => 'fb_text_parts',
+								        'type' => 'repeater',
+								        'instructions' => 'Teilfragen erlauben mehrere Texteingabefelder, die unter einer Frage zusammengefasst werden. Werden Teilfragen angelegt erscheint jeweils hinter dem Text einer Teilfrage ein Eingabefeld. Werden keine Teilfragen angegeben, erscheint ein einzelnes Textfeld nach der Beschreibung der Frage.',
+								        'required' => 0,
+								        'conditional_logic' => array(
+								            array(
+								                array(
+								                    'field' => 'field_5b226c4078928',
+								                    'operator' => '==',
+								                    'value' => 'Text'
+								                )
+								            )
+								        ),
+								        'wrapper' => array(
+								            'width' => '',
+								            'class' => '',
+								            'id' => ''
+								        ),
+								        'collapsed' => '',
+								        'min' => 0,
+								        'max' => 0,
+								        'layout' => 'table',
+								        'button_label' => 'Teilfrage hinzufügen',
+								        'sub_fields' => array(
+								            array(
+								                'key' => 'field_fb_teilfrage',
+								                'label' => 'Teilfrage',
+								                'name' => 'fb_question_part',
+								                'type' => 'text',
+								                'instructions' => '',
+								                'required' => 0,
+								                'conditional_logic' => 0,
+								                'wrapper' => array(
+								                    'width' => '',
+								                    'class' => '',
+								                    'id' => ''
+								                ),
+								                'default_value' => '',
+								                'placeholder' => '',
+								                'prepend' => '',
+								                'append' => '',
+								                'min' => '',
+								                'max' => '',
+								                'step' => ''
+								            )
+								        )
+								    ),
 								)
 							)
 						)
@@ -455,6 +505,25 @@ if (function_exists ('acf_add_local_field_group')) :
 					'id' => ''
 				),
 				'default_value' => 'Vielen Dank für die Teilnahme!',
+				'tabs' => 'all',
+				'toolbar' => 'full',
+				'media_upload' => 1,
+				'delay' => 0
+			),
+			array(
+				'key' => 'field_blocked',
+				'label' => 'Fragebogen deaktivieren',
+				'name' => 'fb_block',
+				'type' => 'true_false',
+				'instructions' => 'Der Fragebogen bleibt weiterhin zugreifbar und verwendbar, die Eintragungen werden aber nicht mehr gespeichert.',
+				'required' => 0,
+				'conditional_logic' => 0,
+				'wrapper' => array(
+					'width' => '',
+					'class' => '',
+					'id' => ''
+				),
+				'default_value' => 0,
 				'tabs' => 'all',
 				'toolbar' => 'full',
 				'media_upload' => 1,

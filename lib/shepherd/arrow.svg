@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="26"
+   height="23"
+   viewBox="0 0 26 23"
+   version="1.1"
+   id="svg8"
+   sodipodi:docname="arrow.svg"
+   inkscape:version="1.1 (c68e22c387, 2021-05-23)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs12" />
+  <sodipodi:namedview
+     id="namedview10"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     showgrid="false"
+     inkscape:zoom="37.956522"
+     inkscape:cx="7.6666666"
+     inkscape:cy="11.5"
+     inkscape:window-width="2560"
+     inkscape:window-height="1377"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg8" />
+  <g
+     fill="#E55850"
+     fill-rule="evenodd"
+     transform="rotate(-180 13 11.5)"
+     id="g6"
+     style="fill:#dbe1e6;fill-opacity:1">
+    <polygon
+       points="0 17.026 19.436 17.026 19.436 6.025 0 6.025"
+       id="polygon2"
+       style="fill:#dbe1e6;fill-opacity:1" />
+    <polygon
+       points="13.76 0 13.76 23.052 25.112 11.526"
+       id="polygon4"
+       style="fill:#dbe1e6;fill-opacity:1" />
+  </g>
+</svg>

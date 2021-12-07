@@ -90,6 +90,8 @@ Basiszeichen2
   / "l1" {return "x0142";}
   / "l2" {return "x026B";}
   / "l5" {return "x028E";}
+  / "l6" {return "x026B";}
+  / "l7" {return "xA749";}
   / "r1" {return "x0280";}
   / "p1" {return "x03C0";}
   / "e10" {return "x1D4A";} // Needed for e1 in squared brackets

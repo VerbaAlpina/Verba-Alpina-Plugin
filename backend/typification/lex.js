@@ -5,8 +5,44 @@ var /** boolean */ shiftPressed = false;
 
 jQuery(function() {
 	
-	jQuery("#morphTypenAuswahl").val("");
-	jQuery("#konzeptAuswahl").val("");
+	jQuery("#morphTypenAuswahl").val("").select2({
+		ajax: {
+			"url": ajaxurl,
+			"type" : "POST",
+			"dataType": "json",
+			"data": function (params) {
+				var query = {
+					"action" : "va",
+					"namespace" : "util",
+					"query" : "getMorphTypesForSelect",
+					"search": params.term,
+					"page": params.page || 1
+				}
+	
+	      		return query;
+			}
+		}
+	});
+	
+	jQuery("#konzeptAuswahl").val("").select2({
+		ajax: {
+			"url": ajaxurl,
+			"type" : "POST",
+			"dataType": "json",
+			"data": function (params) {
+				var query = {
+					"action" : "va",
+					"namespace" : "util",
+					"query" : "getConceptsForSelect",
+					"search": params.term,
+					"ignore_gram" : true,
+					"page": params.page || 1
+				}
+	
+	      		return query;
+			}
+		}
+	});
 	
 	addNewEnumValueScript(undefined, undefined, DATA.dbname);
 	
@@ -47,10 +83,8 @@ jQuery(function() {
 	
 	//Typify
 	jQuery(".assignButton").click(typify);
-	jQuery("#newVAType").click(openMorphTypeDialog);
 	jQuery("#editVAType").click(editMorphType);
-	jQuery("#newMTypeButton").click(saveMorphType);
-	jQuery("#newBTypeButton").click(saveBaseType);
+	jQuery("#dupVAType").click(editMorphType);
 	
 	//No Typification
 	jQuery(".conceptButton").click(assignConcept);
@@ -61,33 +95,44 @@ jQuery(function() {
 				jQuery('#keinTypAuswahl').append("<option value='" + data["id"] + "'>" + data["Beschreibung_D"] + "</option>").trigger("chosen:updated");
 			}
 			if(data["Relevanz"] == "1"){
-				jQuery('#konzeptAuswahl').append("<option value='" + data["id"] + "'>" + (data["Name_D"] != ""? data["Name_D"]: data["Beschreibung_D"]) + "</option>").val(data["id"]).trigger("chosen:updated");
+				jQuery('#konzeptAuswahl').append("<option value='" + data["id"] + "'>" + (data["Name_D"] != ""? data["Name_D"]: data["Beschreibung_D"]) + "</option>").val(data["id"]).trigger("change");
 			}
 		}, selectModes.Chosen, DATA.dbname);
 	});
 	
 	//Edit menu
-	jQuery("#newReferenceButton").click(function () {
-		showTableEntryDialog('NeueReferenzFuerZuweisung', null, selectModes.Chosen, DATA.dbname);
-	});
-	
-	jQuery("#newBasetypeReferenceButton").click(function (){
-		showTableEntryDialog('NeueReferenzFuerBasistyp', null, selectModes.Chosen, DATA.dbname);
-	});
-	
-	jQuery("#newBaseTypeButton").click(function (){
-		openBaseTypeDialog();
-	});
-	
 	jQuery('.infoSymbol').qtip();
 	
-	jQuery("#auswahlBasistyp").change(function (){
-		addBaseType(this.value, jQuery(this).find("option:selected").text(), false);
+	addListenersForCreateLexType();
+	
+	jQuery(document).on("click", ".problemRefButton", function (){
+		let newRow = jQuery("<tr><td><select style='min-width: 200px;'></select></td><td><input type='text' style='min-width: 200px;' /></td><td><span style='cursor: pointer;' class='problemRemoveRef dashicons dashicons-no-alt'></span></td></tr>");
+		jQuery("#problemRefTable").append(newRow);
+		newRow.find("select").select2({
+			"ajax" : {
+				"type" : "POST",
+				"url" : ajaxurl,
+				"dataType": "json",
+				"data" : function (params){
+					return {
+						"action" : "va",
+						"namespace" : "typification",
+						"query" : "getReferencesMorph",
+						"search" : params.term
+					};
+				},
+				"processResults": function (data){
+					return {"results": data};
+				},
+				"delay": 250
+			},
+			"minimumInputLength" : 2,
+			"dropdownParent": jQuery('#VAProblemOverlay')
+		});
 	});
 	
-	jQuery(document).on("click", ".deleteBaseType", function (){
-		jQuery("#auswahlBasistyp option[value=" + jQuery(this).closest("tr").data("bid") + "]").prop("disabled", false);
-		jQuery("#auswahlBasistyp").trigger("chosen:updated");
+	jQuery(document).on("click", ".problemRemoveRef", function (){
+		jQuery(this).closest("tr").find("select").select2("destroy");
 		jQuery(this).closest("tr").remove();
 	});
 	
@@ -105,15 +150,99 @@ jQuery(function() {
 			alert("Tokengruppe-Ids:\n" + res);
 	});
 	
+	jQuery(document).on("click", ".problemButton", function (){
+		
+		var id_desc = jQuery(this).closest("tr").data("id-description");
+		var description = descriptionList.getDescription(id_desc);
+		
+		jQuery('#VAProblemOverlay #problemComment').val("");
+		jQuery('#VAProblemOverlay #problemNewType').val("");
+		jQuery('#VAProblemOverlay #problemType').val("");
+		jQuery('#VAProblemOverlay #problemRefTable').empty();
+		
+		jQuery("#VAProblemOverlay #problemDescId").val(id_desc);
+		jQuery("#VAProblemOverlay #problemStimulus").val(jQuery("#filterAtlas").val() + ": " + jQuery(".stimulusList option:selected").text());
+		jQuery("#VAProblemOverlay #problemRecord").val(description.name);
+		
+		jQuery('#VAProblemOverlay').dialog({
+			"minWidth" : 700,
+			"modal": true,
+			"close" : function (){
+				jQuery("#VAProblemOverlay select").select2("destroy");
+			}
+		});
+		
+		jQuery("#VAProblemOverlay #problemType").select2({
+			ajax: {
+				"url": ajaxurl,
+				"type" : "POST",
+				"dataType": "json",
+				"data": function (params) {
+					var query = {
+						"action" : "va",
+						"namespace" : "util",
+						"query" : "getMorphTypesForSelect",
+						"search": params.term,
+						"page": params.page || 1
+					}
+		
+		      		return query;
+				}
+			},
+			width: "400px",
+			dropdownParent: jQuery('#VAProblemOverlay')
+		});
+	});
+	
+	jQuery("#problemConfirm").click(function (){
+		
+		if (!jQuery("#VAProblemOverlay #problemComment").val()){
+			alert("Please enter a comment!");
+			return;
+		}
+			
+		var desc_id = jQuery("#VAProblemOverlay #problemDescId").val();
+		var description = descriptionList.getDescription(desc_id);
+		var refs = [];
+		
+		jQuery("#VAProblemOverlay #problemRefTable tr").each(function (){
+			let newRef = {"id" : jQuery(this).find("td:first select").val(), "text" : jQuery(this).find("td:nth-child(2) input").val()};
+			refs.push(newRef);
+		});
+		
+		jQuery.post(ajaxurl, {
+			"action" : "va",
+			"namespace" : "typification",
+			"query" : "add_problem",
+			"id_stimulus" : description.id_stimulus,
+			"record" : description.name,
+			"kind" : description.kind,
+			"ids" : description.idlist,
+			"comment" : jQuery("#VAProblemOverlay #problemComment").val(),
+			"id_type" : jQuery("#VAProblemOverlay #problemType").val(),
+			"type_text" : jQuery("#VAProblemOverlay #problemNewType").val(),
+			"refs" : refs
+		}, function (response){
+			if (response === "success"){
+				var selectedIds = jQuery("#tokenAuswahlLex").getSelectionOrder();
+				
+				jQuery("#tokenAuswahlLex").setSelectionOrder(selectedIds.filter(item => item !== desc_id), true);
+				jQuery("#recordSummary tr[data-id-description=" + desc_id + "]").remove();
+				
+				jQuery("#tokenAuswahlLex option[value=" + desc_id + "]").css("background", "red").prop("disabled", true);
+				jQuery("#tokenAuswahlLex").trigger("chosen:updated");
+				
+				descriptionList.remove(desc_id);
+				jQuery('#VAProblemOverlay').dialog("close");
+			}
+			else {
+				alert("Error");
+			}
+		});
+	});
+	
 	changeAtlas(true);
 });
-
-function addBaseType (id, type, unsure){
-	var btypeSpan = "<span class='chosen-like-button chosen-like-button-del'><span>" + type + "</span><a class='deleteBaseType'></a></span>";
-	jQuery("#baseTypeTable").append("<tr data-bid='" + id + "'><td>" + btypeSpan + "</td><td><input type='checkbox'" + (unsure? " checked": "") + " />Unsicher</td></tr>");
-	jQuery("#auswahlBasistyp").find("option[value=" + id + "]").prop("disabled", true);
-	jQuery("#auswahlBasistyp").val([]).trigger("chosen:updated");
-}
 
 function emptySelection (){
 	var values = jQuery("#tokenAuswahlLex").val();
@@ -639,52 +768,16 @@ function saveMorphType (){
 			var typeInfo = JSON.parse(response);
 			closeMorphDialog();
 			
+			var optionHtml = "<option value='" + typeInfo['Id'] + "'>" + typeInfo['Name']  + "</option>";
+
 			if(edit){
-				var typeSelect = jQuery("#morphTypenAuswahl option:selected");
-				jQuery("#auswahlBestandteile option[value=" + typeSelect.val() + "]").text(typeInfo['Name']);
-				jQuery("#auswahlBestandteile").trigger("chosen:updated");
-				typeSelect.text(typeInfo['Name']);
-				jQuery("#morphTypenAuswahl").trigger("chosen:updated");
+				jQuery("#morphTypenAuswahl option[value=" + typeInfo['Id'] + "]").remove();
 				
 				descriptionList.changeTypeName(id, typeInfo['Name']);
 				repaintRecordSummary();
 			}
-			else {
-				var optionHtml = "<option value='" + typeInfo['Id'] + "'>" + typeInfo['Name']  + "</option>";
-				jQuery("#auswahlBestandteile").append(optionHtml).trigger("chosen:updated");
-				jQuery("#morphTypenAuswahl").append(optionHtml).val(typeInfo['Id']).trigger("chosen:updated");
-			}
-		}
-		catch (e) {
-			alert(e + "(" + response + ")");
-		}
-	});
-}
-
-function saveBaseType (){
-	var data = getBaseTypeData();
-	
-	if(data.type.Orth == ""){
-		alert(TRANSLATIONS.ERROR_ORTH);
-		return;
-	}
-	
-	if(!data.type.Sprache){
-		alert("Das Feld \"Sprache\" darf nicht leer sein!");
-		return;
-	}
-
-	jQuery.post(ajaxurl, data, function (response){
-		try {
-			if(response.startsWith("Fehler")){
-				alert(response);
-				return;
-			}
 			
-			var typeInfo = JSON.parse(response);
-			closeBaseTypeDialog();
-			
-			jQuery('#auswahlBasistyp').append("<option value='" + typeInfo["Id"] + "'>" + typeInfo["Name"] + "</option>").trigger("chosen:updated");
+			jQuery("#morphTypenAuswahl").append(optionHtml).val(typeInfo['Id']).trigger("change");
 		}
 		catch (e) {
 			alert(e + "(" + response + ")");

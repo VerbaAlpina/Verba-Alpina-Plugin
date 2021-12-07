@@ -3,8 +3,8 @@ function va_lex_scripts (){
     IM_Initializer::$instance->enqueue_chosen_library();
     IM_Initializer::$instance->enqueue_select2_library();
     IM_Initializer::$instance->enqueue_gui_elements();
-    wp_enqueue_script('lex_typifiy_script', plugins_url('/lex.js?v=1', __FILE__));
-    wp_enqueue_script('typifiy_script', plugins_url('/util.js', __FILE__));
+    wp_enqueue_script('lex_typifiy_script', plugins_url('/lex.js?v=4', __FILE__));
+    wp_enqueue_script('typifiy_script', plugins_url('/util.js?v=5', __FILE__));
     
     wp_localize_script('lex_typifiy_script', 'DATA', [
         'scanUrl' => home_url('/dokumente/scans/', 'https'),
@@ -12,8 +12,18 @@ function va_lex_scripts (){
         'writeMode' => current_user_can('va_typification_tool_write')? 'true' : 'false'
     ]);
     
-    wp_localize_script('lex_typifiy_script', 'TRANSLATIONS', [
+    
+    global $va_xxx;
+    $conceptsVA = $va_xxx->get_results("SELECT Id_Konzept, IF(Name_D != '', Name_D, Beschreibung_D) as Name FROM Konzepte WHERE NOT Grammatikalisch ORDER BY Name ASC", ARRAY_N);
+    wp_localize_script('lex_typifiy_script', 'Concepts', va_two_dim_to_assoc($conceptsVA));
+    
+    va_lex_translations();
+}
+
+function va_lex_translations (){
+    wp_localize_script('typifiy_script', 'TRANSLATIONS', [
         'CORRECT' => __('Correct Attestation','verba-alpina'),
+        'PROBLEM' => __('Problem','verba-alpina'),
         'ATTESTATION' => __('Attestation','verba-alpina'),
         'CHOOSE_TYPE' => __('Choose a type!','verba-alpina'),
         'CHOOSE_CONCEPT' => __('Choose a concept!','verba-alpina'),
@@ -51,24 +61,44 @@ function va_typif_get_stimulus_list (&$db, $atlas, $morph_flag, $concept_flag, $
 			$join_groups .= ' JOIN Informanten i USING (Id_Informant)';
 		}
 		
+		//Concat to a avoid a weird doubling of the empty lang value
         $stimuli_pre = $db->get_results("
-			SELECT DISTINCT 
-				Sprache AS Id_Stimulus, 
-				Sprache AS TStimulus,
+			(SELECT DISTINCT 
+				CONCAT(Sprache,'') AS Id_Stimulus, 
+				CONCAT(Sprache,'') AS TStimulus,
 				'' AS Karte 
 			FROM Informanten 
-			ORDER BY Sprache ASC", ARRAY_A);
+			) UNION
+			(SELECT DISTINCT 
+				CONCAT('D', Id_dialect) AS Id_Stimulus, 
+				CONCAT(Name,'') AS TStimulus,
+				'' AS Karte 
+			FROM dialects
+			WHERE id_dialect != 0)
+			ORDER BY TStimulus ASC", ARRAY_A);
 			
 		$stimuli = [];
 		foreach ($stimuli_pre as $stimulus){
-			$sql = '
-				SELECT (SELECT count(*) 
-				FROM Tokens LEFT JOIN VTBL_Token_Konzept USING (Id_Token) LEFT JOIN Konzepte USING (Id_Konzept)' . $join . '
-				WHERE i.Sprache = "' . $stimulus['Id_Stimulus'] . '" AND Id_Stimulus IN (SELECT ID_Stimulus FROM Stimuli WHERE Erhebung = "CROWD") AND (Grammatikalisch IS NULL OR NOT Grammatikalisch)' . $app .')
-				+
-				(SELECT count(*) 
-				FROM Tokengruppen LEFT JOIN VTBL_Tokengruppe_Konzept USING (Id_Tokengruppe) LEFT JOIN Konzepte USING (Id_Konzept) JOIN Tokens USING(Id_Tokengruppe)' . $join_groups . '
-				WHERE i.Sprache = "' . $stimulus['Id_Stimulus'] . '" AND Id_Stimulus IN (SELECT ID_Stimulus FROM Stimuli WHERE Erhebung = "CROWD") AND (Grammatikalisch IS NULL OR NOT Grammatikalisch)' . $app .')';
+			if (mb_substr($stimulus['Id_Stimulus'], 0, 1) === 'D'){
+				$sql = '
+					SELECT (SELECT count(*) 
+					FROM Tokens LEFT JOIN VTBL_Token_Konzept USING (Id_Token) LEFT JOIN Konzepte USING (Id_Konzept) LEFT JOIN dialects d ON id_dialect = Id_Dialekt' . $join . '
+					WHERE d.id_dialect = "' . mb_substr($stimulus['Id_Stimulus'], 1) . '" AND Id_Stimulus IN (SELECT ID_Stimulus FROM Stimuli WHERE Erhebung = "CROWD") AND (Grammatikalisch IS NULL OR NOT Grammatikalisch)' . $app .')
+					+
+					(SELECT count(*) 
+					FROM Tokengruppen LEFT JOIN VTBL_Tokengruppe_Konzept USING (Id_Tokengruppe) LEFT JOIN Konzepte USING (Id_Konzept) JOIN Tokens USING(Id_Tokengruppe) LEFT JOIN dialects d ON id_dialect = Id_Dialekt' . $join_groups . '
+					WHERE d.id_dialect = "' . mb_substr($stimulus['Id_Stimulus'], 1) . '" AND Id_Stimulus IN (SELECT ID_Stimulus FROM Stimuli WHERE Erhebung = "CROWD") AND (Grammatikalisch IS NULL OR NOT Grammatikalisch)' . $app .')';
+			}
+			else {
+				$sql = '
+					SELECT (SELECT count(*) 
+					FROM Tokens LEFT JOIN VTBL_Token_Konzept USING (Id_Token) LEFT JOIN Konzepte USING (Id_Konzept)' . $join . '
+					WHERE i.Sprache = "' . $stimulus['Id_Stimulus'] . '" AND (Id_Dialekt IS NULL OR Id_Dialekt = 0) AND Id_Stimulus IN (SELECT ID_Stimulus FROM Stimuli WHERE Erhebung = "CROWD") AND (Grammatikalisch IS NULL OR NOT Grammatikalisch)' . $app .')
+					+
+					(SELECT count(*) 
+					FROM Tokengruppen LEFT JOIN VTBL_Tokengruppe_Konzept USING (Id_Tokengruppe) LEFT JOIN Konzepte USING (Id_Konzept) JOIN Tokens USING(Id_Tokengruppe)' . $join_groups . '
+					WHERE i.Sprache = "' . $stimulus['Id_Stimulus'] . '" AND (Id_Dialekt IS NULL OR Id_Dialekt = 0) AND Id_Stimulus IN (SELECT ID_Stimulus FROM Stimuli WHERE Erhebung = "CROWD") AND (Grammatikalisch IS NULL OR NOT Grammatikalisch)' . $app .')';
+			}
 				
 			$count = $db->get_var($sql);
 			
@@ -103,7 +133,7 @@ function va_typif_get_stimulus_list (&$db, $atlas, $morph_flag, $concept_flag, $
     $res .= '<select class="stimulusList">';
     $res .= '<option value="">' . __('Choose Stimulus', 'verba-alpina') . '</option>';
     foreach ($stimuli as $stimulus){
-        $res .= '<option value="' . $stimulus['Id_Stimulus'] . '" data-file="' . $atlas . '#' . $stimulus['Karte'] . '.pdf">' . $stimulus['TStimulus'] . '</option>';
+        $res .= '<option value="' . ($stimulus['Id_Stimulus']?: 'other') . '" data-file="' . $atlas . '#' . $stimulus['Karte'] . '.pdf">' . ($stimulus['TStimulus']?: 'Andere') . '</option>';
     }
     $res .= '</select>';
     
@@ -123,7 +153,10 @@ if($dbname != NULL){
 
 $can_write = current_user_can('va_typification_tool_write');
 
-$att_info = __('Attestation without typification are formatted bold. Attestations without concept are in italics. Attestations linked with irrelevant concepts are shown with a grey background.', 'verba-alpina');
+$info_1 = __('Attestation without typification are formatted bold. Attestations without concept are in italics. Attestations linked with irrelevant concepts are shown with a grey background.', 'verba-alpina');
+$info_2 = __('Attestation with a red background have been marked as problematic. They cannot be selected until the problem is resolved.', 'verba-alpina');
+
+$att_info = $info_1 . ' ' . $info_2;
 $select_info = __('If "Ctrl" is pressed multiple attestations can be selected, if "Shift" is pressed other attestations that are orthographically identical get selected, too.', 'verba-alpina');
 
 ?>
@@ -201,31 +234,33 @@ DATA.dbname = <?php echo $dbname? '"' . $dbname . '"': 'undefined'; ?>;
 			
 			<h3><?php _e('Assign morph.-lex. type', 'verba-alpina');?></h3>
 			
-			<select id="morphTypenAuswahl" class="chosenSelect" data-placeholder="<?php _e('Choose type', 'verba-alpina');?>">
+			<select id="morphTypenAuswahl" style="min-width: 300px;" class="s2Select" data-placeholder="<?php _e('Choose type', 'verba-alpina');?>">
 				<?php
-				$typenVA = $db->get_results("SELECT Id_morph_Typ, lex_unique(Orth, Sprache, Genus) as Orth FROM morph_Typen WHERE Quelle = 'VA' ORDER BY Orth ASC", ARRAY_A);
+				/*$typenVA = $db->get_results("SELECT Id_morph_Typ, lex_unique(Orth, Sprache, Genus) as Orth FROM morph_Typen WHERE Quelle = 'VA' ORDER BY Orth ASC", ARRAY_A);
 		
 				foreach ($typenVA as $vat) {
 					echo '<option value="' . $vat['Id_morph_Typ'] . '">' . $vat['Orth'] . '</option>';
-				}
+				}*/
 				?>
 			</select>
 			<input id="assignVA" type="button" class="button button-primary assignButton" value="<?php _e('Assign type', 'verba-alpina');?>" <?php if(!$can_write) echo ' disabled';?> />
 			<input id="newVAType" type="button" class="button button-primary" value="<?php _e('Create new type', 'verba-alpina');?>" <?php if(!$can_write) echo ' disabled';?> />
 			<input id="editVAType" type="button" class="button button-primary" value="<?php _e('Edit type', 'verba-alpina');?>" <?php if(!$can_write) echo ' disabled';?> />
+			<input id="dupVAType" type="button" class="button button-primary" value="<?php _e('Duplicate type', 'verba-alpina');?>" <?php if(!$can_write) echo ' disabled';?> />
+			<?php echo va_get_info_symbol(__('Can be used to create very similar types, e.g. if they only differ in gender', 'verba-alpina'));?>
 			
 			<br />
 			<br />
 			
 			<h3><?php _e('Assign concept', 'verba-alpina');?></h3>
 			
-			<select id="konzeptAuswahl" class="chosenSelect" data-placeholder="<?php _e('Choose concept', 'verba-alpina');?>">
+			<select id="konzeptAuswahl" style="min-width: 400px;" class="s2Select" data-placeholder="<?php _e('Choose concept', 'verba-alpina');?>">
 				<?php
-				$conceptsVA = $db->get_results("SELECT Id_Konzept, IF(Name_D != '', Name_D, Beschreibung_D) as Name FROM Konzepte WHERE NOT Grammatikalisch ORDER BY Name ASC", ARRAY_A);
+// 				$conceptsVA = $db->get_results("SELECT Id_Konzept, IF(Name_D != '', Name_D, Beschreibung_D) as Name FROM Konzepte WHERE NOT Grammatikalisch ORDER BY Name ASC", ARRAY_A);
 		
-				foreach ($conceptsVA as $vac) {
-					echo '<option value="' . $vac['Id_Konzept'] . '">' . $vac['Name'] . '</option>';
-				}
+// 				foreach ($conceptsVA as $vac) {
+// 					echo '<option value="' . $vac['Id_Konzept'] . '">' . $vac['Name'] . '</option>';
+// 				}
 				?>
 			</select>
 			<input id="assignConcept" type="button" class="button button-primary conceptButton" value="<?php _e('Assign concept', 'verba-alpina');?>" <?php if(!$can_write) echo ' disabled';?> />
@@ -262,6 +297,7 @@ DATA.dbname = <?php echo $dbname? '"' . $dbname . '"': 'undefined'; ?>;
 
 <?php
 createTypeOverlay($db, $dbname);
+createProblemOverlay($db, $dbname);
 
 }
 ?>

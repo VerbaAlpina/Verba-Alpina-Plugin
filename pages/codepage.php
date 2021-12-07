@@ -74,7 +74,7 @@ function va_get_codepage_data($atlas){
 		$res .= '<div style="margin: 20px;">' . $note . '</div>';
 	}
 	
-	$res .= '<table class="easy-table" style="font-family : arial unicode; table-layout: fixed;"><tr><th style="width: 45%;">' . $Ue['BETA_CODES'] . '</th>';
+	$res .= '<table class="easy-table" style="font-family : doulosSil; table-layout: fixed;"><tr><th style="width: 45%;">' . $Ue['BETA_CODES'] . '</th>';
 	if($va_beta)
 		$res .= '<th style="width: 45%;">' . $Ue['ORIGINAL'] . '</th>';
 	$res .= '<th style="width: 10%;">' . $Ue['IPA_ZEICHEN'] . '</th></tr>';

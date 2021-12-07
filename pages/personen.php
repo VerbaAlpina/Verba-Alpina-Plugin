@@ -54,11 +54,43 @@ function va_show_team () {
 		
 		<br />
 		
-		<h2><?php echo $Ue['EXTERNE_MITARBEITER'];?></h2> <?php
+		<h1><?php echo $Ue['EHEMALIGE_MITAREBITER'];?></h1> <?php
+		$former = $va_xxx->get_results("
+						SELECT Name, Vorname, CONCAT(DATE_FORMAT(Startdatum, '%d.%m.%Y'), ' - ', DATE_FORMAT(Enddatum, '%d.%m.%Y')) AS Zeitraum, Art, Fachgebiet
+						FROM Personen JOIN Stellen USING (Kuerzel)
+						WHERE Enddatum < NOW() AND Art != 'prak'
+						ORDER BY Name ASC, Vorname ASC", ARRAY_A);
+			?>
+			<table style="width:100%; "  class="easy-table easy-table-default tablesorter">
+				<thead>
+					<tr>
+						<th data-sort="string"><?php echo $Ue['NACHNAME'];?>, <?php echo $Ue['VORNAME'];?></th>
+						<th data-sort="string"><?php echo $Ue['ZEITRAUM']; ?></th>
+						<th data-sort="string"><?php echo $Ue['FUNKTION'];?></th>
+					</tr>
+				</thead>
+				<tbody>
+			<?php
+			foreach ($former as $person){
+				?>
+						<tr>
+							<td><?php echo $person['Name'] . ', ' . $person['Vorname'];?></td>
+							<td><?php echo $person['Zeitraum'];?></td>
+							<td><?php echo ucfirst(va_translate($person['Art'], $Ue)) . ($person['Fachgebiet']? ' (' . va_translate($person['Fachgebiet'], $Ue) . ')' : ''); ?></td>
+						</tr>
+				<?php
+			}
+			?>
+			</tbody>
+			</table>
+			
+			<br />
+			
+		<h4><?php echo $Ue['EXTERNE_MITARBEITER'];?></h4> <?php
 		$externs = $va_xxx->get_results("
 						SELECT Name, Vorname, group_concat(CONCAT(Aufgabe, '$$$', Detail) SEPARATOR '###') AS Aufgabenbereiche 
 						FROM Personen JOIN VTBL_Person_Aufgabe USING (Kuerzel) 
-						WHERE NOT EXISTS (SELECT * FROM Stellen WHERE Stellen.Kuerzel = Personen.Kuerzel) 
+						WHERE NOT EXISTS (SELECT * FROM Stellen WHERE Stellen.Kuerzel = Personen.Kuerzel AND Enddatum > NOW()) 
 						GROUP BY Kuerzel
 						ORDER BY Name, Vorname", ARRAY_A);
 		?>
@@ -94,40 +126,10 @@ function va_show_team () {
 		?>
 		</tbody>
 		</table>
+		
 		<br />
-		<h2><?php echo $Ue['EHEMALIGE_MITAREBITER'];?></h2> <?php
-		$former = $va_xxx->get_results("
-						SELECT Name, Vorname, CONCAT(DATE_FORMAT(Startdatum, '%d.%m.%Y'), ' - ', DATE_FORMAT(Enddatum, '%d.%m.%y')) AS Zeitraum, Art, Fachgebiet
-						FROM Personen JOIN Stellen USING (Kuerzel)
-						WHERE Enddatum < NOW() AND Art != 'prak'
-						ORDER BY Startdatum ASC", ARRAY_A);
-			?>
-			<table style="width:100%; "  class="easy-table easy-table-default tablesorter  ">
-				<thead>
-					<tr>
-						<th data-sort="string"><?php echo $Ue['NACHNAME'];?>, <?php echo $Ue['VORNAME'];?></th>
-						<th data-sort="string"><?php echo $Ue['ZEITRAUM']; ?></th>
-						<th data-sort="string"><?php echo $Ue['FUNKTION'];?></th>
-					</tr>
-				</thead>
-				<tbody>
-			<?php
-			foreach ($former as $person){
-				?>
-						<tr>
-							<td><?php echo $person['Name'] . ', ' . $person['Vorname'];?></td>
-							<td><?php echo $person['Zeitraum'];?></td>
-							<td><?php echo ucfirst(va_translate($person['Art'], $Ue)) . ($person['Fachgebiet']? ' (' . va_translate($person['Fachgebiet'], $Ue) . ')' : ''); ?></td>
-						</tr>
-				<?php
-			}
-			?>
-			</tbody>
-			</table>
 			
-			<br />
-			
-			<h2><?php echo $Ue['PRAKTIKANTEN']; ?></h2>
+			<h4><?php echo $Ue['PRAKTIKANTEN']; ?></h4>
 			
 			<table style="width:100%; "  class="easy-table easy-table-default tablesorter  ">
 			<thead>
@@ -140,7 +142,7 @@ function va_show_team () {
 	<?php
 		$prakt = $va_xxx->get_results("SELECT Name, Vorname, CONCAT(DATE_FORMAT(Startdatum, '%d.%m.%Y'), ' - ', DATE_FORMAT(Enddatum, '%d.%m.%y')) AS Zeitraum, Email
 						FROM Personen JOIN Stellen USING (Kuerzel)
-						WHERE Art = 'prak'
+						WHERE Enddatum < NOW() AND Art = 'prak'
 						ORDER BY Startdatum ASC", ARRAY_A);
 		$last_name = '';
 		foreach ($prakt as $person){

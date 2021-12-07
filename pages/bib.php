@@ -10,7 +10,8 @@ function show_bib_page (){
 	
 	echo '<div class="entry-content"><ul>';
 	foreach ($bib as $b){
-		echo '<li><b>' . $b[9] . '</b> = ' . va_format_bibliography($b[0], $b[1], $b[2], $b[3], $b[4], $b[5], $b[6], $b[7], $b[8], false) . '</li>';
+		echo '<a id="' . htmlspecialchars($b[9]) . '" class="fragment_anchor"></a>';
+		echo '<li><a style="color: black;" href="#' . htmlspecialchars($b[9]) . '"><b>' . $b[9] . '</b></a> = ' . va_format_bibliography($b[0], $b[1], $b[2], $b[3], $b[4], $b[5], $b[6], $b[7], $b[8], false) . '</li>';
 	}
 	echo '</ul></div>';
 	

@@ -66,6 +66,9 @@ abstract class VA_Converter {
 		else if ($id[0] == 'L'){
 			$condition = 'Id_Type = ' . substr($id, 1) . ' AND Type_Kind = "L" AND Source_Typing = "VA"';
 		}
+		else if ($id[0] == 'B'){
+			$condition = 'Id_Base_Type = ' . substr($id, 1);
+		}
 		else if ($id[0] == 'S' || $id[0] == 'G'){
 			$condition = 'External_Id = "' . $id  . '"';
 		}
@@ -335,7 +338,7 @@ class VA_XML_Converter extends VA_Converter {
 		
 		$doc->appendChild($instances);
 		
-		if ($validate){
+		if ($validate && !$add_empty){
 			libxml_use_internal_errors(true);
 
 			if (!$doc->schemaValidate(VA_PLUGIN_PATH . '/schemas/VerbaAlpina.xsd')){

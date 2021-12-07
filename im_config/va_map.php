@@ -8,10 +8,16 @@ global $admin;
 global $va_mitarbeiter;
 global $va_current_db_name;
 
+// IM_Initializer::$instance->database->flush();
+// $time = microtime(true);
+// error_log('Start');
+
 $type_occs = va_two_dim_to_assoc(IM_Initializer::$instance->database->get_results('SELECT Id, Vorkommen_AK FROM A_Typ_Vorkommen', ARRAY_N));
 
+// error_log('Type ocss: ' . (microtime(true) - $time)); $time = microtime(true);
+
 $concepts = IM_Initializer::$instance->database->get_results("
-								SELECT 
+								SELECT
 									a1.Id_Konzept,
 									Name_$lang AS Name,
 									Beschreibung_$lang AS Beschreibung, 
@@ -43,12 +49,15 @@ foreach ($concepts as $concept){
 	];
 }
 
+// error_log('Concepts: ' . (microtime(true) - $time)); $time = microtime(true);
+
 $sql_extra = "
-		SELECT Id_Category, Category_Level_1, Category_Level_2, Category_Level_3, Category_Level_4, Category_Level_5, Category_Name, OnlyPolygons
+		SELECT Id_Category, Category_Level_1, Category_Level_2, Category_Level_3, Category_Level_4, Category_Level_5, Category_Name, Map_Category
 		FROM Z_Geo
 		GROUP BY Id_Category
 		ORDER BY Category_Level_1, Category_Level_2, Category_Level_3, Category_Level_4, Category_Level_5";
 $extra_cats = IM_Initializer::$instance->database->get_results($sql_extra, ARRAY_N);
+
 
 $eling_JS = array();
 foreach ($extra_cats as $ecat){
@@ -73,11 +82,15 @@ foreach ($extra_cats as $ecat){
 	}
 }
 
+// error_log('Extra cats: ' . (microtime(true) - $time)); $time = microtime(true);
+
 $tagValues = IM_Initializer::$instance->database->get_col('SELECT DISTINCT Wert FROM Orte_Tags');
 
 //TODO Better solutation! Don't abuse getElementName!!!
 $tagNames = IM_Initializer::$instance->database->get_col('SELECT DISTINCT Tag FROM Orte_Tags');
 $tagValues = array_merge($tagValues, $tagNames, array('EMPTY'));
+
+// error_log('Tags: ' . (microtime(true) - $time)); $time = microtime(true);
 
 $sourcesLists = IM_Initializer::$instance->database->get_results('SELECT Id, Quellenliste FROM A_Quellenliste', ARRAY_N);
 
@@ -86,10 +99,15 @@ foreach ($sourcesLists as $sourceEntry){
 	$sourceMapping[$sourceEntry[0]] = $sourceEntry[1];
 }
 
+// error_log('Source map: ' . (microtime(true) - $time)); $time = microtime(true);
 
 $typeGenders = IM_Initializer::$instance->database->get_results("SELECT Id_morph_Typ, Genus FROM morph_Typen WHERE Quelle = 'VA'", ARRAY_N);
 
+// error_log('Genders: ' . (microtime(true) - $time)); $time = microtime(true);
+
 $qids = IM_Initializer::$instance->database->get_results('SELECT DISTINCT Id_Concept, QID FROM Z_Ling WHERE QID IS NOT NULL AND QID != 0', ARRAY_N);
+
+// error_log('QIDS: ' . (microtime(true) - $time)); $time = microtime(true);
 
 wp_localize_script ('im_map_script', 'Ue', $Ue);
 wp_localize_script ('im_map_script', 'Concepts', $concepts_JS);
@@ -181,6 +199,8 @@ $show_legend = isset($_REQUEST['tk']) || isset($_REQUEST['single']);
 								]);
 								echo va_get_mouseover_help($Ue['HILFE_BASISTYP'], $Ue, IM_Initializer::$instance->database, $lang, 58);
 
+
+								// error_log('Base types: ' . (microtime(true) - $time)); $time = microtime(true);
 								?>
 
 							</div>
@@ -198,14 +218,11 @@ $show_legend = isset($_REQUEST['tk']) || isset($_REQUEST['single']);
 								};
 								
 								//Morphologic types
-								echo im_table_select('Z_Ling', array('Id_Type'), array('Type', 'Type_Lang', 'POS', "'' AS Gender", 'Affix'), 'morphTypeSelect', array(
+								echo im_table_select('a_lex_list', 'Ids', ['Type', 'Type_Lang', 'POS', "'' AS Gender", 'Affix'], 'morphTypeSelect', array(
 										'list_format_function' => array('va_format_lex_type'),
 										'placeholder' => ucfirst($Ue['MORPH_TYP_PLURAL']),
 										'width' => '90%',
-										'filter' => "Type_Kind != 'P' AND Source_Typing = 'VA'" . ($admin? '': ' AND Id_Type != 6977'),
 										'sort_simplification_function' => $morph_function,
-										'group_by' => 'Type, Type_Lang, POS',
-										'group_order_by' => 'Type ASC, Gender ASC',
 										'costum_attribute_function' => function ($val, $name) use ($type_occs){
 											$types = explode('+', $val);
 											
@@ -219,6 +236,7 @@ $show_legend = isset($_REQUEST['tk']) || isset($_REQUEST['single']);
 									));
 								echo va_get_mouseover_help($Ue['HILFE_MORPH'], $Ue, IM_Initializer::$instance->database, $lang, 58);
 
+								// error_log('Morph. Types: ' . (microtime(true) - $time)); $time = microtime(true);
 								?>
 
 						    </div>		
@@ -300,6 +318,8 @@ $show_legend = isset($_REQUEST['tk']) || isset($_REQUEST['single']);
 									
 										<?php
 										echo va_get_mouseover_help($Ue['HILFE_KONZEPT'], $Ue, IM_Initializer::$instance->database, $lang, 37);
+										
+										// error_log('Concepts II: ' . (microtime(true) - $time)); $time = microtime(true);
 										?>
 							   </div>					
 								
@@ -321,6 +341,8 @@ $show_legend = isset($_REQUEST['tk']) || isset($_REQUEST['single']);
 							echo im_table_select('Informanten', 'Erhebung', array('Erhebung'), 'informantSelect', $idata);
 							echo va_get_mouseover_help($Ue['HILFE_INFORMANTEN'], $Ue, IM_Initializer::$instance->database, $lang, 30);
 							
+							// error_log('Informants: ' . (microtime(true) - $time)); $time = microtime(true);
+							
 							//Extra-linguistic
 							foreach($extra_cats as &$row){
 								for($i = 1; $i < 6; $i++){
@@ -330,7 +352,7 @@ $show_legend = isset($_REQUEST['tk']) || isset($_REQUEST['single']);
 							}
 								
 							$extra_cats = array_filter($extra_cats, function ($e){
-								return $e[7] == '0' /* OnlyPolygons*/;
+								return $e[7] == 'E';
 							});
 									
 									
@@ -346,6 +368,7 @@ $show_legend = isset($_REQUEST['tk']) || isset($_REQUEST['single']);
 								</div>
 										<?php
 										echo va_get_mouseover_help($Ue['HILFE_AUSSERSPR'], $Ue, IM_Initializer::$instance->database, $lang, 3);
+										// error_log('Extra ling: ' . (microtime(true) - $time)); $time = microtime(true);
 										?>
 							 </div>
 			
@@ -358,7 +381,7 @@ $show_legend = isset($_REQUEST['tk']) || isset($_REQUEST['single']);
 									'placeholder' => ucfirst($Ue['POLYGONE']),
 									'width' => '90%',
 									'list_format_function' => array('va_sub_translate', &$Ue),
-									'filter' => "OnlyPolygons"
+									'filter' => 'Map_Category = "A"'
 							));
 							
 							echo im_table_select('Z_Geo', array('Id_Category', 'CAST(Epsilon AS SIGNED)'), array('Category_Name', 'Id_Category', 'Epsilon'), 'hexagonSelect', array(
@@ -370,6 +393,8 @@ $show_legend = isset($_REQUEST['tk']) || isset($_REQUEST['single']);
 							));
 							
 							echo va_get_mouseover_help($Ue['HILFE_FLAECHEN'], $Ue, IM_Initializer::$instance->database, $lang, 88);
+							
+							// error_log('Areas: ' . (microtime(true) - $time)); $time = microtime(true);
 							
 							?>
 
@@ -439,6 +464,8 @@ va_create_hex_popup_html($Ue);
 va_create_sql_help_text($Ue);
 va_create_list_popup_html($Ue);
 va_create_export_list_popup_html($Ue);
+
+// error_log('Ready: ' . (microtime(true) - $time)); $time = microtime(true);
 }
 
 function va_translate_hexagon_grids ($str, $id, $epsilon, &$Ue){
@@ -504,6 +531,11 @@ function va_create_sql_help_text ($Ue){
 	$res .= '<a href="' . get_page_link(get_page_by_title('DATENBANK-DOKU')) . '#tabSchnittstelle" target="_BLANK">' . $Ue['DATENBANK_VERWEIS'] . '</a>';
 	
 	echo '<div id="va_sql_help_div" style="display: none;">' . $res . '</div>';
+	echo '<div id="va_sql_group_help_div" style="display: none;"><b>' . $Ue['BEISPIELE'] . '</b>:<br /><br />';
+	echo '<b>Instance</b> --> ' . $Ue['GRUPPIERUNG'] . ' ' . $Ue['BELEG'] . '<br />';
+	echo '<b>SUBSTRING(Instance, 1, 3)</b> --> ' . $Ue['GRUPPIERUNG'] . ' ' . $Ue['PRAEFIX'] . '<br />';
+	echo '<b>SUBSTRING_INDEX(Instance_Source, "#", 1)</b> --> ' . $Ue['GRUPPIERUNG'] . ' ' . $Ue['QUELLE'] . '<br />';
+	echo '</div>';
 }
 
 function va_translate_col_type ($name){

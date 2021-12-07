@@ -51,12 +51,12 @@ function createTypeOverlay (&$db, $dbname){
 	</form>
 		
 	<h2>Bestandteile</h2>
-	<select id="auswahlBestandteile" multiple="multiple">
+	<select id="auswahlBestandteile" multiple="multiple" style="min-width: 400px;">
 		<?php
-		$parts = $db->get_results("SELECT Id_morph_Typ, lex_unique(Orth, Sprache, Genus) FROM morph_Typen WHERE Quelle = 'VA'", ARRAY_N);
-		foreach ($parts as $part){
-			echo "<option value='{$part[0]}'>{$part[1]}</option>";
-		}
+// 		$parts = $db->get_results("SELECT Id_morph_Typ, lex_unique(Orth, Sprache, Genus) FROM morph_Typen WHERE Quelle = 'VA'", ARRAY_N);
+// 		foreach ($parts as $part){
+// 			echo "<option value='{$part[0]}'>{$part[1]}</option>";
+// 		}
 		?>
 	</select>
 	
@@ -106,6 +106,42 @@ function createTypeOverlay (&$db, $dbname){
 	), 'Angelegt_Von'), $dbname);
 	
 	va_echo_new_concept_fields('NeuesKonzept');
+}
+
+function createProblemOverlay (&$db, $dbname){
+    ?>
+    <div id="VAProblemOverlay" title="<?php _e('Problem description', 'verba-alpina'); ?>" style="display : none">
+    	<input type="hidden" id="problemDescId" />
+    	<table>
+    		<tr>
+    			<td style="font-weight: bold; padding-right: 20px;"><?php _e('Stimulus', 'verba-alpina'); ?></td>
+    			<td><input type="text" disabled id="problemStimulus" style="min-width: 400px;" /></td>
+    		</tr>
+    		<tr>
+    			<td style="font-weight: bold; padding-right: 20px;"><?php _e('Attestation', 'verba-alpina'); ?></td>
+    			<td><input type="text" disabled id="problemRecord" style="min-width: 400px;" /></td>
+    		</tr>
+    		<tr>
+    			<td style="font-weight: bold; padding-right: 20px;"><?php _e('Comment', 'verba-alpina'); ?></td>
+    			<td><textarea rows="6" cols="50"  id="problemComment"></textarea></td>
+    		</tr>
+    		<tr>
+    			<td style="font-weight: bold; padding-right: 20px;"><?php _e('Type proposal', 'verba-alpina'); ?></td>
+    			<td style="padding-top: 30px;"><?php _e('Existing type', 'verba-alpina'); ?>: <select id="problemType" style="min-width: 300px;"></select><br /><br />
+    			<?php _e('Or new type', 'verba-alpina');?> <input type="text" id="problemNewType" style="min-width: 300px;" /></td>
+    		</tr>
+    		<tr>
+    			<td style="font-weight: bold; padding-right: 20px"><?php _e('References', 'verba-alpina'); ?></td>
+    			<td style="padding-top: 30px;"><table id="problemRefTable"></table></td>
+    		</tr>
+    	</table>
+    	<input type="button" value="<?php _e('Add reference', 'verba-alpina'); ?>" class="button button-secondary problemRefButton" />
+    	 <br />
+    	 <br />
+    	 <br />
+    	 <input type="button" id="problemConfirm" style="float: right;" value="<?php _e('Create problem description', 'verba-alpina'); ?>" class="button button-primary" />
+    </div>
+    <?php   
 }
 
 function createBaseTypeOverlay (&$db, $dbname, $edit = false){

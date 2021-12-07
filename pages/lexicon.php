@@ -7,14 +7,12 @@ function va_lexicon(){
 	global $admin;
 	global $va_mitarbeiter;
 	global $va_current_db_name;
-	
-	?>
+?>
 	
 	
 	
 <script type="text/javascript">
 	var qtipApis;
-  	var gettingarticles = false;
   	var all_active_ids = {};
 	var ids_to_idx = {};
   	var append_alphabetically = true;
@@ -23,15 +21,44 @@ function va_lexicon(){
 	var clusterize;
 	var getting_sec_data = false;
 	var searching = false;
-	var stateUrl = "<?php 
-	   global $wp;
-       echo add_query_arg('state', '§§§', add_query_arg( $_SERVER['QUERY_STRING'], '', home_url( $wp->request )));
-    ?>";
-
+	var stateUrl = "<?php  global $wp; echo add_query_arg('state', '§§§', add_query_arg( $_SERVER['QUERY_STRING'], '', home_url( $wp->request )));?>";
+	var clear_titles = [];
+	var zoomWarning = "<?php echo $Ue['ZOOM_WARNING']; ?>"
+	var loadingCounter = 0;
+	var saved_left = null;
+	var prevent_tour_click = false;
 	
 	jQuery(document).ready(function () {
 
+		jQuery('.lmu_signum_bg').hide();
+
+		var translations_help = {};
+
+		translations_help['back'] = "<?php echo $Ue['LEX_BACK']; ?>";
+		translations_help['next'] = "<?php echo $Ue['LEX_NEXT']; ?>";
+		translations_help['end_tour'] = "<?php echo $Ue['LEX_ENDTOUR']; ?>";
+		translations_help['step_1'] = "<?php echo $Ue['LEX_STEP_1']; ?>";
+		translations_help['step_2'] = "<?php echo $Ue['LEX_STEP_2']; ?>";
+		translations_help['step_3'] = "<?php echo $Ue['LEX_STEP_3']; ?>";
+		translations_help['step_4'] = "<?php echo $Ue['LEX_STEP_4']; ?>";
+		translations_help['step_5'] = "<?php echo $Ue['LEX_STEP_5']; ?>";
+		translations_help['step_6'] = "<?php echo $Ue['LEX_STEP_6']; ?>";
+		translations_help['step_7'] = "<?php echo $Ue['LEX_STEP_7']; ?>";
+		translations_help['step_8'] = "<?php echo $Ue['LEX_STEP_8']; ?>";
+		translations_help['step_9'] = "<?php echo $Ue['LEX_STEP_9']; ?>";
+		translations_help['step_10'] = "<?php echo $Ue['LEX_STEP_10']; ?>";
+		translations_help['step_11'] = "<?php echo $Ue['LEX_STEP_11']; ?>";
+		translations_help['step_12'] = "<?php echo $Ue['LEX_STEP_12']; ?>";
+
 		addCopyButtonSupport();
+		addScrollShift();
+		addSideBarCollapse();
+		var tour = addHelpTourLex(translations_help);
+
+		tour.on("cancel", function(){
+			completeReset(true, true);
+		})
+
 		
 		jQuery('#lextitelinput').val('');
 
@@ -91,6 +118,9 @@ function va_lexicon(){
 					}
 				});
 			}
+
+		 addABCScrolling(removeDiacriticsPlusSpecial);	
+
 		});
 
 		jQuery(window).on("hashchange", function (){
@@ -103,12 +133,77 @@ function va_lexicon(){
 
 		if (window.location.hash){
 			let id = window.location.hash.substring(1);
+			if (ID_MAPPING[id]){
+				id = ID_MAPPING[id]; // L1 -> L1+5
+			}
 			addArticlesByIds([id], null, true, null);
 			all_active_ids[id] = true;
 			jQuery('.lexstartcontent').fadeOut('fast');
 		}
 
-	});
+		if((getZoomValues().actualZoom > 1.01 || getZoomValues().actualZoom < 1.0 ) && window.innerWidth>1100){  //temp fix didnt work for small screens after brwoser update
+			//showBrowserZoomWarning(zoomWarning)
+		}
+
+	centerLexLogo(true);
+
+	}); //ready
+
+
+function addABCScrolling(characterFunction){
+
+    var data = (filtered_data.length>0) ? filtered_data : all_data;
+
+	var list = ["A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z"] 	
+   
+   	if(jQuery('.lex_abc').children().length==0){
+		    list.map(o => {
+		    	jQuery('.lex_abc').append('<div>'+o+'<hr class="lexlisthr"></hr></div>');
+		    })
+		    jQuery('.lexlisthr').last().remove()
+
+		    clear_titles.map((el,i) => {
+		    	var regres = /title=\"(.*?)\">/gi.exec(el);
+		    	var titel;
+		    	if(regres)
+		    		 title = characterFunction(regres[1]);
+		    	else title = characterFunction(jQuery(el).attr('title'));
+		    	clear_titles[i] = title;
+		   })
+    }
+
+    var letterToIndices = {}
+
+    jQuery('.lex_abc div').removeClass('active');
+
+    data.map((el,i) => {
+    	var regres = /(id="(.*?)(\"))/g.exec(el);
+    	var id; 
+    	if(regres) id = regres[2];
+    	else id = jQuery(el).attr('id');
+    	var idx = ids_to_idx[id];
+    	var title = clear_titles[idx];
+    	var first_letter = title.charAt(0).toUpperCase();
+    	if(letterToIndices[first_letter]==undefined && list.indexOf(first_letter)!=-1){
+    		letterToIndices[first_letter] = i;
+    		jQuery('.lex_abc div:contains("'+first_letter+'")').addClass('active');
+    	}
+    })
+
+
+
+    letterToIndices['A'] = 0;
+
+    jQuery('.lex_abc > div.active').off().on('click touchstart',function(){
+
+
+    	 var row_height = jQuery('#lextitellist li').first().outerHeight();
+    	 var letterscrollpos = letterToIndices[jQuery(this).text()]
+    	 var scrolltop =  (letterscrollpos>0) ? (letterscrollpos*row_height)+row_height : 0
+    	 if(letterscrollpos!=undefined) jQuery("#scrollArea").animate({ scrollTop: parseInt(scrolltop)}, 100);
+    })
+
+}
 
 
 function openSavedArticles(stateData){
@@ -130,22 +225,23 @@ function openSavedArticles(stateData){
 
 				articles.map((current_art)=>{
 					article_id = current_art.id;
+					let selector = '#detailview_' + article_id.replace(/\+/g, '\\+');
 					all_active_ids[article_id] = true
 			
 					if(current_art.backOpen){
-					    jQuery('#detailview_'+article_id).find('.flipbutton').click()	
+					    jQuery(selector).find('.flipbutton').click()	
 					    
 					    for(var key in current_art['openSubs']){
 					    	var index = parseInt(current_art['openSubs'][key]["index"]);
 					        var idx = index+1;
-			    		    var subcont = jQuery('#detailview_'+article_id).find('.sub_head:nth-child('+idx+') .sub_head_content');
+			    		    var subcont = jQuery(selector).find('.sub_head:nth-child('+idx+') .sub_head_content');
 			    		    subcont.click()
 
 			    		    if(current_art['openSubs'][key]["secTables"]){
 
 				    		    current_art['openSubs'][key]["secTables"].map(subtable_idx => {
 				    		    	 var tr = subcont.parent().find('.backtable tbody tr:not(.second_row):nth-child('+subtable_idx+')')
-				    		    	 openSecTable(tr, jQuery('#detailview_'+article_id),true)
+				    		    	 openSecTable(tr, jQuery(selector),true)
 				    		    })
 
 			    		    }
@@ -155,7 +251,7 @@ function openSavedArticles(stateData){
 					}
 
 					else if (current_art.frontOpen){
-						jQuery('#detailview_'+article_id).find('.lex_read_more').click()	
+						jQuery(selector).find('.lex_read_more').click()	
 					}
 
 				})
@@ -167,6 +263,105 @@ function openSavedArticles(stateData){
 
 }
 
+
+function addScrollShift(){
+
+setTimeout(function() {
+
+    var top = parseInt(jQuery('.lex_header').css('top').split('px')[0]);
+    var margin_top = parseInt(jQuery('.entry-content.lex').css('margin-top').split('px')[0]);
+    var padding_top = parseInt(jQuery('#scrollLex').css('padding-top').split('px')[0]); 
+ 	var prevScroll = 0;
+
+ 	addScrollShiftListener(margin_top, margin_top, padding_top, prevScroll);
+
+ }, 10); // needed for correct css values
+
+
+}
+
+function addSideBarCollapse(){
+
+
+	jQuery('.lex_slide_collapse').on('click',function(){
+			if(window.innerWidth>=768){
+				centerLexLogo(false)
+				jQuery('.lexlogowrapper').addClass('shift');
+				jQuery('.lex_header').addClass('shift');
+				jQuery('body').addClass('sidebarCollapse');
+				jQuery('.lex_slide_uncollapse').fadeIn();
+				jQuery('.lexsidebar').css('left','-'+(jQuery('.lexsidebar').outerWidth()+5)+'px');
+			}
+	})
+
+	jQuery('.lex_slide_uncollapse').on('click',function(){
+		if(window.innerWidth>=768){
+				centerLexLogo(true)
+			    jQuery('.lexlogowrapper').removeClass('shift');
+			    jQuery('.lex_header').removeClass('shift');
+				jQuery('body').removeClass('sidebarCollapse');
+				jQuery('.lex_slide_uncollapse').fadeOut();
+				jQuery('.lexsidebar').css('left','0px');
+			}
+	})
+
+	jQuery('.lex_scrollup').on('click',function(){
+		jQuery("html, body").animate({ scrollTop: "0" });
+	})
+}
+
+
+function centerLexLogo(withSideBar){
+	var headerwidth = jQuery('.lex_header_inner').innerWidth();
+	var innerheaderwidth = jQuery('.lexlogowrapper').innerWidth();
+	var left = headerwidth/2 - innerheaderwidth/2;
+	var add = 16;
+	var left_articles = jQuery('.lex_articles').offset().left;
+
+	if(!withSideBar || window.innerWidth<=768){
+		jQuery('.lexlogowrapper').css('left',(left)+"px");
+		var head_width = jQuery('.lexhead').innerWidth();
+		var left = innerheaderwidth/2 - head_width/2;
+		jQuery('.lexhead').css('left', (left-5) + "px");
+		saved_left = left_articles;
+	}
+	else {
+		if(!saved_left)jQuery('.lexlogowrapper').css('left',(left_articles)+"px");
+		else jQuery('.lexlogowrapper').css('left',(saved_left)+"px");
+		jQuery('.lexhead').css('left', "0px");
+	}
+
+}
+
+function addScrollShiftListener(margin_top, margin_top,padding_top, prevScroll){
+
+		jQuery(document).on("scroll", function() {
+
+			   var scrollTop = Math.round(jQuery(document).scrollTop())
+				 var scrollAdd = 90;
+			     if(window.innerWidth<=1340) scrollAdd = 70;
+			     if(window.innerWidth<=768 && window.innerWidth>721) scrollAdd = 85;
+			     if(window.innerWidth<721) scrollAdd = 65;
+
+			     if(scrollTop>75) {
+		     		jQuery('img.lexlogo').addClass('fadeOut')
+			     	jQuery('.lex_header').css('transform','translateY(-'+scrollAdd+'px)')
+			     }
+			     else{
+		     	 	jQuery('.lex_header').css('transform','translateY(0px)')
+				 	jQuery('img.lexlogo').removeClass('fadeOut')
+			     }
+
+
+			     if(scrollTop > 100){
+			     	jQuery('.lex_scrollup').fadeIn();
+			     }
+			     else{
+			     	jQuery('.lex_scrollup').fadeOut();
+			     }
+		          	
+    });
+}
 
 
 function saveCurrentState(){
@@ -203,6 +398,12 @@ function saveCurrentState(){
 }
 
 function produceLexURL (callback){
+
+	if(prevent_tour_click){ 
+		return;
+	}
+
+
 	let data = saveCurrentState();
 
 	jQuery.post(ajax_object.ajaxurl, {
@@ -219,12 +420,35 @@ function produceLexURL (callback){
 
 function resizeBehavior(){
 
+	centerLexLogo(true);
+	setTimeout(function() {
+		centerLexLogo(true);
+	}, 1000);
 
-	if(window.innerWidth > 768){
+	if(window.innerWidth >= 768){
+		saved_left = null;
 		jQuery('.lexsidebar').show();
 		jQuery('.lexsidebar').css('top','');
 		jQuery('.mobile_sidebar_bg').hide();
+
+	jQuery('.lex_article.show.open').each(function(){
+
+			var f_cont = jQuery(this).find('.f_content');
+			var el_cont = f_cont[0];
+			var front  = jQuery(this).find('.front');
+			readMoreFunction(jQuery(this), el_cont, front);		
+
+	})
+
+	jQuery('.lex_article.flipped').each(function(){
+	closeAllBack(jQuery(this),false);
+	})
+
 	}	
+
+	if(jQuery('body').hasClass('sidebarCollapse')){
+		jQuery('.lex_slide_uncollapse').click();
+	}
 
 
 	jQuery('.lex_article:not(.overflow)').css('height','initial')
@@ -242,21 +466,9 @@ function resizeBehavior(){
 			jQuery(this).find('.front').css('height','100%')	
 	})
 
-	jQuery('.lex_article.show.open').each(function(){
-
-			var f_cont = jQuery(this).find('.f_content');
-			var el_cont = f_cont[0];
-			var front  = jQuery(this).find('.front');
-			readMoreFunction(jQuery(this), el_cont, front);		
-
-	})
-
-	jQuery('.lex_article.flipped').each(function(){
-	closeAllBack(jQuery(this),false);
-	})
 
 
-	clusterize.refresh(true);
+	if(clusterize)clusterize.refresh(true);
 
 }
 
@@ -264,8 +476,12 @@ function resizeBehavior(){
 
 function localLink (id){
 
+	if (ID_MAPPING[id]){
+		id = ID_MAPPING[id]; // L1 -> L1+5
+	}
+	
 	let callback = function (){
-		let j = jQuery("#detailview_" + id);
+		let j = jQuery(".lex_article_" + id);
 		if (j.hasClass("open")){
 			j[0].scrollIntoView();
 		}
@@ -285,6 +501,15 @@ function localLink (id){
 	else {
 		callback();
 	}
+}
+
+
+
+
+function slideMobileMenuDown(){
+		jQuery('.mobile_sidebar_bg').fadeOut();
+		jQuery('.lexsidebar.in').removeClass('in');
+		jQuery('.lexsidebar').css('top','100%');
 }
 
 function addPopups (div){
@@ -314,16 +539,15 @@ function removePopus (div){
 }
 
 function clickListItem(_this){
-
+	
  	 	var id = jQuery(_this).attr('id');
 
 		if(jQuery(_this).hasClass('active')){
-
-			closeArticle(jQuery('#detailview_'+id),id);
+			closeArticle(jQuery('#detailview_'+id.replace(/\+/g, '\\+')),id);
 			jQuery(_this).removeClass('active');
-			
 		}
 		else {
+			if(!jQuery('.lex_main_load_cover').is(":visible"))jQuery('.lex_main_load_cover').css("display", "flex").hide().fadeIn('fast');
 			jQuery(_this).addClass('active');
 	  	  	var prev_id = getPrevId(id);
 		    addArticlesByIds([id],prev_id,true,null);
@@ -356,7 +580,8 @@ function getAllArticles(callback){
 	  var data = {
             "action" : "va",
             "namespace" : "lex_alp",
-            "query" : "get_all_articles"
+            "query" : "get_all_articles",
+			"db" : ajax_object.db
     };
 
     jQuery.post(ajax_object.ajaxurl, data, function (response){
@@ -365,6 +590,7 @@ function getAllArticles(callback){
     		var article = res[i];
     		var type = article['Id'].substring(0, 1);
     		var row = '<li id="'+article["Id"]+'"><span class="list_marker type_'+type+'"></span><span class="title-string">'+article["Title_Html"]+'</span></li>';
+    		clear_titles.push(article["Title_Html"])
     		all_data.push(row);
     		ids_to_idx[article['Id']] = i;
     	}
@@ -382,8 +608,8 @@ function getAllArticles(callback){
   			}
 		});
 
-	 jQuery('#lextitellist').on('click', 'li', function() {
-  	 		if(!gettingarticles) clickListItem(this);
+	 jQuery('#lextitellist').on('mouseup', 'li', function() {
+  	 		 clickListItem(this);
 	 });
 
    	  jQuery('.lexsearch input').attr("placeholder", getPlaceHolderText());
@@ -401,7 +627,7 @@ function getAllArticles(callback){
    	  		}
 
 		if(main_search_input.val().length==0 && event.key!=="Enter"){
-					completeReset(true);
+					completeReset(true, true);
 		 	}
 		});
 
@@ -427,10 +653,13 @@ function getAllArticles(callback){
 
 		 if(input.val().length>0){
 		 	getFilterResults(input.val());
+		 	addABCScrolling(removeDiacriticsPlusSpecial)
 		 }
 		 else {
 	 		filtered_data = [];
 		 	clusterize.update(all_data);
+		 	addABCScrolling(removeDiacriticsPlusSpecial)
+
 		 }
     	 jQuery('.lex_load_cover').fadeOut();
 		}
@@ -448,13 +677,14 @@ function getFilterResults(filter){
             "action" : "va",
             "namespace" : "lex_alp",
             "search_val": removeDiacritics(filter),
-            "query" : "get_filter_results"
+            "query" : "get_filter_results",
+			"db" : ajax_object.db
     };
 
     jQuery.post(ajax_object.ajaxurl, data, function (response)
     {
     	var res = JSON.parse(response);
-    	var filtered_data = [];
+    	filtered_data = [];
 
     	for(var i=res.length-1; i>=0;i--){
 		  	var idx = ids_to_idx[res[i]]
@@ -462,21 +692,34 @@ function getFilterResults(filter){
     		filtered_data.push(article)
     	}
   	    clusterize.update(filtered_data);
+  	    addABCScrolling(removeDiacriticsPlusSpecial)
     })
 }
 
 
-function completeReset(show){
-
+function completeReset(show, resetSidebar){
+		loadingCounter =0;
 		filtered_data = [];
 		clusterize.update(all_data)
+		addABCScrolling(removeDiacriticsPlusSpecial)
 		jQuery('.lex_article').remove();
 		jQuery('.no_results').remove();
 		all_active_ids = {};
 		jQuery('#lextitelinput').val('');
-		if(show)jQuery('.lexstartcontent').fadeIn('fast');
-		jQuery('.lexsearch input').attr("placeholder", getPlaceHolderText());
+		if(show){
+			jQuery('.lexstartcontent').fadeIn('fast');
+			jQuery('.lexsearch input').val('');
+			jQuery('.lexsearch input').attr("placeholder", getPlaceHolderText());
+		}
 		updateVisibleItems();
+
+		if(resetSidebar){
+			jQuery('.lexsidebar #scrollArea').scrollTop(0);
+			if(jQuery('.lexsidebar').css('left')!="0px"){
+				jQuery('.lex_slide_uncollapse').click();
+			}
+
+		}
 		
 		jQuery('.lex_article').each(function(){
 			removePopus(jQuery(this));
@@ -486,9 +729,10 @@ function completeReset(show){
 
 function updateVisibleItems(){
 		for(key in all_active_ids){
-		    			if(!(jQuery('#'+key).hasClass('active'))){
-		    				jQuery('#'+key).addClass('active');
-		    			}
+			let selector = "#" + key.replace(/\+/g, '\\+')
+			if(!(jQuery(selector).hasClass('active'))){
+				jQuery(selector).addClass('active');
+			}
 		}
 
 		if(Object.keys(all_active_ids).length==0){
@@ -499,55 +743,69 @@ function updateVisibleItems(){
 
 function addArticlesByIds(ids,prev_id,append_alphabetically,highlight, callback){
 
+	loadingCounter++;
     var data = {
             "action" : "va",
             "namespace" : "lex_alp",
             "query" : "get_text_content",
-            "id" : ids
+            "id" : ids,
+			"db" : ajax_object.db
     };
-    gettingarticles = true;
+   
        
         jQuery.post(ajax_object.ajaxurl, data, function (response){
 
             	 var articles_to_append = jQuery(response);
-            	 gettingarticles = false;
+            
 
             	 jQuery(articles_to_append).each(function(){
+
+        	 	 var that = jQuery(this);
 
             	 	if(!append_alphabetically)jQuery('.lex_articles').append(jQuery(this)); 
             	 	else{
 	            	 		if(jQuery('.lex_article').length==0)jQuery('.lex_articles').append(jQuery(this));
 
 	            	 	     else{
-	            	 		 	if(prev_id)jQuery("#detailview_"+prev_id).after(jQuery(this));
+	            	 		 	if(prev_id)jQuery("#detailview_"+prev_id.replace(/\+/g, '\\+')).after(jQuery(this));
 	            	 		 	else jQuery('.lex_articles').prepend(jQuery(this));
 	            	 		 }
 
             	 	    }
 
+    	 	    	 generateFinalLexArticles(that)
+    	 	
+            	 }); // each article
 
-    	 	   
-            	 	var el = jQuery(this)[0];
-    	 			var that = jQuery(this);
-    	 			var f_cont = jQuery(this).find('.f_content');
+		
+				loadingCounter--;
+				 if(loadingCounter==0)jQuery('.lex_main_load_cover').fadeOut('fast');
+	
+	 	
+
+			if(searching){
+				finalizeSearch(highlight);
+			}
+
+			if (callback){
+				callback();
+			}
+
+        }); // ajax
+
+
+};
+
+
+function generateFinalLexArticles(that){
+
+
+					var el = that[0];
+    	 			var f_cont = that.find('.f_content');
     	 			var el_cont = f_cont[0];
-    	 			var front  = jQuery(this).find('.front');
+    	 			var front  = that.find('.front');
     	
 
-					that.find('.backtable').bind("sortStart",function(e, table) {
-					
-					   jQuery(table).find('tr').removeClass('active').off();
-					   jQuery(table).find('.second_row').remove();
-				
-					})
-					.bind("sortEnd",function(e, table) {
-						 	openSecData(jQuery(table),that);
-					}).bind("tablesorter-initialized",function(e, table) {
-	
-							openSecData(jQuery(table),that);
-   					});
-					
-				    that.find('.backtable').tablesorter({theme: 'dark'}); 
 	
 		  	 		var total_height = (el.offsetHeight > 88) ? el.offsetHeight : 88;
 
@@ -561,9 +819,9 @@ function addArticlesByIds(ids,prev_id,append_alphabetically,highlight, callback)
 
             	 		var readmore = jQuery('<div class="lex_read_more extend"><span class="extend"><?php echo $Ue['LEX_READ_MORE']; ?></span></div>');
             	 		
-            	 		jQuery(this).find('.f_content').append(readmore);
+            	 		that.find('.f_content').append(readmore);
 
-            	 		jQuery(this).addClass('overflow');
+            	 		that.addClass('overflow');
 	
             	 		that.css('max-height','initial');
             	 		front.css('max-height','initial');
@@ -581,25 +839,33 @@ function addArticlesByIds(ids,prev_id,append_alphabetically,highlight, callback)
               
 	
 
-					  jQuery(this).find('.lex_close').on('click',function(){
+					  that.find('.lex_close').on('click',function(){
 		  				 var id = that.attr('id').split('_')[1];
-		  					
-		  					closeArticle(that,id);
+
+		  					if(!prevent_tour_click)closeArticle(that,id);
 
   				   	 	 // jQuery('.lexsearch input').attr("placeholder", getPlaceHolderText());			
 					  });	
 
 
-					  jQuery(this).find('.flipbutton').off().on('click',function(){
+					  that.find('.lex_image_btn').on('click',function(){
+		  				 var id = that.attr('id').split('_')[1];
+							   getConceptImages(id,function(data){
+							   		 createLexImageModal(data,id);
+							   		  
+							   });
+					  });	
 
-					  	if(that.hasClass('autoclick')) return;
+
+					  that.find('.flipbutton').off().on('click',function(){
+
+					  	if(that.hasClass('autoclick') || prevent_tour_click) return;
 											  	 			  	
 				  		if(that.find('.open').length>0 || that.hasClass('open')){ //something is open => no flip first close stuff
 
 
 		  			  	  if(that.hasClass('flipped')){
 		  			  	  	 	closeAllBack(that,true);
-		  			 
 		  			  	  }
 		  			  	  else{
 
@@ -612,7 +878,11 @@ function addArticlesByIds(ids,prev_id,append_alphabetically,highlight, callback)
 
 					  	else{
 
-					  	 that.flip('toggle');
+
+						setTimeout(function(){
+							that.flip('toggle');
+						},150)
+
 			  	 	  	 that.toggleClass('flipped');
 					  	 that.addClass('toggle_scale');
 					  	 jQuery(this).hide();
@@ -622,7 +892,7 @@ function addArticlesByIds(ids,prev_id,append_alphabetically,highlight, callback)
 						  that.one('flip:done',function(){
 
 						  		setTimeout(function() {
-						  			that.find('.flipbutton').fadeIn('fast');	
+						  			that.find('.flipbutton').fadeIn();	
 								  	  if(that.hasClass('flipped')){
 										  	 	that.find('.flipbutton').find('.text').text('<?php echo $Ue['LEX_BACK']; ?>');
 										  	 	that.find('.flipbutton').find('i').removeClass('fa-database').addClass('fa-angle-left');
@@ -632,7 +902,7 @@ function addArticlesByIds(ids,prev_id,append_alphabetically,highlight, callback)
 								  	 		that.find('.flipbutton').find('.text').text('<?php echo $Ue['LEX_DATA']; ?>'); 
 								  	 		that.find('.flipbutton').find('i').removeClass('fa-angle-left').addClass('fa-database');		
 									  	 }
-						  		}, 75);
+						  		}, 150);
 						  });
 
 
@@ -642,60 +912,56 @@ function addArticlesByIds(ids,prev_id,append_alphabetically,highlight, callback)
 							  	 	that.attr('back_height',that.find('.b_content').height()+20);
 							  	 	that.height(parseInt(that.attr('back_height')));
 
+							  	 
+
 								  	 	that.find('.sub_head').off().on('click',function(e){
+
+								  	 		if(prevent_tour_click) return;
 
 								  	 		var clicked_item = jQuery(this);
 
 								  	 				if(jQuery(this).hasClass('sliding') || !jQuery(e.target).hasClass('sub_head_content')) return;
-								  	 				var head = jQuery(this);
-								  	 				head.toggleClass('open');
-								  	 				head.addClass('sliding');
+								  	 				
+								  	 				clicked_item.toggleClass('open');
+								  	 				clicked_item.addClass('sliding');
 
-								  	 				if(jQuery(this).hasClass('open')){
+								  	 				if(jQuery(this).hasClass('open')){	
 
-								  	 					jQuery(this).find('.hiddenbackcontent').slideDown(function(){
-								  	 						head.removeClass('sliding');
-								  	 						that.find('.back').addClass('table_open');
-								  	 					});
+								  	 					if(clicked_item.find('.hiddenbackcontent').find('table').length==0){
 
-								  	 					jQuery(this).find('i').removeClass('fa-angle-right').addClass('fa-angle-down');
+																slideSubHeadDown(that, clicked_item, null);
 
-								  	 					if(that.find('.open').length==1){
+								  	 					}
 
-											  	 		that.css('height','100%');
-											  	 		setTimeout(function() {	that.find('.back').css('overflow','auto').css('max-height','initial');}, 10);
-														
-														}
+						  	 							else{
+
+								  	 							clicked_item.find('i').removeClass('fa-angle-right').addClass('fa-angle-down');
+						  	 									clicked_item.find('.hiddenbackcontent').slideDown(function(){
+					  	 										clicked_item.addClass('open');	
+																clicked_item.removeClass('sliding');
+																clicked_item.find('.back').addClass('table_open');
+																});
+
+								  	 					}
+
+								  	
 
 										  	 		}
 
-										  	 		else{
-									  	 				jQuery(this).find('i').removeClass('fa-angle-down').addClass('fa-angle-right');
-								  	 					head.addClass('sliding');
-									  	 
-										  	 			jQuery(this).find('.hiddenbackcontent').slideUp(function(){
-										  	 				head.removeClass('sliding');
-										  	 				 clicked_item.find('.second_row').remove();
-										  	 				 clicked_item.find('.backtable tr').removeClass('active');
-										  	 				 that.find('.back').removeClass('table_open');
-
-										  	 				if(that.find('.open').length==0){											
-															  setTimeout(function() { that.find('.back').css('overflow','hidden').css('max-height','209px');}, 10);	
-											  	 			  that.height(parseInt(that.attr('back_height')));
-
-											  	 			  setTimeout(
-											  	 			  	function() {
-											  	 			  		if(that.find('.open').length==0){
-											  	 			  		 
-											  	 			  		}
-											  	 			  }, 500);										  	 			 
-							  	 			  		  	 	}
-								  	 			  	
-
-										  	 			 });
-
+								  	 				else{
+									  	 				
+										  	 			openForSlideDown(that, clicked_item);
 								  	 				    
 										  	 		}
+
+									  	 			if(that.find('.open').length==1){
+
+															that.css('height','100%');
+															setTimeout(function() {	that.find('.back').css('overflow','auto').css('max-height','initial');}, 10);
+
+													}
+
+										  	 
 								  	 
 								  	 		
 								  	 	});
@@ -710,47 +976,194 @@ function addArticlesByIds(ids,prev_id,append_alphabetically,highlight, callback)
 
 					  });
 					
+		
+			that.addClass('show');
 
-					  jQuery(this).on('click',function(e){
-					    //  	dont flip if clicked on extend, is open or link
-						  	 if(!jQuery(e.target).hasClass('extend') && 
-						  	 	!that.hasClass('open') && 
-						  	 	!jQuery(e.target).closest('a').length && 
-						  	 	!jQuery(e.target).hasClass('sub_head_content') && 
-						  	 	!jQuery(this).find('.sub_head').hasClass('open')
-						  	 	)
+			addPopups(that);
 
-						  	  { 
-
-						
-
-					  	     }
+}
 
 
-					  	     if(that.height()>209 && that.find('.lex_read_more').hasClass('no_grad') && !jQuery(e.target).closest('a').length){
-				  	     		 readMoreFunction(that, el_cont, front);			
-					  	     }
-					  	  
-					  });
+function openForSlideDown(that, clicked_item){
+	clicked_item.find('i').removeClass('fa-angle-down').addClass('fa-angle-right');
+			clicked_item.addClass('sliding');
 
-					jQuery(this).addClass('show');
+				clicked_item.find('.hiddenbackcontent').slideUp(function(){
+				clicked_item.removeClass('sliding');
+				clicked_item.find('.second_row').remove();
+				clicked_item.find('.backtable tr').removeClass('active');
+				that.find('.back').removeClass('table_open');
+				clicked_item.removeClass('open');
 
-					addPopups(that);
+					if(that.find('.open').length==0){											
+		  		setTimeout(function() { that.find('.back').css('overflow','hidden').css('max-height','209px');}, 10);	
+				  that.height(parseInt(that.attr('back_height')));
+									  	 			 
+			  	}
+	  	
+			  	 	clicked_item.find('.hiddenbackcontent').empty();
+			 });
+	}
 
-            	 }); // each article
 
-			if(searching){
-				finalizeSearch(highlight);
+function slideSubHeadDown(that, clicked_item, callback){
+		var id = that.attr('id').split('_')[1];
+		var index = clicked_item.index();
+		var selftype = id.charAt(0)
+		var othertype = getOtherTypeByOwn(selftype,index);
+
+		clicked_item.find('i').removeClass('fa-angle-right').addClass('fa-circle-notch fa-spin');
+
+		getBackTable(id,selftype,othertype, function(html){
+
+			clicked_item.find('.hiddenbackcontent').append(jQuery(html))
+			addTableSorter(clicked_item.find('.hiddenbackcontent table'),that)
+
+			clicked_item.find('.hiddenbackcontent').slideDown(function(){
+			clicked_item.removeClass('sliding');
+			that.find('.back').addClass('table_open');
+			if(callback)callback();
+			});
+			clicked_item.find('i').removeClass('fa-circle-notch fa-spin').addClass('fa-angle-down');
+		
+		});
+
+ 						
+		
+	if(that.find('.open').length==1){
+
+ 		that.css('height','100%');
+ 		setTimeout(function() {	that.find('.back').css('overflow','auto').css('max-height','initial');}, 10);
+	
+	}
+
+}
+
+
+function createLexImageModal(urls, id){
+
+var i = urls.length;
+while (i--) {
+   	var format = urls[i].split('.').pop();
+    if (format=="mp4") { 
+         urls.splice(i, 1);
+    } 
+}
+
+var carousel_cover = jQuery('<div class="carousel-cover"></div>');
+var lexclone = jQuery('.lex_load_cover .spinnerarea').clone();
+carousel_cover.append(lexclone);
+jQuery('#lexImageModal .modal-body').append(carousel_cover);
+
+var titel = '<?php echo $Ue['KONZEPT'];?>'+': '+id;
+jQuery('#lexImageModal .modal-title').text(titel);
+
+
+if(urls.length==1){
+	jQuery('#lexImageModal .carousel-indicators').hide();
+	jQuery('#lexImageModal .cc_control').hide();
+}
+
+var count = 0;
+
+jQuery('#lexImageModal').modal();
+
+	jQuery('#lexImageModal').on('shown.bs.modal',function(){
+
+			for(var i=0; i<urls.length;i++){
+				var url = urls[i];
+				var fakeImage = jQuery('<img src="'+url+'"/>');
+				
+				fakeImage.on('load',function(){
+				
+					if(count==urls.length-1){
+						for(var j=0; j<urls.length;j++){
+								var image_div = jQuery('<div class="carousel-item"><div class="lex_carousel_img" style="background-image:url('+urls[j]+')"></div></div>');
+								
+								jQuery('#lexImageModal .carousel-inner').append(image_div);
+								var indicator = jQuery('<li data-target="#carouselExampleIndicators" data-slide-to="'+j+'"></li>');
+								jQuery('.carousel-indicators').append(indicator);
+								if(j==0){
+									image_div.addClass('active');
+									indicator.addClass('active');
+								}
+
+								if(j==urls.length-1){
+									setTimeout(function(){
+										var carousel = jQuery('#lexImageModal .carousel').carousel({interval: 3500})
+											setTimeout(function(){
+										 		carousel.carousel('next');
+										 	},1500); // initiate first slide
+										carousel_cover.fadeOut();
+									},100)
+									
+								}
+						}
+					}
+
+					count++;
+				});
 			}
 
-			if (callback){
-				callback();
-			}
-
-        }); // ajax
+ 	});
 
 
-};
+	jQuery('#lexImageModal').on('hidden.bs.modal',function(){
+			jQuery('#lexImageModal .carousel-inner').empty();
+			jQuery('#lexImageModal .carousel-indicators').empty();
+			jQuery('#lexImageModal .carousel-cover').remove();
+			jQuery('#lexImageModal .carousel-indicators').show();
+			jQuery('#lexImageModal .cc_control').show();
+	});
+
+
+
+}
+
+
+function getOtherTypeByOwn(owntype,index){
+
+	if(owntype=="C" && index == 0){
+		return "L"
+	}
+	else if (owntype=="C" && index == 1){
+	  return "B"
+	}
+	else if (owntype=="L" && index == 0){
+	  return "C"
+	}
+	else if (owntype=="L" && index == 1){
+	  return "A"
+	}
+	else if (owntype=="B" && index == 0){
+	  return "L"
+	}
+	else if (owntype=="B" && index == 1){
+	  return "A"
+	}
+	else if (owntype=="B" && index == 2){
+	  return "C"
+	}
+}
+
+
+function addTableSorter(in_table,that){
+
+	in_table.bind("sortStart",function(e, table) {
+	
+	   jQuery(table).find('tr').removeClass('active').off();
+	   jQuery(table).find('.second_row').remove();
+
+	})
+	.bind("sortEnd",function(e, table) {
+		 	openSecData(jQuery(table),that);
+	}).bind("tablesorter-initialized",function(e, table) {
+
+			openSecData(jQuery(table),that);
+		});
+	
+    in_table.tablesorter({theme: 'dark'}); 
+}
 
 function closeAllBack(that,flip){
 
@@ -759,7 +1172,7 @@ function closeAllBack(that,flip){
 			that.find('.open').removeClass('open').find('.hiddenbackcontent').slideUp(function(){
 			that.find('.back').removeClass('table_open');
 			that.removeClass('sliding');
-			count ++;
+			count++;
 			that.find('.second_row').remove();
 			that.find('.backtable tr').removeClass('active');
 			that.find('.back').css('overflow','hidden').css('max-height','209px');
@@ -804,7 +1217,7 @@ if(searching) return;
 
 		else{
 
-			completeReset(false);
+			completeReset(false, true);
 
 			searching = true;
 
@@ -817,6 +1230,7 @@ if(searching) return;
 			            "namespace" : "lex_alp",
 			            "query" : "get_search_results",
 			            "search_val" : removeDiacritics(val),
+						"db" : ajax_object.db
 			    		};
 			       
 
@@ -833,11 +1247,11 @@ if(searching) return;
 			    if(list.length>0)addArticlesByIds(list,null,false,val);	
 			    else{
 			    	finalizeSearch(null);
-			    	completeReset(false);
+			    	completeReset(false, true);
 			    	jQuery('.lexstartcontent').hide();
 			    	if(jQuery('.lex_articles .no_results').length==0){
 			    		jQuery('.lex_articles').append('<div class="no_results"><?php echo $Ue['LEX_NO_RESULTS']; ?></div>') 
-			    		setTimeout(function() {completeReset(true)}, 1000);
+			    		setTimeout(function() {completeReset(true, true)}, 1000);
 			    	}
 			    };
 			
@@ -862,25 +1276,46 @@ jQuery(".lex_article").mark(val, {
 }
 
 function closeArticle(that,id){
-
 	 delete all_active_ids[id];
 		  				 
-  	 if(filtered_data.length>0)filterTitelList(filtered_data);
-
 	 that.removeClass('show');
 	 setTimeout(function() {
 	 	that.remove();
  	  	 if(Object.keys(all_active_ids).length==0)jQuery('.lexstartcontent').fadeIn('fast');  
 	 }, 500); // move to lex callback
-	 jQuery('#'+id).removeClass('active');
+	 jQuery("#" + id.replace(/\+/g, '\\+')).removeClass('active');
 	 removePopus(that);
 }
 
+
+
 function openSecData(table,that){
+var highlighted = false;
 
 	table.find('tr').off().on('click',function(){
-				openSecTable(jQuery(this),that,false)
+		if(prevent_tour_click) return;
+		var row = jQuery(this)
+		if(!highlighted){
+				openSecTable(row,that,false);
+	 	}
 	})
+
+	//do not open tr if text is highlighted
+	table.find('tr').mouseup(function(){
+	var highlightedText = "";
+	if (window.getSelection) {
+		highlightedText = window.getSelection().toString();
+	} 
+	else if (document.selection && document.selection.type != "Control") {
+		highlightedText = document.selection.createRange().text;
+	}
+	if(highlightedText != "")
+		highlighted = true;
+		setTimeout(function() {
+			highlighted = false;
+		}, 100);
+	});
+
 }
 
 
@@ -902,16 +1337,19 @@ function openSecTable(tr,detailview,bypass){
 			var row = tr;
 
 			if(id && type){
+	
+			tr.append('<div class="secRowLoading"><i class="fas fa-circle-notch fa-spin"></i></div>');
+			tr.find('.secRowLoading').css('height',(tr.height()-1)+"px");
 
-			getSecondaryData(id.substring(1), type, row, main_type, main_id);
+			getSecondaryData(id.substring(1), type, row, main_type, main_id,function(){
+				tr.find('.secRowLoading').remove()
+			});
 			tr.addClass('active');
 
 			}
 
 		}
-
 		else{
-
 			tr.next().remove();
 			tr.removeClass('active');
 		}
@@ -920,16 +1358,18 @@ function openSecTable(tr,detailview,bypass){
 
 function readMoreFunction(that, el_cont, front, callback){
 
+if(prevent_tour_click) return;
+
 that.toggleClass('open');
 
 		if(that.hasClass('open')){
-			that.height(el_cont.scrollHeight+15);
-			front.height(el_cont.scrollHeight+15);
+			 that.animate({height:el_cont.scrollHeight+15},0);
+			 //use jQuery animate to fix scrollbar-bug
 		}
 		else {
-			  that.height(parseInt(that.attr('original_height')));
-			  front.height(parseInt(that.attr('original_height')));
-			  that.find('.lex_read_more').height(50).removeClass('no_grad');
+		   that.animate({height:parseInt(that.attr('original_height'))},0);
+		    //use jQuery animate to fix scrollbar-bug
+			 that.find('.lex_read_more').height(50).removeClass('no_grad');
 			 
 		};
 
@@ -941,17 +1381,32 @@ that.toggleClass('open');
 		     that.find('.lex_read_more').height(10).find('span').text('<?php echo $Ue['LEX_READ_LESS']; ?>');
 			}
 			else {
+
 					that.find('.lex_read_more').find('span').text('<?php echo $Ue['LEX_READ_MORE']; ?>');
-					//that.find('.flipbutton').fadeIn();
 				}
 			if(callback) callback();	
 		});
 }
 
 
+function getConceptImages(id,callback){
+
+	var data = {
+	    "action" : "va",
+	    "namespace" : "lex_alp",
+	    "query" : "get_concept_images",
+	    "id" : id
+	};
+
+	jQuery.post(ajax_object.ajaxurl, data, function (response){
+		var image_urls = JSON.parse(response);
+		callback(image_urls);
+	})
+
+}
 
 
-function getSecondaryData(id, type, row, main_type, main_id){
+function getSecondaryData(id, type, row, main_type, main_id, callback){
 
 
 getting_sec_data = true;
@@ -963,7 +1418,8 @@ var data = {
     "id" : id,
     "parent_type": main_type,
     "parent_id" : main_id,
-    "type" : type
+    "type" : type,
+	"db" : ajax_object.db
 };
 
 
@@ -994,11 +1450,34 @@ jQuery.post(ajax_object.ajaxurl, data, function (response){
 	 table.find('.second_table').tablesorter({theme: 'dark'});   
 
 	 getting_sec_data = false;
+	 callback();
 	 
 });
 
 
 };
+
+function getBackTable(id, selftype, othertype, callback){
+
+
+var data = {
+    "action" : "va",
+    "namespace" : "lex_alp",
+    "query" : "get_back_table",
+    "id" : id,
+    "selftype": selftype,
+    "othertype" : othertype,
+};
+
+
+jQuery.post(ajax_object.ajaxurl, data, function (response){
+
+	var res = JSON.parse(response);
+	callback(res)
+})
+
+
+}
 
 function getPlaceHolderText(){
 	    var placeholder = '<?php echo $Ue['LEX_ARTICLE_COUNT']; ?>';
@@ -1015,7 +1494,8 @@ function clickLexSearchMenu(){
 			}, 10);
 			jQuery('.lexsidebar').removeClass('in');
 			jQuery('.mobile_sidebar_bg').fadeOut();
-
+			jQuery('html').removeClass('no_overflow');
+			
 		}
 		else{
 			jQuery('.mobile_sidebar_bg').fadeIn();
@@ -1024,35 +1504,74 @@ function clickLexSearchMenu(){
 				jQuery('.lexsidebar').css('top','185px');
 			}, 10);
 			jQuery('.lexsidebar').addClass('in');
+			jQuery('html').addClass('no_overflow')
+			jQuery('.lexsidebar').focus()
 		}
 }
 
 
 	</script>
 	
-	<span  style="float: right;"><input type="text" id="seachComments" placeholder="<?php _e('Search');?>"></input></span>
-	
 	<?php 
 
+echo '<div id="lexImageModal" class="modal fade top_menu_modal" tabindex="-1" role="dialog">
+  <div class="modal-dialog modal-md" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Bilder</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+
+
+			<div id="carouselExampleIndicators" class="carousel slide" data-ride="carousel">
+			  <ol class="carousel-indicators">
+			  </ol>
+			  <div class="carousel-inner">
+
+			  </div>
+			  <a class="carousel-control-prev cc_control" href="#carouselExampleIndicators" role="button" data-slide="prev">
+			    <span class="carousel-control-prev-icon" aria-hidden="true"><i class="fas fa-chevron-left"></i></span>
+			    <span class="sr-only">Previous</span>
+			  </a>
+			  <a class="carousel-control-next cc_control" style="right:0px;" href="#carouselExampleIndicators" role="button" data-slide="next">
+			    <span class="carousel-control-next-icon" aria-hidden="true"><i class="fas fa-chevron-right"></i></span>
+			    <span class="sr-only">Next</span>
+			  </a>
+			</div>
+
+
+      </div>
+    </div>
+  </div>
+</div>';
 
 		echo '<div class="lex_header">';
-
-		// echo '<div class="lex_header_cover"></div>';	
-			
 		echo '<div class="lex_header_inner">';	
-				echo '<div class="lexcontent">';
-		// echo '<div class="lexgradient"></div>';
-				// echo '<div class="lexhead">Lexicon Alpinum</div>';
+				
 
+			echo '<div class="lexlogowrapper">';	
 			echo '<div class="lexlogo lexhead">	<img class="lexlogo" src="' . VA_PLUGIN_URL . '/images/lexicon_logo.svg"/></div>';
 
-				echo '<div class="lexsearch"><div><input></input><button class="actionbtn"><i class="fas fa-search" aria-hidden="true"></i></button><div class="lexsep"></div><button class="actionbtn lexmenubtn"><i class="fas fa-bars" aria-hidden="true"></i></button></div></div>';
+			echo '
+			<div class="lexsearch">
+			<div>
+			<input></input>
+			<button class="actionbtn"><i class="fas fa-search" aria-hidden="true"></i></button>
+			<div class="lexsep" style="display:none;"></div>
+			<button class="actionbtn lexmenubtn"><i class="fas fa-bars" aria-hidden="true"></i></button>
+			</div>
+			</div>';
 
 	     echo '</div>';
 	   echo '</div>';
 	echo '</div>';
 
-	echo '<div class="entry-content lex">';
+	echo '<div  id="scrollLex" class="entry-content lex">';
+
+
 
 	echo '<div class="lexcontent">';
 	
@@ -1060,27 +1579,47 @@ function clickLexSearchMenu(){
 	$pre = $vadb->get_var("SELECT Erlaeuterung_$lang FROM glossar WHERE Terminus_D = 'Präambel_LexAlp'");
 	if ($pre){
 		parseSyntax($pre, true);
-		echo '<div class="lex_articles"><div class="lexstartcontent">' . $pre . '</div></div>';
+		echo '<div class="lex_articles" id="scrollLexContent"><div class="lexstartcontent">' . $pre . '</div></div>';
 	}
 	else{
-		echo '<div class="lex_articles"><div class="lexstartcontent">No description available</div></div>';
+		echo '<div class="lex_articles" id="scrollLexContent"><div class="lexstartcontent">No description available</div></div>';
 	}	
 
 
     echo '</div>'; 
+	echo '
+	    <div class="lex_main_load_cover"><div class="spinnerarea">
+		  <div class="sk-fading-circle">
+		  <div class="sk-circle1 sk-circle"></div>
+		  <div class="sk-circle2 sk-circle"></div>
+		  <div class="sk-circle3 sk-circle"></div>
+		  <div class="sk-circle4 sk-circle"></div>
+		  <div class="sk-circle5 sk-circle"></div>
+		  <div class="sk-circle6 sk-circle"></div>
+		  <div class="sk-circle7 sk-circle"></div>
+		  <div class="sk-circle8 sk-circle"></div>
+		  <div class="sk-circle9 sk-circle"></div>
+		  <div class="sk-circle10 sk-circle"></div>
+		  <div class="sk-circle11 sk-circle"></div>
+		  <div class="sk-circle12 sk-circle"></div>
+		</div>
+		</div>
+		</div>';
 	
  echo '</div>';
 
     //SIDEBAR
 
+    echo '<div class="lex_slide_uncollapse"> <i class="fas fa-chevron-right"></i></div>';
+    echo '<div class="lex_scrollup"> <i class="fas fa-chevron-up"></i></div>';
+
     echo '<div class="mobile_sidebar_bg"></div>';
 
     echo '<div class="lexsidebar">';
+    echo '<div class="abc_wrap"><div class="lex_abc"></div></div>';
 
-
-    echo '<div class="search">
-        <i class="fas fa-search" aria-hidden="true"></i><input id="lextitelinput" type="text" class="form-control input-md" placeholder="'.$Ue['LEX_FILTER'].'"> 
-    </div>';
+    echo '<div class="search"><i class="fas fa-search" aria-hidden="true"></i><input id="lextitelinput" type="text" class="form-control input-md" placeholder="'.$Ue['LEX_FILTER'].'"> </div>';
+    echo '<div class="lex_slide_collapse"> <i class="fas fa-chevron-left"></i></div>';
 
     echo '<div id="scrollArea">';
     echo '<div class="lex_load_cover"><div class="spinnerarea">

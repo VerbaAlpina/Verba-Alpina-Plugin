@@ -22,7 +22,16 @@ function va_get_api_db_results ($id, $use_name, $only_changed = false){
 		$queries[] = [$parts['select'] . $parts['name'] . ' FROM z_ling ' . $parts['join'] . str_replace('%', $id, $parts['where_id']), $parts['function']]; 
 	}
 	else {
-		$types = ['C', 'L', 'A', 'S'];
+		$all_types = ['C', 'L', 'A', 'S'];
+		if (isset($_REQUEST['class'])){
+			if (!in_array($_REQUEST['class'], $all_types)){
+				va_api_error('Unknown class ' . $_REQUEST['class']);
+			}
+			$types = [$_REQUEST['class']];
+		}
+		else {
+			$types = $all_types;
+		}
 		
 		foreach ($types as $type){
 			$parts = va_get_api_query_parts($type);
@@ -86,11 +95,16 @@ function va_get_api_query_parts ($type){
 			'function' => null
 					];
 		case 'L':
+			$allowed_tlangs = ['gem', 'roa', 'sla'];
+			if (isset($_REQUEST['type_lang']) && !in_array($_REQUEST['type_lang'], $allowed_tlangs)){
+				va_api_error('Unknown type language: ' . $_REQUEST['type_lang'] . '!');
+			}
+		
 			return [
 			'select' => 'SELECT DISTINCT CONCAT("L", Id_Type) AS Id',
-			'where_full' => ' WHERE Id_Type IS NOT NULL AND Type_Kind = "L" AND Source_Typing = "VA" ORDER BY Id_Type',
+			'where_full' => ' WHERE Id_Type IS NOT NULL AND Type_Kind = "L" AND Source_Typing = "VA"' . (isset($_REQUEST['type_lang'])? ' AND Type_Lang = "' . $_REQUEST['type_lang'] . '"': '') . ' ORDER BY Id_Type',
 			'where_id' => ' WHERE Type_Kind = "L" AND Id_Type = %',
-			'name' => ', va_xxx.lex_unique(Type, Type_Lang, Gender) AS Name',
+			'name' => ', va_xxx.lex_unique(Type, ' . (isset($_REQUEST['type_lang'])? '""': 'Type_Lang') . ', Gender) AS Name',
 			'join' => '',
 			'function' => null
 					];
@@ -103,6 +117,17 @@ function va_get_api_query_parts ($type){
 			'join' => '',
 			'function' => null
 		];
+		
+		case 'B':
+			return [
+			'select' => 'SELECT DISTINCT CONCAT("B", Id_Base_Type) AS Id',
+			'where_full' => ' WHERE Id_Base_Type IS NOT NULL ORDER BY Id_Base_Type',
+			'where_id' => ' WHERE Id_Base_Type = %',
+			'name' => ', Orth AS Name',
+			'join' => '',
+			'function' => null
+		];
+		
 		default:
 			return [
 			'select' => 'SELECT External_Id AS Id',
@@ -132,7 +157,7 @@ function va_api_format_record_names ($records){
 		
 		$res .= ', Source: ' . $sparts[0] . ' ' . $sparts[1] . '#' . $sparts[2] . ' ' . $sparts[3] . ' (' . $sparts[4] . ')';
 		
-		return [$arr[0], $res];
+		return [$arr[0], html_entity_decode($res)];
 		
 	}, $records);
 }
@@ -147,13 +172,19 @@ function va_handle_api_call (){
 	if (isset($_REQUEST['version'])){
 		$version = $_REQUEST['version'];
 		
-		//Check if version exits:
-		if (!$va_xxx->get_var($va_xxx->prepare('SELECT Nummer FROM Versionen WHERE Website AND Nummer = %d', $version))){
-			
-			$versions = $va_xxx->get_col('SELECT Nummer FROM Versionen WHERE Website');
-			$versions = array_map(function ($e){ return '<li>' . $e . '</li>';}, $versions);
-			
-			va_api_error('Invalid version number! Existing version numbers are: <ul>' . implode("\n", $versions) . '</ul>');
+		if ($version == 'latest'){
+			$version = $va_xxx->get_var('SELECT MAX(Nummer) FROM va_xxx.Versionen');
+		}
+		else {
+		
+			//Check if version exists:
+			if (!$va_xxx->get_var($va_xxx->prepare('SELECT Nummer FROM Versionen WHERE Website AND Nummer = %d', $version))){
+				
+				$versions = $va_xxx->get_col('SELECT Nummer FROM Versionen WHERE Website');
+				$versions = array_map(function ($e){ return '<li>' . $e . '</li>';}, $versions);
+				
+				va_api_error('Invalid version number! Existing version numbers are: <ul>' . implode("\n", $versions) . '</ul>');
+			}
 		}
 	}
 	else {
@@ -289,17 +320,19 @@ function va_api_get_record ($id, $version, $format, $empty, $send_header = true)
                 va_api_error('Format "' . $format . '" not supported!');
         }
         
-        $record_version = $va_xxx->get_var($va_xxx->prepare('SELECT Version FROM A_Versionen WHERE Id = %s', $id));
-        
-        if(!$record_version){
-            va_api_error('Error in the version table!');
-        }
+		if ($id[0] != 'B'){
+			$record_version = $va_xxx->get_var($va_xxx->prepare('SELECT Version FROM A_Versionen WHERE Id = %s', $id));
+			
+			if(!$record_version){
+				va_api_error('Error in the version table!');
+			}
+		}
         
         $res = $conv->export($empty);
         
         if ($send_header){
             header('Content-Type: ' . $conv->get_mime() . '; charset=utf-8');
-            header('Content-Disposition: attachment; filename=' . $id . '_v' . $record_version . '_' . $version . '.' . $conv->get_extension());
+            header('Content-Disposition: attachment; filename=' . $id . ($id[0] != 'B'? ('_v' . $record_version) : '') . '_' . $version . '.' . $conv->get_extension());
         }
         
         echo $res;

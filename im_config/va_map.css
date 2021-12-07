@@ -27,6 +27,8 @@
 	margin-right: 10px; 
 	padding-right: 5px; 
 	padding-left: 5px
+	line-height:1.35;
+	font-size : 200%
 }
 
 h1, h2 {
@@ -60,13 +62,13 @@ h1, h2 {
 
 .singleRecord {
 	line-height:1.35;
-	font-family : arial unicode;
+	font-family : doulosSIL;
 	font-size : 200%
 }
 
 .va_type_table td:nth-child(2) {
-	font-family : arial unicode;
-	font-size: 120%;
+/*	font-family : doulosSIL;*/
+/*	font-size: 120%;*/
 }
 
 .atlasSourceB {
@@ -108,7 +110,7 @@ h1, h2 {
 
 .qtip-record span.originalRecord {
 	font-size : 180%;
-	font-family : arial unicode;
+	font-family : doulosSIL;
 	color: #2c879b;
 }
 
@@ -119,7 +121,7 @@ h1, h2 {
 
 .fullRecordInfo span {
 	font-size: 14px;
-	font-family: arial unicode;
+	font-family: doulosSIL;
 }
 
 .informantDetails td {

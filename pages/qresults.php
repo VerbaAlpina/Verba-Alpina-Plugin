@@ -48,33 +48,33 @@ function show_questionnaire_results ($attrs){
 	<?php
 
 	$condition = '';
-	if (isset($attrs['minpages'])){
+	if (isset($attrs['minpages']) && $attrs['minpages'] > 0){
 		$condition .= $wpdb->prepare(' AND EXISTS (SELECT * FROM questionnaire_results q2 WHERE q.user_id = q2.user_id AND page = %d)', $attrs['minpages']);
 	}
 	
 	$results = $wpdb->get_results($wpdb->prepare('
-		SELECT page, user_id, question, question_text, (
+		SELECT page, user_id, question, sub_question, question_text, (
 			SELECT REPLACE(answer, "###", ", ")
 			FROM questionnaire_results q2 
-			WHERE q2.page = q.page and q2.user_id = q.user_id and q2.question = q.question
+			WHERE q2.page = q.page and q2.user_id = q.user_id and q2.question = q.question and q2.sub_question = q.sub_question
 			ORDER BY timestamp DESC
 			LIMIT 1
 		) as answer
 		FROM questionnaire_results q
 		WHERE post_id = %d AND page IS NOT NULL' . $condition . '
-		GROUP BY page, user_id, question
-		ORDER BY user_id ASC, page ASC, question ASC', $attrs['id']), ARRAY_A);
+		GROUP BY page, user_id, question, sub_question
+		ORDER BY user_id ASC, page ASC, question ASC, sub_question ASC', $attrs['id']), ARRAY_A);
 
 	if ($export){
 		$questions = $wpdb->get_results($wpdb->prepare('
-		SELECT DISTINCT page, question 
+		SELECT DISTINCT page, question, sub_question 
 		FROM questionnaire_results 
 		WHERE post_id = %d AND page IS NOT NULL
-		ORDER BY page, question', $attrs['id']), ARRAY_A);
+		ORDER BY page, question, sub_question', $attrs['id']), ARRAY_A);
 		
 		echo '<div style="overflow-x: scroll; width: 100%;"><table style="table-layout: fixed; width: 100%;"><thead><tr><th>User-ID</th>';
 		foreach ($questions as $question){
-			echo '<th>' . ($question['page'] + 1) . '#' . ($question['question'] + 1) . '</th>';
+		    echo '<th>' . ($question['page'] + 1) . '#' . ($question['question'] + 1) . $question['sub_question'] . '</th>';
 		}
 		echo '</tr></thead><tbody>';
 		
@@ -84,7 +84,7 @@ function show_questionnaire_results ($attrs){
 				$rows[$result['user_id']] = [];
 			}
 			
-			$idq = ($result['page'] + 1) . '#' . ($result['question'] + 1);
+			$idq = ($result['page'] + 1) . '#' . ($result['question'] + 1) . $result['sub_question'];
 			$rows[$result['user_id']][$idq] = $result['answer'];
 		}
 		
@@ -106,14 +106,14 @@ function show_questionnaire_results ($attrs){
 		$colorIndex = 0;
 		
 		foreach ($results as $result){
-			if ($result['page'] == 0 and $result['question'] == 0){
+		    if ($result['page'] == 0 and $result['question'] == 0 && (!$result['sub_question'] || $result['sub_question'] == 'a')){
 				$colorIndex = ($colorIndex + 1) % count($colors);	
 			}
 			
 			echo '<tr style="background: ' . $colors[$colorIndex] . '">';
 			echo '<td>' . $result['user_id'] . '</td>';
 			echo '<td>' . ($result['page'] + 1) . '</td>';
-			echo '<td>' . ($result['question'] + 1) . '</td>';
+			echo '<td>' . ($result['question'] + 1) . $result['sub_question'] . '</td>';
 			echo '<td>' . explode("\n", $result['question_text'])[0] . '</td>';
 			echo va_quest_format_answer($result['answer']);
 			echo '</tr>';

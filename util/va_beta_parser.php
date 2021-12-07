@@ -20,6 +20,10 @@ if (class_exists('BetaParser')){
 				list ($rules, $optionals) = $this->rules_bsa();
 				$this->va_beta = false;
 			}
+			else if ($source == 'WBOE'){
+				list ($rules, $optionals) = $this->rules_wboe();
+				$this->va_beta = false;
+			}
 			else {
 				throw new Exception('Not possible for source "' . $source . '"');
 			}
@@ -73,6 +77,33 @@ if (class_exists('BetaParser')){
 			$grammarData['Basiszeichen'] = [['characterClass', 'A-Z'], 'string'];
 			
 			$grammarData['Diakritikum'] = [['characterClass', '0-9+\-$.,;=:&$\'%'], 'string'];
+			
+			$grammarData['Leerzeichen'] = [['literal', ' '], 'string'];
+			
+			return [$grammarData, []];
+		}
+		
+		private function rules_wboe (){
+			$grammarData = [];
+			
+			$grammarData['Beleg'] = [['sequence', [
+				['identifier', 'Token'],
+				['repeat', ['sequence', [['identifier', 'Leerzeichen'], ['identifier', 'Token']]], 0, INF]
+			]], 'array'];
+			
+			$grammarData['Token'] = [['repeat', ['choice', [['identifier', 'Spezial'], ['identifier', 'Zeichen']]], 0, INF], 'array'];
+			
+			$grammarData['Zeichen'] = [['sequence', [['repeat', ['identifier', 'Diakritikum'], 0, INF], ['identifier', 'Basiszeichen']]], 'string'];
+			
+			$grammarData['Basiszeichen'] = [['characterClass', 'äöüÄÖÜÅȎßìíîåãȏôáóh̄âȃèéȇêo̮ȗùn̑a-zA-Z'], 'string'];
+			
+			$grammarData['Diakritikum'] = [['characterClass', '#<^>|.\-*():;^,~─│/1·"$!¡'], 'string'];
+			
+			$grammarData['Spezial'] = [['choice', [['identifier', 'Ueber'], ['identifier', 'Unter']]], 'string'];
+			
+			$grammarData['Ueber'] = [['sequence', [['identifier', 'Zeichen'], ['literal', '{'], ['identifier', 'Zeichen']]], 'string'];
+			
+			$grammarData['Unter'] = [['sequence', [['identifier', 'Zeichen'], ['literal', '}'], ['identifier', 'Zeichen']]], 'string'];
 			
 			$grammarData['Leerzeichen'] = [['literal', ' '], 'string'];
 			

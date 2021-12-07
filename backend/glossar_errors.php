@@ -129,6 +129,17 @@ function va_check_single_entry ($echo, $name, $lang, $field, &$elinks, $pages, $
 		//Pages
 		else if (strpos($link, 'Seite:') === 0) {
 			$pname = substr($link, 6);
+			
+			$posHash = mb_strpos($pname, '#');
+			if ($posHash !==  false){
+				$pname = mb_substr($pname, 0, $posHash);
+			}
+			
+			$posAmp = mb_strpos($pname, '&');
+			if ($posAmp !==  false){
+				$pname = mb_substr($pname, 0, $posAmp);
+			}
+			
 			if ($echo && !in_array(mb_strtolower($pname), $pages)){
 				echo $lang . ' --- ' . $name . ' --- PAGE NOT FOUND: ' . $pname . '<br />';
 			}
@@ -152,18 +163,24 @@ function va_check_single_entry ($echo, $name, $lang, $field, &$elinks, $pages, $
 		//Lexicon
 		else if (strpos($link, 'Kommentar:') === 0) {
 			$id = substr($link, 10);
-			$res = $va_xxx -> get_row($va_xxx->prepare("SELECT Id, Internal FROM im_comments WHERE Id = %s AND SUBSTRING(Language, 1, 1) = %s", $id, $lang), ARRAY_A);
+			//$res = $va_xxx -> get_row($va_xxx->prepare("SELECT Id, Internal FROM im_comments WHERE Id = %s AND SUBSTRING(Language, 1, 1) = %s", $id, $lang), ARRAY_A);
 			
-			$res2 = false;
-			if (!$res && substr($id, 0, 1) == 'C'){
-				$res2 = $va_xxx->get_row($va_xxx->prepare('SELECT Id_Konzept FROM Konzepte WHERE Id_Konzept = %d AND QID != 0 AND QID IS NOT NULL', substr($id, 1)));
+			$res = false;
+			if (substr($id, 0, 1) == 'C'){
+				$res = $va_xxx->get_row($va_xxx->prepare('SELECT Id_Konzept FROM Konzepte WHERE Id_Konzept = %d', substr($id, 1)));
+			}
+			else if (substr($id, 0, 1) == 'L'){
+				$res = $va_xxx->get_row($va_xxx->prepare('SELECT Id_morph_Typ FROM morph_Typen WHERE Id_morph_Typ = %d', substr($id, 1)));
+			}
+			else if (substr($id, 0, 1) == 'B'){
+				$res = $va_xxx->get_row($va_xxx->prepare('SELECT Id_Basistyp FROM Basistypen WHERE Id_Basistyp = %d', substr($id, 1)));
+			}
+			else if ($echo){
+				echo $lang . ' --- ' . $name . ' --- INVALID COMMENT PREFIX : ' . $id . '<br />';
 			}
 			
-			if ($echo && !$res && !$res2) {
+			if ($echo && !$res) {
 				echo $lang . ' --- ' . $name . ' --- COMMENT LINK NOT FOUND: ' . $id . '<br />';
-			}
-			else if ($echo && !$intern && $res['Internal']){
-				echo $lang . ' --- ' . $name . ' --- LINK TO INTERNAL COMMENT: ' . $link . '<br />';
 			}
 		}
 		
