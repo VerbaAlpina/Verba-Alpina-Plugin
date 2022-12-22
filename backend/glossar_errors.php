@@ -102,6 +102,7 @@ function va_check_single_entry ($echo, $name, $lang, $field, &$elinks, $pages, $
 		if(preg_match('/^[0-9]*%$/', $link) ||
 				strpos($link, 'Breite:') === 0 ||
 				strpos($link, 'Höhe:') === 0 ||
+				strpos($link, 'BU:') === 0 ||
 				strpos($link, 'width=') === 0 ||
 				strpos($link, 'height=') === 0 ||
 				strpos($link, 'id=') === 0 ||
@@ -157,6 +158,15 @@ function va_check_single_entry ($echo, $name, $lang, $field, &$elinks, $pages, $
 				if ($echo && empty($va_xxx -> get_var($va_xxx->prepare("SELECT Id_Syn_Map FROM im_syn_maps WHERE Name = %s", $map)))) {
 					echo $lang . ' --- ' . $name . ' --- SYNOPTIC MAP NOT FOUND NAME: ' . substr($link, 6) . '<br />';
 				}
+			}
+		}
+		
+		//Database tables
+		else if (strpos($link, 'Tabelle:') === 0) {
+			$table = substr($link, 8);
+			
+			if (!$va_xxx->get_var($va_xxx->prepare('SELECT id_tabelle FROM doku_tabellen WHERE name = %s', $table))){
+				echo $lang . ' --- ' . $name . ' --- DATABASE DOKU PAGE NOT FOUND: ' . $table . '<br />';
 			}
 		}
 		
@@ -241,9 +251,9 @@ function va_check_external_link ($link){
 
 function isDomainAvailible($domain) {
 	//check, if a valid url is provided
-	if (!filter_var($domain, FILTER_VALIDATE_URL)) {
-		return false;
-	}
+	// if (!filter_var($domain, FILTER_VALIDATE_URL)) {
+		// return false;
+	// }
 
 	//initialize curl
 	$curlInit = curl_init($domain);

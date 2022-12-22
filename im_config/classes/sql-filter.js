@@ -56,12 +56,32 @@ function SQL_Filter (defaultVal){
 		input["style"]["width"] = "500px";
 		input["style"]["height"] = "150px";
 		input["style"]["margin-top"] = "10px";
-		input["style"]["margin-bottom"] = "50px";
+		input["style"]["margin-bottom"] = "10px";
 		input["id"] = "va_sql_textarea";
 		input["autocomplete"] = "off";
 		input.appendChild(document.createTextNode(this.defaultVal));
 		
 		div.appendChild(input);
+		
+		var br = document.createElement("br");
+		div.appendChild(br);
+		
+		var quant = document.createElement("input");
+		quant["type"] = "checkbox";
+		quant["autocomplete"] = "off";
+		quant["checked"] = false;
+		quant["id"] = "va_quant_checkbox";
+		quant["style"]["margin-bottom"] = "50px";
+		
+		div.appendChild(quant);
+		div.appendChild(document.createTextNode(" " +  Ue["QUANT_ABFRAGE"]));
+		
+		var icon3 = document.createElement("i");
+		icon3["className"] = "far fa-question-circle";
+		icon3["id"] = "va_sql_quant_help";
+		icon3["style"]["marginLeft"] = "10px";
+		
+		div.appendChild(icon3);
 		
 		var headlineGroup = document.createElement("h1");
 		headlineGroup.appendChild(document.createTextNode(Ue["GRUPPIERUNG"] + " (" + Ue["OPTIONAL"] + ")"));
@@ -74,7 +94,7 @@ function SQL_Filter (defaultVal){
 		groupField["style"]["margin-left"] = "5px";
 		groupField["style"]["width"] = "80%";
 		
-		var br = document.createElement("br");
+		br = document.createElement("br");
 		div.appendChild(br);
 		
 		div.appendChild(document.createTextNode("GROUP BY "));
@@ -84,7 +104,6 @@ function SQL_Filter (defaultVal){
 		icon2["className"] = "far fa-question-circle";
 		icon2["id"] = "va_sql_group_help";
 		icon2["style"]["marginLeft"] = "10px";
-		text.appendChild(icon2);
 		
 		div.appendChild(icon2);
 		
@@ -117,6 +136,8 @@ function SQL_Filter (defaultVal){
 		if (data["groupingSQL"]){
 			data["subElementCategory"] = categories.CustomSub;
 		}
+		data["quant"] = jQuery("#va_quant_checkbox").is(":checked");
+
 
 		/*
 		 * Give every new query a new id, except an older query is reloaded
@@ -144,6 +165,7 @@ function SQL_Filter (defaultVal){
 	this.storeDefaultData = function (data, categoryId, elementId){
 		data["where"] = this.defaultVal;
 		data["id"] = "SQL" + this.getNextSQLId();
+		data["quant"] = false;
 	};
 	
 	/**
@@ -162,6 +184,7 @@ function SQL_Filter (defaultVal){
 		jQuery("#va_sql_name").val(data["query_name"]);
 		jQuery("#va_sql_group").val(data["groupingSQL"]);
 		jQuery("#va_sql_group_name").val(data["groupingName"]);
+		jQuery("#va_quant_checkbox").prop("checked", data["quant"]);
 		this.oldID = data["id"];
 	};
 	
@@ -178,6 +201,7 @@ function SQL_Filter (defaultVal){
 	this.afterAppending = function (element, mainCategoryId, elementId){
 		addMouseOverHelpSingleElement(jQuery(element).find("#va_sql_help"), /** @type{string} */ (jQuery("#va_sql_help_div").html()));
 		addMouseOverHelpSingleElement(jQuery(element).find("#va_sql_group_help"), /** @type{string} */ (jQuery("#va_sql_group_help_div").html()));
+		addMouseOverHelpSingleElement(jQuery(element).find("#va_sql_quant_help"), /** @type{string} */ (jQuery("#va_sql_quant_help_div").html()));
 	};
 	
 	/**

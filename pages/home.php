@@ -252,7 +252,7 @@ function showStartPage (){
 			Timeline
 			</span></a>
 
-			<span class="cite_btn cite"><i class="fas fa-book" style="padding-right: 2px;"></i>
+			<span class="cite_btn cite"><i class="fa-solid fa-quote-right" style="padding-right: 2px;"></i>
 			<?php echo $Ue['ZITIEREN']; ?>
 			</span>
 
@@ -296,7 +296,7 @@ function showStartPage (){
     <div class="modal-content">
 
      <div class="modal-header">
-        <h5 class="modal-title"><span><?php echo $Ue['ZITIEREN']; ?> </span></h5>
+        <h5 class="modal-title"><i class="fa-solid fa-quote-right"></i><span><?php echo ' '.$Ue['ZITIEREN']; ?> </span></h5>
         <button type="button" class="close" data-dismiss="modal" aria-label="Close">
           <span aria-hidden="true">×</span>
         </button>
@@ -312,7 +312,7 @@ function showStartPage (){
       </div>
 
       <div class="modal-footer">
-      	<button id="copy_btn" style="background: transparent;">Kopieren</button>
+      	<button id="copy_btn" style="background: transparent;"><i title="copy to clipboard" class="fa-regular fa-copy"></i><?php echo ' '.$Ue['KOPIEREN']; ?></button>
       </div>
 
     </div>

@@ -54,6 +54,8 @@ function va_install (){
 	$administrator->add_cap('edit_published_questionnaires');
 	$administrator->add_cap('publish_questionnaires');
 	$administrator->add_cap('read_private_questionnaires');
+	
+	$administrator->add_cap('read_db_documentation'); //TODO move to dbdocu plugin
 }
 
 global $login_data;
@@ -89,6 +91,57 @@ if(class_exists('IM_Initializer') && $login_data !== false && $is_external !== N
 	    if($mapPage != null){
 	        define ('VA_MAP_URL', get_page_link($mapPage));
 	    }
+	});
+	
+	add_action( 'signup_extra_fields', function ($errors){
+		if (class_exists('ReallySimpleCaptcha')){
+			$wpud = wp_upload_dir();
+			
+			$captcha_instance = new ReallySimpleCaptcha();
+			$captcha_instance->tmp_dir = $wpud['path'] . '/captcha/';
+		
+			$word = $captcha_instance->generate_random_word();
+			
+			$prefix = mt_rand();
+			$file = $captcha_instance->generate_image( $prefix, $word );
+			
+			$captcha_instance2 = new ReallySimpleCaptcha();
+			$captcha_instance2->tmp_dir = $wpud['path'] . '/captcha/';
+		
+			$word = $captcha_instance2->generate_random_word();
+			
+			$prefix2 = mt_rand();
+			$file2 = $captcha_instance2->generate_image( $prefix2, $word );
+			
+			echo '<br /><br /><div style="inline-block"><img src="' . $wpud['url'] . '/captcha/' . $file . '">';
+			echo '<img src="' . $wpud['url'] . '/captcha/' . $file2 . '"></div>';
+			$errmsg = $errors->get_error_message( 'captcha' );
+			if ( $errmsg ) {
+				echo '<p class="error">' . $errmsg . '</p>';
+			}
+			echo '<input name="captcha" type="text"><input name="image_prefix" type="hidden" value="' . $prefix . '"><input name="extra" type="hidden" value="' . $prefix2 . '"><br />';
+			_e( 'Please type the characters you see in the picture above (without any space).' );
+		}
+	});
+	
+	add_filter( 'wpmu_validate_user_signup', function ($result) {
+		$wpud = wp_upload_dir();
+		
+		$captcha_instance = new ReallySimpleCaptcha();
+		$captcha_instance->tmp_dir = $wpud['path'] . '/captcha/';
+		
+		$captcha_instance2 = new ReallySimpleCaptcha();
+		$captcha_instance2->tmp_dir = $wpud['path'] . '/captcha/';
+		
+		$correct = false;
+		if (isset($_POST['captcha']) && $_POST['captcha']){
+			$correct = $captcha_instance->check($_POST['image_prefix'], substr($_POST['captcha'], 0, 4)) && $captcha_instance2->check($_POST['extra'], substr($_POST['captcha'], 4));
+		}
+		
+		if (!$correct){
+			$result['errors']->add( 'captcha', __( 'Please type the characters you see in the picture above' ) );
+		}
+		return $result;
 	});
 	
 	//Map Plugin Hooks
@@ -295,7 +348,7 @@ if(class_exists('IM_Initializer') && $login_data !== false && $is_external !== N
 	function va_map_plugin_version (){
 		if(!isDevTester() && (!is_admin() || (isset($_POST['action']) && $_POST['action'] == 'im_a'))){
 			define('IM_MAIN_PHP_FILE', dirname(__FILE__) . '/im_config/live/im_live.phar');
-			define('IM_MAIN_JS_FILE', plugin_dir_url(__FILE__) . 'im_config/live/im_live.js?v=1');
+			define('IM_MAIN_JS_FILE', plugin_dir_url(__FILE__) . 'im_config/live/im_live.js?v=5');
 			define('IM_MAIN_CSS_FILE', plugin_dir_url(__FILE__) . 'im_config/live/im_live.css?v=1');
 		}
 	}
@@ -369,7 +422,7 @@ if(class_exists('IM_Initializer') && $login_data !== false && $is_external !== N
 	
 	function va_get_menu_items (){
 		return array('KARTE', 'METHODOLOGIE', 'PERSONEN', 'MITARBEITER', 'PARTNER', 'PUBLIKATIONEN',
-			'WISS_PUBLIKATIONEN', 'BEITRAEGE', 'INFORMATIONSMATERIAL', 'LexAlp', 'ECHO', 'BIBLIOGRAPHIE', 'CS_MITMACHEN', 'APIDOKU', 'CSGRAPH');
+			'WISS_PUBLIKATIONEN', 'BEITRAEGE', 'INFORMATIONSMATERIAL', 'LexAlp', 'REZEPTION', 'BIBLIOGRAPHIE', 'CS_MITMACHEN', 'APIDOKU', 'CSGRAPH');
 	}
 	
 	function va_filter_pages ($pages){
@@ -442,7 +495,7 @@ if(class_exists('IM_Initializer') && $login_data !== false && $is_external !== N
 	}
 	
 	function va_footer (){
-		wp_enqueue_style('va_style', plugins_url('/css/styles.css?v=3', __FILE__));
+		wp_enqueue_style('va_style', plugins_url('/css/styles.css?v=4', __FILE__));
 	}
 	
 	//Skripte für das Frontend
@@ -455,7 +508,7 @@ if(class_exists('IM_Initializer') && $login_data !== false && $is_external !== N
 		global $va_next_db_name;
 		global $Ue;
 		
-		wp_enqueue_script('toolsSkript', plugins_url('/util/tools.js', __FILE__), array('jquery'), false, true);
+		wp_enqueue_script('toolsSkript', plugins_url('/util/tools.js?v=1', __FILE__), array('jquery'), false, true);
 		IM_Initializer::$instance->enqueue_font_awesome();
 		IM_Initializer::$instance->enqueue_bootstrap();
 		wp_enqueue_script('cookieConsent', VA_PLUGIN_URL . '/lib/cookieconsent.min.js');
@@ -510,10 +563,7 @@ if(class_exists('IM_Initializer') && $login_data !== false && $is_external !== N
 				wp_enqueue_script('history.js', VA_PLUGIN_URL . '/lib/history.js/scripts/bundled/html5/jquery.history.js');
 				wp_enqueue_style('jquery_ui', plugins_url('plugin_interactive-map/lib/css/jquery-ui.min.css'));
 			}
-			else if($post->post_title == 'METHODOLOGIE'){
-				wp_enqueue_script('clipboard', VA_PLUGIN_URL . '/lib/clipboard.min.js');
-			}
-			else if($post->post_title == 'KOMMENTARE' || $post->post_title == 'LexAlp'){
+			else if($post->post_title == 'KOMMENTARE' || $post->post_title == 'LexAlp' || $post->post_title == 'METHODOLOGIE'  || $post->post_title == 'Methodologie NEU'){
 				wp_enqueue_script('flip', VA_PLUGIN_URL . '/lib/jquery.flip.min.js');
 				wp_enqueue_script('clusterize', VA_PLUGIN_URL . '/lib/clusterize.js');
 				wp_enqueue_script('detect_zoom', VA_PLUGIN_URL . '/lib/detect_zoom.js');
@@ -573,6 +623,9 @@ if(class_exists('IM_Initializer') && $login_data !== false && $is_external !== N
     		        }
     		    }
     		    wp_localize_script( 'toolsSkript', 'ID_MAPPING', $mapping);
+    		}
+    		else if ($post->post_title == 'METHODOLOGIE' || $post->post_title == 'Methodologie NEU'){
+    		    wp_localize_script( 'toolsSkript', 'ID_MAPPING', []);
     		}
 		}
 	}
@@ -654,6 +707,9 @@ if(class_exists('IM_Initializer') && $login_data !== false && $is_external !== N
 		    wp_enqueue_script('typifiy_script', plugins_url('/backend/typification/util.js', __FILE__));
 		    va_lex_translations();
 		}
+		else if ($hook=== 'va-tools-ii_page_va_tools_bulk_download'){
+			IM_Initializer::$instance->enqueue_select2_library();
+		}
 	}
 	
 	function va_admin_bar_entries ($wp_admin_bar){
@@ -719,7 +775,9 @@ if(class_exists('IM_Initializer') && $login_data !== false && $is_external !== N
 		
 		if($type == 'page'){
 			global $Ue;
-			return isset($Ue[$title]) && $Ue[$title] != ''? ucfirst($Ue[$title]) : $title;
+			$title = isset($Ue[$title]) && $Ue[$title] != ''? ucfirst($Ue[$title]) : $title;
+			
+			return $title;
 		}
 		
 		if($type == 'ethnotext'){
@@ -750,6 +808,10 @@ if(class_exists('IM_Initializer') && $login_data !== false && $is_external !== N
 		}
 		
 		$page_title = isset($Ue[$page_title]) && $Ue[$page_title] != ''? $Ue[$page_title] : $page_title;
+		
+		if ($page_title == 'Lexicon Alpinum' && va_is_municipality_list()){
+			$page_title = $Ue['Gemeinden'];
+		}
 		
 		return $page_title . ' | ' . substr($title, $pos_sep + 1);
 	}
@@ -791,7 +853,12 @@ if(class_exists('IM_Initializer') && $login_data !== false && $is_external !== N
 		}
 		
 		if(isset($_REQUEST['db'])){
-			$va_current_db_name = 'va_' . $_REQUEST['db'];
+			if ($_REQUEST['db'] > $max_version){
+				$va_current_db_name = 'va_xxx';
+			}
+			else {
+				$va_current_db_name = 'va_' . $_REQUEST['db'];
+			}
 		}
 		
 		if(isset($_GET['page_id']) && !isset($_GET['db'])){
@@ -911,9 +978,10 @@ if(class_exists('IM_Initializer') && $login_data !== false && $is_external !== N
 		add_shortcode('version_list', 'va_version_list'); //util/tools.php
 		
 		add_shortcode('callList', 'va_call_list'); //pages/calls.php 
+		add_shortcode('db_doku_page', 'va_show_db_doku'); //pages/db_doku.php
 		
 		if (isDevTester()){
-			add_shortcode('db_doku_page', 'va_show_db_doku'); //pages/db_doku.php
+			
 			//add_shortcode('cluster_test', 'va_compute_clusters');
 			add_shortcode('zooniverse_results', 'va_zooniverse_results'); //pages/zooniverse.php
 		}
@@ -1003,6 +1071,7 @@ if(class_exists('IM_Initializer') && $login_data !== false && $is_external !== N
 		include_once('pages/admin_table.php');
 		include_once('pages/cs_graph.php');
 		include_once('pages/live_graph.php');
+		include_once('pages/db_doku.php');
 		
 		if($va_mitarbeiter || $admin){
 			include_once('pages/app_overview.php');
@@ -1014,6 +1083,7 @@ if(class_exists('IM_Initializer') && $login_data !== false && $is_external !== N
 			include_once('backend/comments_single.php');
 			include_once('backend/konzepte_drg.php');
 			include_once('backend/references.php');
+			include_once('backend/bulk_download_media.php');
 		}
 		
 		if (current_user_can('edit_questionnaires')){
@@ -1021,7 +1091,6 @@ if(class_exists('IM_Initializer') && $login_data !== false && $is_external !== N
 		}
 		
 		if(isDevTester()){
-			include_once('pages/db_doku.php');
 			//include_once('util/type_clusters.php');
 			include_once('pages/zooniverse.php');
 
@@ -1083,7 +1152,9 @@ if(class_exists('IM_Initializer') && $login_data !== false && $is_external !== N
 		add_submenu_page('va_tools', 'Tools', 'Kommentare Orte', 'verba_alpina', 'va_tools_single_comments', 'va_single_comments_page');
 		add_submenu_page('va_tools', 'Tools', 'Beta -> Original', 'verba_alpina', 'va_tools_original_conv', 'va_original_page');
 		add_submenu_page('va_tools', 'Tools', 'DRG-Konzepte', 'verba_alpina', 'va_tools_drg_concepts', 'va_drg_concepts');
-		add_submenu_page('va_tools', 'Tools', 'Typ-Referenz-Zuordnung', 'verba_alpina', 'va_tools_references', 'va_reference_page');		
+		add_submenu_page('va_tools', 'Tools', 'Typ-Referenz-Zuordnung', 'verba_alpina', 'va_tools_references', 'va_reference_page');
+
+		add_submenu_page('va_tools', 'Tools', 'BulkDownloadTool', 'verba_alpina', 'va_tools_bulk_download', 'va_bulk_download_media');				
 		
 		if(isDevTester()){
 			add_submenu_page('va_tools', 'Tools', 'VA-Seiten erstellen', 'verba_alpina', 'va_tools_create_pages', 'va_create_frontend_pages');
@@ -1346,10 +1417,10 @@ if(class_exists('IM_Initializer') && $login_data !== false && $is_external !== N
 			));
 			echo 'Protokolle<br />';
 		}
-		$page = get_page_by_title('ECHO');
+		$page = get_page_by_title('REZEPTION');
 		if($page == null){
 			wp_insert_post(array (
-					'post_title' => 'ECHO',
+					'post_title' => 'REZEPTION',
 					'post_content' => '[echo]',
 					'post_status' => 'publish',
 					'post_type' => 'page',
@@ -1461,15 +1532,38 @@ function va_get_dibs_tm (){
 	return $dibs_tm;
 }
 
-function va_produce_external_map_link ($atlas, $map, $num, $informant){
+global $stim_ext_id;
+$stim_ext_id = false;
+
+function va_get_external_id_for_stimulus ($id_stimulus){
+	
+	global $stim_ext_id;
+	
+	if (!$stim_ext_id){
+		global $va_xxx;
+		$old_db = $va_xxx->dbname;
+		$va_xxx->select('va_xxx'); //TODO remove if the problem in va_ajax is solved
+		
+		$stim_ext_id = va_two_dim_to_assoc($va_xxx->get_results('SELECT Id_Stimulus, Id_Extern FROM Stimuli WHERE Id_Extern IS NOT NULL', ARRAY_N));
+		$va_xxx->select($old_db);
+	}
+	
+	if (isset($stim_ext_id[$id_stimulus])){
+		return $stim_ext_id[$id_stimulus];
+	}
+	
+	return false;
+}
+
+function va_produce_external_map_link ($atlas, $map, $num, $informant, $id_stimulus){
 	$attributes = ' style="text-decoration: underline;" target="_BLANK" ';
 	
 	if($atlas == 'AIS'){
 		if($num == '1'){
-			$link = 'http://www3.pd.istc.cnr.it/navigais-web/?map=' . $map . '&point=' . $informant;
+			$link = 'https://navigais-web.pd.istc.cnr.it/?map=' . $map . '&point=' . $informant;
 		}
 		else {
-			$link = 'http://www3.pd.istc.cnr.it/navigais-web/?map=' . $map;
+			$link = 'https://navigais-web.pd.istc.cnr.it/?map=' . $map;
 		}
 		return 'G. Tisato - NavigAIS - <a' . $attributes . 'href="' . $link . '">' . $link . '</a>';
 	}
@@ -1491,6 +1585,12 @@ function va_produce_external_map_link ($atlas, $map, $num, $informant){
 	
 	if ($atlas == 'DIBS'){
 		$link = 'https://lexhelfer.dibs.badw.de/index.php?executeSearch=' . $map;
+		return '<a' . $attributes . 'href="' . $link . '">Link</a>';
+	}
+	
+	if ($atlas == 'DRG'){
+		$id_ex = va_get_external_id_for_stimulus($id_stimulus);
+		$link = 'http://online.drg.ch/#' . $id_ex;
 		return '<a' . $attributes . 'href="' . $link . '">Link</a>';
 	}
 	

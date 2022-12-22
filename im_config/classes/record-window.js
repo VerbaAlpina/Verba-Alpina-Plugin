@@ -347,7 +347,7 @@ function RecordInfoWindowContent (categoryID, elementID, overlayType, data){
 			});
 		});
 		
-		var /** Array<Object>*/ apis = addBibLikeQTips(jQuery(content).find(".va_record_source_table"), ["bibl", "stimulus"], ["blue", "blue"], ["", "sti"]);
+		var /** Array<Object>*/ apis = addBibLikeQTips(jQuery(content).find(".va_record_source_table"), ["bibl", "stimulus", "informant"], ["blue", "blue", "blue"], ["", "sti", "inf"]);
 		for (let i = 0; i < apis.length; i++){
 			thisObject.tooltipApis.push(apis[i]);
 		}

@@ -78,7 +78,8 @@ if (function_exists ('acf_add_local_field_group')) :
 								'choices' => array(
 									'Text' => 'Text',
 									'Auswahl' => 'Auswahl',
-									'Karte' => 'Karte'
+									'Karte' => 'Karte',
+									'Überschrift' => 'Überschrift'
 								),
 								'default_value' => array(),
 								'allow_null' => 0,
@@ -110,7 +111,15 @@ if (function_exists ('acf_add_local_field_group')) :
 										'type' => 'true_false',
 										'instructions' => '',
 										'required' => 0,
-										'conditional_logic' => 0,
+										'conditional_logic' => array(
+											array(
+												array(
+													'field' => 'field_5b226c4078928',
+													'operator' => '!=',
+													'value' => 'Überschrift'
+												)
+											)
+										),
 										'wrapper' => array(
 											'width' => '',
 											'class' => '',
@@ -377,6 +386,89 @@ if (function_exists ('acf_add_local_field_group')) :
 										'ajax' => 0,
 										'placeholder' => '',
 										'return_format' => 'value',
+									),
+									array(
+										'key' => 'field_text_sel',
+										'label' => 'Antwortfeld',
+										'name' => 'fb_text_answer_type',
+										'type' => 'select',
+										'instructions' => '',
+										'required' => 0,
+										'conditional_logic' => array(
+											array(
+												array(
+													'field' => 'field_5b226c4078928',
+													'operator' => '==',
+													'value' => 'Text'
+												)
+											)
+										),
+										'multiple' => 0,
+										'allow_null' => 0,
+										'choices' => array(
+											'I' => 'Einzeilig',
+											'T' => 'Mehrzeilig'
+										),
+										'default_value' => 'I',
+										'ui' => 0,
+										'ajax' => 0,
+										'placeholder' => '',
+										'return_format' => 'value',
+									),
+									array(
+										'key' => 'field_text_inline',
+										'label' => 'Anordnung',
+										'name' => 'fb_text_position',
+										'type' => 'select',
+										'instructions' => 'Ob Frage und Anwortfelder untereinander oder nebeneinander dargestellt werden',
+										'required' => 0,
+										'conditional_logic' => array(
+											array(
+												array(
+													'field' => 'field_5b226c4078928',
+													'operator' => '==',
+													'value' => 'Text'
+												)
+											)
+										),
+										'multiple' => 0,
+										'allow_null' => 0,
+										'choices' => array(
+											'U' => 'Untereinander',
+											'N' => 'Nebeneinander'
+										),
+										'default_value' => 'U',
+										'ui' => 0,
+										'ajax' => 0,
+										'placeholder' => '',
+										'return_format' => 'value',
+									),
+									array(
+										'key' => 'field_text_length',
+										'label' => 'Antwortlänge',
+										'name' => 'fb_text_answer_length',
+										'type' => 'number',
+										'instructions' => 'Gibt die Länge des Textfelds an (Anzahl Zeichen im Bereich 2 bis 100).',
+										'required' => 0,
+										'conditional_logic' => array(
+											array(
+												array(
+													'field' => 'field_5b226c4078928',
+													'operator' => '==',
+													'value' => 'Text'
+												)
+											)
+										),
+										'multiple' => 0,
+										'allow_null' => 0,
+										'default_value' => 20,
+										'ui' => 0,
+										'ajax' => 0,
+										'placeholder' => '',
+										'return_format' => 'value',
+										'min' => '2',
+										'max' => '100',
+										'step' => '1'
 									),
 								    array(
 								        'key' => 'field_fb_text_teile',

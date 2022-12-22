@@ -4,7 +4,7 @@ function va_query_log($query){
 	error_log(preg_replace('/\s+/', ' ', $query));
 }
 
-function va_get_glossary_link ($id = null, $lang = null){
+function va_get_glossary_link ($id = null, $lang = null, $old_format = false){
 
 	if (!$lang){
 		global $lang;
@@ -26,10 +26,15 @@ function va_get_glossary_link ($id = null, $lang = null){
 	}
 	
 	if($id){
-		global $vadb;
-		$res = $vadb->get_var('SELECT Terminus_' . $lang . ' FROM Glossar WHERE Id_Eintrag = ' . $id);
-		
-		$link = add_query_arg('letter', remove_accents($res[0]), $link) . '#' . $id;
+		if ($old_format){
+			global $vadb;
+			$res = $vadb->get_var('SELECT Terminus_' . $lang . ' FROM Glossar WHERE Id_Eintrag = ' . $id);
+			
+			$link = add_query_arg('letter', remove_accents($res[0]), $link) . '#' . $id;
+		}
+		else {
+			$link = add_query_arg('single', 'M' . $id, $link);
+		}
 	}
 	
 	return $link;
@@ -56,7 +61,7 @@ function va_blog_id_from_lang ($lang){
 	}
 }
 
-function va_get_glossary_doi_link ($version = false, $id = null){
+function va_get_glossary_doi_link ($version = false, $id = null, $old_format = false){
 	$glossarPage = get_page_by_title('METHODOLOGIE');
 	
 	if($glossarPage != null){
@@ -73,19 +78,24 @@ function va_get_glossary_doi_link ($version = false, $id = null){
 	}
 	
 	if($id){
-		global $lang;
-		global $vadb;
-		$res = $vadb->get_var('SELECT Terminus_' . $lang . ' FROM Glossar WHERE Id_Eintrag = ' . $id);
-		
-		$params[] = 'letter=' . remove_accents($res[0]);
-		$fragment = $id;
+		if ($old_format){
+			global $lang;
+			global $vadb;
+			$res = $vadb->get_var('SELECT Terminus_' . $lang . ' FROM Glossar WHERE Id_Eintrag = ' . $id);
+			
+			$params[] = 'letter=' . remove_accents($res[0]);
+			$fragment = $id;
+		}
+		else {
+			$params[] = 'single=M' . $id;
+		}
 	}
 	
 	$append = '?' . implode('&', $params) . ($fragment !== false? '#' . $fragment: '');
 	return $link . urlencode($append);
 }
 
-function va_get_post_doi_link ($version = false, $id){
+function va_get_post_doi_link ($version, $id){
 	
 	$link = va_get_doi_base_link();
 	$params = ['p=' . $id];
@@ -104,7 +114,6 @@ function va_get_comments_doi_link ($version = false, $id = null){
 	if($commentsPage != null){
 		$link = va_get_doi_base_link();
 		$params = ['page_id=' . $commentsPage->ID];
-		$fragment = false;
 		
 		if($version !== false){
 			$params[] = 'db=' . $version;
@@ -115,10 +124,10 @@ function va_get_comments_doi_link ($version = false, $id = null){
 	}
 	
 	if($id){
-		$fragment = $id;
+		$params[] = 'single=' . $id;
 	}
 	
-	$append = '?' . implode('&', $params) . ($fragment !== false? '#' . $fragment: '');
+	$append = '?' . implode('&', $params);
 	return $link . urlencode($append);
 }
 
@@ -172,7 +181,12 @@ function va_get_map_link ($element = null){
 	if(defined('VA_MAP_URL')){
 		$result = VA_MAP_URL;
 		if($element != null){
-			$result = add_query_arg('single', $element, $result);
+			if (substr($element, 0, 1) == 'A'){
+				$result = add_query_arg('municipality', $element, $result);
+			}
+			else {
+				$result = add_query_arg('single', $element, $result);
+			}
 		}
 	}
 	return $result;
@@ -485,29 +499,37 @@ function va_create_glossary_bibtex ($id, &$Ue, $html = false){
 function va_remove_special_chars ($str){
  	return preg_replace('/[^a-zA-Z0-9]/u', '', remove_accents($str));
 }
+
+function va_get_comment_authors ($id){
+    global $vadb;
+    
+    if(va_version_newer_than('va_171')){
+        $authors = $vadb->get_col("SELECT CONCAT(Name, ', ', SUBSTR(Vorname, 1, 1), '.') FROM VTBL_Kommentar_Autor JOIN Personen USING (Kuerzel) WHERE Aufgabe = 'auct' AND Id_Kommentar = '$id' ORDER BY Name ASC, Vorname ASC");
+    }
+    else {
+        $content = $vadb->get_var("SELECT Comment FROM im_comments WHERE Id = '$id'");
+        $pos_auct = mb_strpos($content, '(auct. ');
+        if($pos_auct === false)
+            return false;
+            
+            $authorStr = mb_substr($content, $pos_auct + 7, mb_strpos($content, ')', $pos_auct) - $pos_auct - 7);
+            $authorsL = mb_split('|', $authorStr);
+            
+            $authors = array();
+            foreach ($authorsL as $author){
+                $names = mb_split(' ', $author);
+                $authors[] = $names[count($names) - 1] . ', ' . $names[0][0] . '.';
+            }
+    }
+    
+    return $authors;
+}
  
 function va_create_comment_citation ($id, &$Ue){
  	global $vadb;
  	global $lang;
  	global $va_current_db_name;
- 	if(va_version_newer_than('va_171')){
- 		$authors = $vadb->get_col("SELECT CONCAT(Name, ', ', SUBSTR(Vorname, 1, 1), '.') FROM VTBL_Kommentar_Autor JOIN Personen USING (Kuerzel) WHERE Aufgabe = 'auct' AND Id_Kommentar = '$id' ORDER BY Name ASC, Vorname ASC");
- 	}
- 	else {
- 		$content = $vadb->get_var("SELECT Comment FROM im_comments WHERE Id = '$id'");
- 		$pos_auct = mb_strpos($content, '(auct. ');
- 		if($pos_auct === false)
- 			return false;
- 		
- 		$authorStr = mb_substr($content, $pos_auct + 7, mb_strpos($content, ')', $pos_auct) - $pos_auct - 7);
- 		$authorsL = mb_split('|', $authorStr);
- 		
- 		$authors = array();
- 		foreach ($authorsL as $author){
- 			$names = mb_split(' ', $author);
- 			$authors[] = $names[count($names) - 1] . ', ' . $names[0][0] . '.';
- 		}
- 	}
+ 	$authors = va_get_comment_authors($id);
  	
  	if (!$authors){
  	    return false;
@@ -519,6 +541,37 @@ function va_create_comment_citation ($id, &$Ue){
  
  	return	implode(' / ', $authors) . ': s.v. “' . $title . '”, in: VerbaAlpina-' . substr(get_locale(), 0, 2) . ' ' .
  			substr($va_current_db_name, 3, 2) . '/' . substr($va_current_db_name, 5) . ', Lexicon Alpinum, ' . $link;
+}
+
+function va_create_comment_bibtex ($id, &$Ue, $html = false){
+    global $vadb;
+    global $lang;
+    global $va_current_db_name;
+    
+    $authors = va_get_comment_authors($id);
+
+    $year = '20' . substr($va_current_db_name, 3, 2);
+    
+    $title = va_sub_translate($vadb->get_var("SELECT getEntryName('$id', '$lang')"), $Ue);
+    
+    $shortcode = $va_current_db_name . '_' . $id;
+    $link = va_get_comments_doi_link(substr($va_current_db_name, 3, 3), $id);
+    
+    $tab = $html? '&nbsp;&nbsp;&nbsp;': "\t";
+    $newline = $html? '<br />' : "\n";
+    
+    $res = '@incollection{' . $shortcode . ',' . $newline .
+    $tab . 'author={' . implode(' and ', $authors) . '},' . $newline .
+    $tab . 'year={' . $year . '},' . $newline .
+    $tab . 'title={' . $title . '},' . $newline .
+    $tab . 'publisher={VerbaAlpina-' . substr(get_locale(), 0, 2) . ' ' . va_format_version_number(substr($va_current_db_name, 3)) . '},' . $newline .
+    $tab . 'booktitle={'. $Ue['LexAlp']. '},' . $newline .
+    $tab . 'url={' . $link. '}' . $newline . '}';
+    
+    if($html)
+        $res = htmlentities($res);
+        
+    return $res;
 }
  
  function va_version_newer_than ($version){
@@ -537,6 +590,8 @@ function va_create_comment_citation ($id, &$Ue){
  
  function va_get_post_version_id ($post_id){
 	global $va_current_db_name;
+
+	
  	if ($va_current_db_name === 'va_xxx'){
  		return $post_id;
  	}
@@ -835,14 +890,12 @@ function va_array_to_html_string ($arr, $showLevel = 1, $recLevel = 0){
 	return '[' . ($recLevel > $showLevel? '' : '<br />') . implode(($recLevel > $showLevel? ', ': '<br />'), $vals) . ($recLevel > $showLevel? '' : '<br />') . ']' . ($recLevel > 0? '' : '<br />');
 }
 
-function va_get_comment_text ($id, $lang, $internal, $db = false){
+function va_get_comment_text ($id, $lang, $internal, $db = false, $use_doi_links = false){
     if (!$db){
         global $vadb;
         $db = $vadb;
     }
 	
-    global $Ue;
-    
     $ids = explode('+', substr($id, 1));
     
     $content = '';
@@ -852,6 +905,19 @@ function va_get_comment_text ($id, $lang, $internal, $db = false){
             $content .= '<div>' . trim($comment) . '</div>';
         }
     }
+
+	parseSyntax($content, true, $internal, 'N', false, $use_doi_links);
+	
+	return $content;
+}
+
+function va_get_comment_auto_part ($id, $lang, $internal){
+	
+	global $vadb;
+    $db = $vadb;
+	$ids = explode('+', substr($id, 1));
+	
+	global $Ue;
 	
 	$info_str = '';
 	if (mb_substr($id, 0, 1) === 'L'){
@@ -920,7 +986,7 @@ function va_get_comment_text ($id, $lang, $internal, $db = false){
 	    $info_str .= '</table>';
 	    
 	    $ref_data = $db->get_results($db->prepare('SELECT Lemmata.Quelle, Subvocem, Bibl_Verweis, Link, Genera, Text_Referenz FROM Lemmata JOIN VTBL_morph_Typ_Lemma USING (Id_Lemma)
-            WHERE Id_morph_Typ = %d AND Lemmata.Quelle != "VA"', mb_substr($id, 1)), ARRAY_A);
+            WHERE Id_morph_Typ = %d AND Lemmata.Quelle != "VA" AND Subvocem != "<vacat>"', mb_substr($id, 1)), ARRAY_A);
 	    
 	    if (count($ref_data) > 0){
 	        $info_str .= '<b>' . $Ue['TYP_REFERENZEN'] . '</b>:<br /><table>';
@@ -963,12 +1029,146 @@ function va_get_comment_text ($id, $lang, $internal, $db = false){
 	        $info_str .= '</ul>';
 	    }
 	}
+	else if (mb_substr($id, 0, 1) === 'A'){
 
-	$content = $info_str . $content;
-	parseSyntax($content, true, $internal);
+		$ctag = $db->get_var($db->prepare('SELECT Wert FROM orte_tags WHERE Id_Ort = %d AND Tag = "LAND"', substr($id, 1)));
+
+		$super_locs = $db->get_results($db->prepare('SELECT o.Name, o.Beschreibung FROM a_orte_hierarchien_erweitert a JOIN Orte o ON a.Id_Ueberort = o.Id_Ort WHERE a.Id_Ort = %d AND o.Id_Kategorie != 63 ORDER BY CASE Id_Kategorie WHEN 60 THEN 0 WHEN 80 THEN 1 ELSE 2 END', substr($id, 1)), ARRAY_A);
+
+		$info_str .= '<br /><ul>';
+		
+		foreach ($super_locs as $sl){
+			$info_str .= '<li>' . htmlentities($sl['Name']) . ($sl['Beschreibung']? (' (' . $sl['Beschreibung'] . ')'): '') . '</li>';
+		}
+		$info_str .= '<li>' . htmlentities($Ue[$ctag]) . '</li>';
+		
+		$info_str .= '</ul>';
+
+		
+		$geonames = $db->get_var($db->prepare('SELECT Geonames FROM Orte WHERE Id_Ort = %d', substr($id, 1)));
+		if ($geonames){
+			$info_str .= '<br />Geonames-ID: <a target="_BLANK" href="http://www.geonames.org/' . $geonames . '">' . $geonames . '</a>';
+		}
+		
+		$vinko = $db->get_var($db->prepare('SELECT Vinko FROM Orte WHERE Id_Ort = %d', substr($id, 1)));
+		if ($vinko){
+			$info_str .= '<br /><br /><a target="_BLANK" href="https://www.vinko.it/"><img style="height: 1.5em; vertical-align: middle;" src="https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/vinko.png" />-' . $Ue['GEMEINDE'] . '</a>';
+		}
+	}
 	
-	return $content;
+	parseSyntax($info_str, true, $internal);
+	
+	return $info_str;
 }
+
+
+function va_get_glossary_entry ($id, $lang, $intern, $category, &$Ue){
+
+		global $vadb;
+		global $va_xxx;
+
+		$fertig = "and Fertig";
+		if($category=="Sonder")$fertig="";
+
+		$query = "
+				select Id_Eintrag, Terminus_$lang as Name, Erlaeuterung_$lang as Text, Intern
+				from glossar
+				where" . ($intern ? "" : " Intern = '0' ".$fertig." and") . " Kategorie='".$category."' and Id_Eintrag=".$id. "
+				order by Terminus_$lang asc";
+
+		//special case for "Präambel" possibly change?
+
+		if($category=="Sonder")
+			$res = $va_xxx->get_results($query, ARRAY_A);
+		else 
+			$res = $vadb->get_results($query, ARRAY_A);	
+
+		va_add_glossary_meta_information($res, $lang, $Ue);
+		
+		return $res;
+	}
+
+function va_get_glossary_html($e, $new = false){
+
+    $intern = current_user_can('va_glossary_edit');
+	$html = '';
+
+    parseSyntax($e['Text'], true, $intern, $new? 'N': 'A') . '<br />';
+			
+	 $html.= '<div class="entry-content methodology-text glossary">';
+	 $html.= "{$e['Text']} <br />";
+	
+	 $html.= va_add_glossary_authors($e['Autoren'], $e['Uebersetzer']);
+	 $html.= va_get_glossary_tags($e['Tags']);
+
+	 $html.='</div>';
+	
+	 $html.='</div>';
+
+	return $html;
+}
+
+
+
+function va_get_glossary_head($e){
+	
+	global $vadb;
+	global $lang;
+	global $va_current_db_name;
+	global $Ue;
+	
+	$intern = current_user_can('va_glossary_edit');
+	
+	$html = '';
+
+	$html.= "<div class=\"entry-header glossary\">";
+				$html.= "	<h1 class=\"entry-title va-title glossary\">";
+				$html.= '<span class="va-rel-link" id="' . $e['Id_Eintrag'] . '"></span>';
+
+				list($estyle, $eclass, $eimgs) = va_get_glossary_link_style($e['Id_Eintrag']);
+				$html.= "<a class='hLink' href='#" . $e['Id_Eintrag'] . "'><span style='$estyle' class='$eclass'>" . $e['Name'] . '</span></a>';
+				
+				$langs = array_filter(va_get_lang_array(), function ($e) use ($lang) {return $e != $lang;});
+				foreach ($langs as $clang){
+					// error_log('SELECT Terminus_' . $clang . ' != "" AND Beschreibung_' . $clang . ' != "" FROM glossar WHERE Id_Eintrag = ' . $e['Id_Eintrag']);
+					if ($vadb->get_var('SELECT Terminus_' . $clang . ' != "" AND Erlaeuterung_' . $clang . ' != "" FROM glossar WHERE Id_Eintrag = ' . $e['Id_Eintrag'])){
+						$html.= ' <a href="' . va_get_glossary_link($e['Id_Eintrag'], $clang) . '"><img class="missingTranslation" src="' . get_stylesheet_directory_uri() . '/' . va_get_flag_image($clang) . '" /></a>';
+					}
+				}
+				
+				
+				if($intern && $va_current_db_name == 'va_xxx'){
+					$html.= '&nbsp;<a href="' . get_admin_url(1) . '?page=va&entry=' . $e['Id_Eintrag'] . '" target="_BLANK" style="font-size: 50%">(' . $Ue['BEARBEITEN'] . ')</a>';
+				}
+
+				if($va_current_db_name != 'va_xxx'){
+					$cite_text = va_create_glossary_citation($e['Id_Eintrag'], $Ue);
+					$bibtex = va_create_glossary_bibtex($e['Id_Eintrag'], $Ue, true);
+					$html.= '&nbsp;<span class="quote" data-plain="' . $cite_text . '" data-bibtex="' . $bibtex. '" style="font-size: 50%; cursor : pointer; color : grey;">(' . $Ue['ZITIEREN'] . ')</span>';
+				}
+
+
+				$html.= "	</h1>";			
+				$html.= "</div>";
+
+		return $html;		
+
+}
+
+
+  function va_get_glossary_tags($tags){
+  	    $res = '';
+		if($tags && count($tags) > 0){
+			$res.='<br />Tags: ';
+			foreach ($tags as $tag){
+			    $url = add_query_arg('tag', $tag[0], va_get_glossary_link());
+				$res.="<a href='$url'>$tag[1]</a> ";
+			}
+		}
+
+		return $res;
+	}
+
 
 function va_concept_compare ($t1, $t2, $search){
 	$diff = mb_stripos ($t1, $search) - mb_stripos ($t2, $search);
@@ -1023,17 +1223,22 @@ function va_get_comment_title ($id, $lang, $from_db = true, &$Ue = NULL, $db = N
 	
     $lang = substr($lang, 0, 1);
     
-    if ($from_db){
+	$letter = substr($id, 0, 1);
+	$key = substr($id, 1);
+
+	
+    if ($from_db && $letter != 'A' && $letter !='M'){
         global $vadb;
         
         $sql = 'select Title_Html from a_lex_titles alt where id = %s AND lang = %s';
         return $vadb->get_var($vadb->prepare($sql, $id, $lang));
     }
-    
-	$letter = substr($id, 0, 1);
-	$key = substr($id, 1);
-	
+  
+
 	switch ($letter){
+
+
+
 		case 'B':
 		    $type_data = $db->get_row($db->prepare('SELECT Orth, Sprache FROM Basistypen WHERE Id_Basistyp = %d', $key), ARRAY_A);
 		    $title = va_format_base_type('<em>' . $type_data['Orth'] . '</em>', $type_data['Sprache'], '0', $Ue);
@@ -1072,6 +1277,16 @@ function va_get_comment_title ($id, $lang, $from_db = true, &$Ue = NULL, $db = N
 			}
 			return $title;
 			break;
+			
+		case 'A':
+			global $vadb;
+			return $vadb->get_var($vadb->prepare('SELECT Name FROM Orte WHERE Id_Ort = %d', $key));
+			break;
+
+		case 'M':
+		global $vadb;
+		return $vadb->get_var($vadb->prepare('SELECT TERMINUS_'.strtoupper($lang).' FROM glossar WHERE Id_Eintrag = %d', $key));
+		break;	
 	}
 }
 
@@ -1308,6 +1523,19 @@ function va_get_lang_array (){
     return ['D','E','F','I','L','R','S'];
 }
 
+function va_lang_to_iso ($lang){
+	$lang = mb_strtoupper($lang);
+	switch ($lang){
+		case 'D': return 'deu';
+		case 'E': return 'eng';
+		case 'F': return 'frz';
+		case 'I': return 'ita';
+		case 'L': return 'lld';
+		case 'R': return 'roh';
+		case 'S': return 'slv';
+	}
+}
+
 function va_get_translations (&$db, $lang){
     $transl = 'Begriff_' . $lang;
     
@@ -1318,5 +1546,147 @@ function va_get_translations (&$db, $lang){
         $Ue[$r[0]] = $r[1];
     }
     return $Ue;
+}
+
+function va_replace_url_abbreviation ($url){
+	if (mb_strpos($url, 'va/') === 0){
+		return get_home_url() . mb_substr($url, 2);
+	}
+	return $url;
+}
+
+function va_replace_by_doi_url ($url){
+	$link = va_replace_url_abbreviation($url);
+				
+	$parts = parse_url($link);
+	if(isset($parts['host']) && $parts['host'] === $_SERVER['HTTP_HOST']){
+		global $va_current_db_name;
+		$link = add_query_arg('db', substr($va_current_db_name, 3), $link);
+		$pos_host = strpos($link, $parts['host']);
+		$app = substr($link, $pos_host + strlen($parts['host']));
+		$link = va_get_doi_base_link(true) . urlencode($app);
+	}
+	
+	return $link;
+}
+
+function va_is_municipality_list() {
+	return (isset($_REQUEST['list']) && $_REQUEST['list'] == 'municipalities') || (isset($_REQUEST['single']) && substr($_REQUEST['single'], 0, 1) == 'A');
+}
+
+// function va_is_methodology() {
+// 	return (isset($_REQUEST['list']) && $_REQUEST['list'] == 'methodology') || (isset($_REQUEST['single']) && substr($_REQUEST['single'], 0, 1) == 'A');
+// }
+
+function va_format_source_from_db ($row, &$bibData, &$stimulusData, &$informantData, $source_types, $isolangs){
+    
+    global $Ue;
+    global $vadb;
+    
+    $sdata = explode('#', $row['Instance_Source']);
+    $atlas = $sdata[0];
+    list($code, $html) = va_create_bibl_html($atlas);
+
+    $atlas_lower = mb_strtolower($atlas);
+    if(!isset($bibData[$atlas_lower])){
+        $bibData[$atlas_lower] = va_create_bib_tooltip_content($atlas_lower, $code);
+    }
+    
+    $key = $row['Id_Stimulus'] . '_' . $row['Id_Informant'];
+    if(!isset($stimulusData[$key])){
+        $res = '<div id="sti' . $key . '">';
+        
+        if ($atlas == 'CROWD'){
+            $cparts = explode('_', $sdata[1]);
+			if (count($cparts) == 1){
+				//Stimuli from older database versions
+				$st_name = $sdata[1];
+			}
+			else {
+				$lang_iso = strtok($isolangs[$cparts[1]], ' ');
+				$st_name = $cparts[0] . ', ' . $Ue['SPRACHE'] . ' ' . $lang_iso;
+			}
+            $res .= $Ue['KONZEPT'] . ' C' . $st_name . ', ' . $Ue['VERSION'] . ' ' . $sdata[2] . ': ';
+        }
+        else if (isset($source_types[$atlas_lower]) && $source_types[$atlas_lower] == 'A'){ //Atlas
+            $res .= $Ue['ATLASKARTE'] . ' ' . $sdata[1] . ', ' . $Ue['SUBKARTE'] . ' ' . $sdata[2]  . ': ';
+        }
+        else if (mb_substr($sdata[1], 0, 5) != 'Lemma'){
+            $res .= $Ue['STIMULUS'] . ' ' . $sdata[1] . ': ';
+        }
+        
+        $res .= $row['Stimulus'];
+        
+        $link = va_produce_external_map_link($atlas, $sdata[1], $sdata[2], $sdata[3], $row['Id_Stimulus']);
+        if($link){
+            $res .= '<br /><br />' . $link;
+        }
+        
+        $res .= '</div>';
+        
+        $stimulusData[$key] = $res;
+    }
+    
+    $html .= ' <span class="stimulus" data-stimulus="' . $key . '" style="text-decoration: underline; cursor: pointer;">' . $sdata[1] . '#' . $sdata[2] . '</span> ';
+    
+    if(!isset($informantData[$row['Id_Informant']])){
+        
+        $res = '<div id="inf' . $row['Id_Informant'] . '">';
+        
+        if ($atlas == 'CROWD'){
+            $res .= 'User "' . $sdata[3] . '", ' . $Ue['GEMEINDE'] . ': ' . $sdata[4];
+        }
+        else {
+            $res .= $Ue['INFORMANT'] . ' ' . $sdata[3] . ', ' . $Ue['ORT'] . ': ' . $sdata[4];
+        }
+        
+        
+        $res .= '</div>';
+        
+        $informantData[$row['Id_Informant']] = $res;
+    }
+    
+    return $html . '<span class="informant" data-informant="' . $row['Id_Informant'] . '" style="text-decoration: underline; cursor: pointer;">' . $sdata[3]; // . ' (' . $sdata[4] . ')</span>';
+}
+
+function va_create_bib_tooltip_content ($source, $code){
+	global $vadb;
+	
+	$bib_array = $vadb->get_row($vadb->prepare(
+            'SELECT Lower(Abkuerzung), Autor, Titel, Ort, Jahr, Download_URL, Band, Enthalten_In, Seiten, Verlag FROM Bibliographie WHERE Abkuerzung = %s', $source), ARRAY_N);
+      
+	if (!$bib_array){
+	    return '';
+	}
+	
+	return "<div id='$code' style='display: none;'>" .
+		va_format_bibliography($bib_array[1], $bib_array[2], $bib_array[3], $bib_array[4], $bib_array[5], $bib_array[6], $bib_array[7], $bib_array[8], $bib_array[9]) . "</div>";
+}
+
+function va_get_iso_map ($lang, &$db){
+    return va_two_dim_to_assoc($db->get_results("
+			SELECT Abkuerzung, CONCAT(Bezeichnung_$lang, IF(ISO639 = '', '', CONCAT(' (ISO 639-', ISO639, ')'))) AS Bedeutung
+			FROM Sprachen
+			WHERE Bezeichnung_$lang != '' AND (ISO639 = '3' OR ISO639 = '5' OR ISO639 = '')", ARRAY_N));
+    
+}
+
+function va_get_bib_type_map (&$db){
+    return va_two_dim_to_assoc($db->get_results('select distinct LOWER(Abkuerzung), Kategorie from bibliographie join stimuli on Abkuerzung = Erhebung group by Abkuerzung', ARRAY_N));
+}
+
+function va_get_glossary_lang_icons ($id){
+    global $lang;
+    global $vadb;
+    
+    $html = '';
+    $langs = array_filter(va_get_lang_array(), function ($e) use ($lang) {return $e != $lang;});
+    foreach ($langs as $clang){
+        if ($vadb->get_var('SELECT Terminus_' . $clang . ' != "" AND Erlaeuterung_' . $clang . ' != "" FROM glossar WHERE Id_Eintrag = ' . $id)){
+            $html.= ' <a href="' . va_get_glossary_link($id, $clang) . '"><img class="missingTranslation" src="' . get_stylesheet_directory_uri() . '/' . va_get_flag_image($clang) . '" /></a>';
+        }
+    }
+    
+    return $html;
 }
 ?>

@@ -1,19 +1,27 @@
 <?php
-function va_lexicon(){
+function va_lexicon($attrs){
+    
+    $meth_list = false;
+    if (isset($attrs['type']) && $attrs['type'] == 'methodology'){
+        $meth_list = true;
+    }
 	
 	global $vadb;
 	global $lang;
 	global $Ue;
-	global $admin;
-	global $va_mitarbeiter;
-	global $va_current_db_name;
+	
+	$mun_list = va_is_municipality_list();
+	//$meth_list = va_is_methodology();
 ?>
 	
 	
 	
 <script type="text/javascript">
-	var qtipApis;
+	var isMethodology = <?php echo $meth_list? 'true': 'false'; ?>;
+
+	var qtipApis = {};
   	var all_active_ids = {};
+  	var ids_to_remove = {};
 	var ids_to_idx = {};
   	var append_alphabetically = true;
 	var all_data = [];
@@ -27,6 +35,9 @@ function va_lexicon(){
 	var loadingCounter = 0;
 	var saved_left = null;
 	var prevent_tour_click = false;
+	var blockimages = false;
+	
+	var urlParams = new URLSearchParams(window.location.search);
 	
 	jQuery(document).ready(function () {
 
@@ -53,19 +64,31 @@ function va_lexicon(){
 		addCopyButtonSupport();
 		addScrollShift();
 		addSideBarCollapse();
+		
+		<?php
+		if (!$meth_list){
+		?>
 		var tour = addHelpTourLex(translations_help);
 
 		tour.on("cancel", function(){
 			completeReset(true, true);
 		})
+		<?php
+		}
+		?>
 
 		
 		jQuery('#lextitelinput').val('');
 
-		jQuery('.lexstartcontent').fadeIn('fast');
+		jQuery('.lexstartcontent').fadeIn('fast',function(){
+			addPopups(jQuery(this));
+		});
 
 		jQuery('#page').addClass('lex');
 		jQuery('body').addClass('lex');
+
+		if(isMethodology)jQuery('body').addClass('meth');
+
 
 		jQuery('.lexsearch button').first().on('click',function(){
 			var val = jQuery('.lexsearch input').val();
@@ -87,10 +110,41 @@ function va_lexicon(){
 		jQuery(window).on('resize',function(){
 			resizeBehavior()
 		}) // resize
+		
+		let singleId = false;
+		if (window.location.hash){
+			singleId = window.location.hash.substring(1);
+
+			if (urlParams.get('letter') && !isNaN(singleId)){
+				singleId = "M" + singleId;
+			}
+		}
+		else {
+			const sid = urlParams.get('single');
+			
+			if (sid){
+				singleId = sid;
+			}
+		}
+		
+		if (singleId && singleId.substring(0, 1) == "A"){
+			urlParams.set("list", "municipalities");
+		}
+		else if (singleId && isMethodology && !singleId.startsWith("M")){
+			singleId = false;
+		}
+		else if (singleId && !isMethodology && singleId.startsWith("M")){
+			singleId = false;
+		}
+
+		tagSet = false;
+		if (isMethodology && !singleId && urlParams.get('tag')){
+			tagSet = urlParams.get('tag');
+		}
 
 		getAllArticles(function() {
-			let urlParams = new URLSearchParams(window.location.search);
 			let stateId = urlParams.get("state");
+
 			if (stateId){
 				jQuery.post(ajax_object.ajaxurl, {
 					"action": "va",
@@ -118,6 +172,22 @@ function va_lexicon(){
 					}
 				});
 			}
+			else if (tagSet){
+				let tids = [];
+				jQuery("#lextitellist li").each(function (){
+					let tags = (jQuery(this).data("tags") + "").split(",");
+					if (tags.includes(tagSet)){
+						tids.push(jQuery(this).attr("id"));
+					}
+				});
+
+				addArticlesByIds(tids, null, false, null);
+				for (let i = 0; i < tids.length; i++){
+					all_active_ids[tids[i]] = true;
+				}
+				updateVisibleItems();
+				jQuery('.lexstartcontent').fadeOut('fast');
+			}
 
 		 addABCScrolling(removeDiacriticsPlusSpecial);	
 
@@ -131,13 +201,12 @@ function va_lexicon(){
 			localLink(id);
 		});
 
-		if (window.location.hash){
-			let id = window.location.hash.substring(1);
-			if (ID_MAPPING[id]){
-				id = ID_MAPPING[id]; // L1 -> L1+5
+		if (singleId){
+			if (ID_MAPPING[singleId]){
+				singleId = ID_MAPPING[singleId]; // L1 -> L1+5
 			}
-			addArticlesByIds([id], null, true, null);
-			all_active_ids[id] = true;
+			addArticlesByIds([singleId], null, true, null);
+			all_active_ids[singleId] = true;
 			jQuery('.lexstartcontent').fadeOut('fast');
 		}
 
@@ -183,11 +252,13 @@ function addABCScrolling(characterFunction){
     	else id = jQuery(el).attr('id');
     	var idx = ids_to_idx[id];
     	var title = clear_titles[idx];
-    	var first_letter = title.charAt(0).toUpperCase();
-    	if(letterToIndices[first_letter]==undefined && list.indexOf(first_letter)!=-1){
-    		letterToIndices[first_letter] = i;
-    		jQuery('.lex_abc div:contains("'+first_letter+'")').addClass('active');
-    	}
+		if (title){
+			var first_letter = title.charAt(0).toUpperCase();
+			if(letterToIndices[first_letter]==undefined && list.indexOf(first_letter)!=-1){
+				letterToIndices[first_letter] = i;
+				jQuery('.lex_abc div:contains("'+first_letter+'")').addClass('active');
+			}
+		}
     })
 
 
@@ -199,7 +270,9 @@ function addABCScrolling(characterFunction){
 
     	 var row_height = jQuery('#lextitellist li').first().outerHeight();
     	 var letterscrollpos = letterToIndices[jQuery(this).text()]
+
     	 var scrolltop =  (letterscrollpos>0) ? (letterscrollpos*row_height)+row_height : 0
+	     if(isMethodology) scrolltop-=row_height;
     	 if(letterscrollpos!=undefined) jQuery("#scrollArea").animate({ scrollTop: parseInt(scrolltop)}, 100);
     })
 
@@ -308,6 +381,12 @@ function addSideBarCollapse(){
 	jQuery('.lex_scrollup').on('click',function(){
 		jQuery("html, body").animate({ scrollTop: "0" });
 	})
+
+	jQuery('.lex_close_all').on('click',function(){
+		completeReset(true, true);
+		jQuery(this).fadeOut();
+		jQuery("html, body").animate({ scrollTop: "0" });
+	})
 }
 
 
@@ -345,19 +424,23 @@ function addScrollShiftListener(margin_top, margin_top,padding_top, prevScroll){
 
 			     if(scrollTop>75) {
 		     		jQuery('img.lexlogo').addClass('fadeOut')
+		     		jQuery('.lexlogo_text').addClass('fadeOut')
 			     	jQuery('.lex_header').css('transform','translateY(-'+scrollAdd+'px)')
 			     }
 			     else{
 		     	 	jQuery('.lex_header').css('transform','translateY(0px)')
 				 	jQuery('img.lexlogo').removeClass('fadeOut')
+			 		jQuery('.lexlogo_text').removeClass('fadeOut')
 			     }
 
 
 			     if(scrollTop > 100){
 			     	jQuery('.lex_scrollup').fadeIn();
+			     	jQuery('.lex_close_all').fadeIn();
 			     }
 			     else{
 			     	jQuery('.lex_scrollup').fadeOut();
+		     		jQuery('.lex_close_all').fadeOut();
 			     }
 		          	
     });
@@ -410,6 +493,7 @@ function produceLexURL (callback){
 		"action": "va",
 		"namespace": "lex_alp",
 		"query": "save_state",
+		"type": isMethodology? "M": "L",
 		"version_number": ajax_object.db === "xxx"? ajax_object.next_version: ajax_object.db,
 		"data": data
 	}, function (response){
@@ -483,13 +567,15 @@ function localLink (id){
 	let callback = function (){
 		let j = jQuery(".lex_article_" + id);
 		if (j.hasClass("open")){
-			j[0].scrollIntoView();
+			scrollToEntry(id);
+			//j[0].scrollIntoView();
 		}
 		else {
 			var el_cont = j.find('.f_content')[0];
 			var front  = j.find('.front');
 			readMoreFunction(j, el_cont, front, function (){
-				j[0].scrollIntoView();
+				scrollToEntry(id);
+				//j[0].scrollIntoView();
 			});
 		}
 	}
@@ -503,7 +589,13 @@ function localLink (id){
 	}
 }
 
+function scrollToEntry (id){
+	let j = jQuery(".lex_article_" + id);
 
+	if(j.length>0){
+		window.scrollTo({top: j.offset().top - jQuery(".lex_header_inner").height(), behavior: 'smooth'});
+	}
+}
 
 
 function slideMobileMenuDown(){
@@ -515,22 +607,23 @@ function slideMobileMenuDown(){
 function addPopups (div){
 
 	addBiblioQTips(div);
+	addCitations("<?php echo $Ue['KOPIEREN'] ?>");
 	
-	div.find(".lex_quote").each(function (){
-		jQuery(this).qtip({
-			"show" : "click",
-			"hide" : "unfocus",
-			"content" : {
-				"text" : "<div>" + jQuery(this).data("quote").replace(/(http[^ ]*)/, "<a href='$1'>$1</a>")
-				+ "</div><br /><input class='copyButton' style='display: block; margin: auto;' type='button' data-content='" 
-				+ jQuery(this).data("quote") + "' value='<?php echo $Ue['KOPIEREN']; ?>' />"
- 			},
- 			"position" : {
- 				"my": "top right",  
- 				"at": "bottom left"
- 			}
-		});
-	});
+// 	div.find(".lex_quote").each(function (){
+// 		jQuery(this).qtip({
+// 			"show" : "click",
+// 			"hide" : "unfocus",
+// 			"content" : {
+// 				"text" : "<div>" + jQuery(this).data("quote").replace(/(http[^ ]*)/, "<a href='$1'>$1</a>")
+// 				+ "</div><br /><input class='copyButton' style='display: block; margin: auto;' type='button' data-content='" 
+//				+ jQuery(this).data("quote") + "' value='<?php echo $Ue['KOPIEREN']; ?>' />"
+//  			},
+//  			"position" : {
+//  				"my": "top right",  
+//  				"at": "bottom left"
+//  			}
+// 		});
+// 	});
 }
 
 function removePopus (div){
@@ -542,21 +635,40 @@ function clickListItem(_this){
 	
  	 	var id = jQuery(_this).attr('id');
 
+ 	 	if(ids_to_remove[id] == true) return;
+
 		if(jQuery(_this).hasClass('active')){
+
 			closeArticle(jQuery('#detailview_'+id.replace(/\+/g, '\\+')),id);
-			jQuery(_this).removeClass('active');
+			jQuery(_this).removeClass('active');	
+			 	  	
+
 		}
 		else {
 			if(!jQuery('.lex_main_load_cover').is(":visible"))jQuery('.lex_main_load_cover').css("display", "flex").hide().fadeIn('fast');
 			jQuery(_this).addClass('active');
 	  	  	var prev_id = getPrevId(id);
-		    addArticlesByIds([id],prev_id,true,null);
+
+	 
+		    if(all_active_ids[id]==null){
+
+				    	addArticlesByIds([id],prev_id,true,null,function (){
+						scrollToEntry(id);
+						
+					});
+
+
+			}
+
 		    all_active_ids[id] = true;
+		    	
 		}
 
 	    if(jQuery('.lexstartcontent').length>0)jQuery('.lexstartcontent').fadeOut('fast');
 	    if(jQuery('.lex_articles .no_results').length>0)jQuery('.lex_articles .no_results').remove();	  
 }
+
+
 
 function getPrevId(id){
 	var own_idx = ids_to_idx[id];
@@ -577,22 +689,30 @@ return res;
 
 function getAllArticles(callback){
 
+	 var query = "get_all_articles";
+	 if(urlParams.get("list") == "municipalities")query="get_all_municipalities";
+	 if(isMethodology)query="get_all_methodology";
+
 	  var data = {
             "action" : "va",
             "namespace" : "lex_alp",
-            "query" : "get_all_articles",
+            "query" : query,
 			"db" : ajax_object.db
     };
 
     jQuery.post(ajax_object.ajaxurl, data, function (response){
     	var res = JSON.parse(response);
+
     	for(var i=0; i<res.length;i++){
+
     		var article = res[i];
     		var type = article['Id'].substring(0, 1);
-    		var row = '<li id="'+article["Id"]+'"><span class="list_marker type_'+type+'"></span><span class="title-string">'+article["Title_Html"]+'</span></li>';
+		    if(isMethodology)type="A";	
+    		var row = '<li id="'+article["Id"]+'"' + (article["Tags"]? ' data-tags="' + article["Tags"] + '"': '') + '><span class="list_marker type_'+type+'"></span><span class="title-string">'+article["Title_Html"]+'</span></li>';
     		clear_titles.push(article["Title_Html"])
     		all_data.push(row);
     		ids_to_idx[article['Id']] = i;
+
     	}
 
 
@@ -673,11 +793,15 @@ function getAllArticles(callback){
 
 function getFilterResults(filter){
 
+	  var query = "get_filter_results";
+	  if(urlParams.get("list") == "municipalities") query = "filter_municipalities_results";
+      if(isMethodology) query = "filter_methodology_results";
+
 	  var data = {
             "action" : "va",
             "namespace" : "lex_alp",
             "search_val": removeDiacritics(filter),
-            "query" : "get_filter_results",
+            "query" : query,
 			"db" : ajax_object.db
     };
 
@@ -685,11 +809,17 @@ function getFilterResults(filter){
     {
     	var res = JSON.parse(response);
     	filtered_data = [];
+  	
 
     	for(var i=res.length-1; i>=0;i--){
-		  	var idx = ids_to_idx[res[i]]
-		  	var article = all_data[idx]
-    		filtered_data.push(article)
+
+    		var id = res[i];
+
+		  	var idx = ids_to_idx[id];
+		
+		  	var article = all_data[idx];
+    		filtered_data.push(article);
+
     	}
   	    clusterize.update(filtered_data);
   	    addABCScrolling(removeDiacriticsPlusSpecial)
@@ -744,10 +874,14 @@ function updateVisibleItems(){
 function addArticlesByIds(ids,prev_id,append_alphabetically,highlight, callback){
 
 	loadingCounter++;
+
+
+
     var data = {
             "action" : "va",
             "namespace" : "lex_alp",
             "query" : "get_text_content",
+            "type" : isMethodology? 'M': 'L',
             "id" : ids,
 			"db" : ajax_object.db
     };
@@ -761,14 +895,36 @@ function addArticlesByIds(ids,prev_id,append_alphabetically,highlight, callback)
             	 jQuery(articles_to_append).each(function(){
 
         	 	 var that = jQuery(this);
+        	 	 var id = that.attr('id').split('_')[1];
+        	 	
 
-            	 	if(!append_alphabetically)jQuery('.lex_articles').append(jQuery(this)); 
+            	 	if(!append_alphabetically){
+            	 		jQuery('.lex_articles').append(that);
+            	 	}
             	 	else{
-	            	 		if(jQuery('.lex_article').length==0)jQuery('.lex_articles').append(jQuery(this));
+	            	 		if(jQuery('.lex_article').length==0 && all_active_ids[id]==true)jQuery('.lex_articles').append(that);
 
 	            	 	     else{
-	            	 		 	if(prev_id)jQuery("#detailview_"+prev_id.replace(/\+/g, '\\+')).after(jQuery(this));
-	            	 		 	else jQuery('.lex_articles').prepend(jQuery(this));
+
+		            	 	     	if(all_active_ids[id]==true && jQuery("#detailview_"+id).length==0){
+
+		            	 	     		if(prev_id){
+
+		            	 	     		var prev_element = jQuery("#detailview_"+prev_id.replace(/\+/g, '\\+'));
+
+
+			            	 	     			if(prev_element.length>0) prev_element.after(that);
+			            	 	     			else jQuery('.lex_articles').append(that);
+
+		            	 	     		
+		            	 	     		}	
+
+			            	 		 	else jQuery('.lex_articles').prepend(jQuery(this));
+
+		            	 		 	}
+
+	            	 		 
+
 	            	 		 }
 
             	 	    }
@@ -805,7 +961,6 @@ function generateFinalLexArticles(that){
     	 			var el_cont = f_cont[0];
     	 			var front  = that.find('.front');
     	
-
 	
 		  	 		var total_height = (el.offsetHeight > 88) ? el.offsetHeight : 88;
 
@@ -849,6 +1004,8 @@ function generateFinalLexArticles(that){
 
 
 					  that.find('.lex_image_btn').on('click',function(){
+					  	 if(blockimages) return;
+					  	 blockimages = true;
 		  				 var id = that.attr('id').split('_')[1];
 							   getConceptImages(id,function(data){
 							   		 createLexImageModal(data,id);
@@ -1089,13 +1246,17 @@ jQuery('#lexImageModal').modal();
 								}
 
 								if(j==urls.length-1){
-									setTimeout(function(){
-										var carousel = jQuery('#lexImageModal .carousel').carousel({interval: 3500})
-											setTimeout(function(){
-										 		carousel.carousel('next');
-										 	},1500); // initiate first slide
-										carousel_cover.fadeOut();
-									},100)
+								
+									var carousel = jQuery('#lexImageModal .carousel').carousel()
+									
+									carousel_cover.fadeOut(function(){
+
+										setTimeout(function(){
+								 		   carousel.carousel('next');
+									 	},1000); // initiate first slide
+										blockimages = false;
+									});
+							
 									
 								}
 						}
@@ -1105,15 +1266,20 @@ jQuery('#lexImageModal').modal();
 				});
 			}
 
+
  	});
 
 
 	jQuery('#lexImageModal').on('hidden.bs.modal',function(){
+
+			jQuery('#lexImageModal .carousel').carousel('dispose');
+
 			jQuery('#lexImageModal .carousel-inner').empty();
 			jQuery('#lexImageModal .carousel-indicators').empty();
 			jQuery('#lexImageModal .carousel-cover').remove();
 			jQuery('#lexImageModal .carousel-indicators').show();
 			jQuery('#lexImageModal .cc_control').show();
+			blockimages = false;
 	});
 
 
@@ -1142,6 +1308,15 @@ function getOtherTypeByOwn(owntype,index){
 	  return "A"
 	}
 	else if (owntype=="B" && index == 2){
+	  return "C"
+	}
+	else if (owntype=="A" && index == 0){
+	  return "L"
+	}
+		else if (owntype=="A" && index == 1){
+	  return "B"
+	}
+		else if (owntype=="A" && index == 2){
 	  return "C"
 	}
 }
@@ -1224,11 +1399,15 @@ if(searching) return;
 				jQuery('.lexsearch button').addClass('no_hover');
 				jQuery('.lexsearch button i').first().removeClass('fa-search').addClass('fa-circle-notch fa-spin lex-search-spinner');
 
+					var query = "get_search_results";
+					if(urlParams.get("list") == "municipalities")query="get_search_results_mun";
+					if(isMethodology)query="get_search_results_meth";
+
 
 				    var data = {
 			            "action" : "va",
 			            "namespace" : "lex_alp",
-			            "query" : "get_search_results",
+			            "query" : query,
 			            "search_val" : removeDiacritics(val),
 						"db" : ajax_object.db
 			    		};
@@ -1270,19 +1449,22 @@ function highlightSearchResults(val){
 
 jQuery(".lex_article").mark(val, {
     "element": "span",
-    "className": "highlight"
+    "className": "highlight",
+	"synonyms": {"ss": "ß"}
 });
 
 }
 
 function closeArticle(that,id){
 	 delete all_active_ids[id];
+	 ids_to_remove[id] = true;
 		  				 
 	 that.removeClass('show');
 	 setTimeout(function() {
 	 	that.remove();
  	  	 if(Object.keys(all_active_ids).length==0)jQuery('.lexstartcontent').fadeIn('fast');  
-	 }, 500); // move to lex callback
+ 	  	  delete ids_to_remove[id];
+	 }, 500); 
 	 jQuery("#" + id.replace(/\+/g, '\\+')).removeClass('active');
 	 removePopus(that);
 }
@@ -1328,20 +1510,26 @@ function openSecTable(tr,detailview,bypass){
 		var main_type = main_id_comb.substring(0, 1);
 		var main_id = main_id_comb.substr(1);
 
+		var id = tr.attr('id');
+		
+		if(!id){
+			id = null;
+		}
+		else {
+			id = id.substring(1);
+		}
+
+		var type = tr.parent().parent().attr('type');
+		
 		if(!tr.next().hasClass('second_row')){
-
-			var id = tr.attr('id');
-			if(id=='')id = null;
-
-			var type = tr.parent().parent().attr('type');
 			var row = tr;
 
-			if(id && type){
+			if(type){
 	
 			tr.append('<div class="secRowLoading"><i class="fas fa-circle-notch fa-spin"></i></div>');
 			tr.find('.secRowLoading').css('height',(tr.height()-1)+"px");
 
-			getSecondaryData(id.substring(1), type, row, main_type, main_id,function(){
+			getSecondaryData(id, type, row, main_type, main_id,function(){
 				tr.find('.secRowLoading').remove()
 			});
 			tr.addClass('active');
@@ -1350,6 +1538,15 @@ function openSecTable(tr,detailview,bypass){
 
 		}
 		else{
+			var qtip_key = type + id + "_" + main_type + main_id;
+
+			for(var i = 0; i < qtipApis[qtip_key].length; i++){
+				if(qtipApis[qtip_key][i])
+					qtipApis[qtip_key][i]["destroy"](true);
+			}
+
+			delete qtipApis[qtip_key];
+			
 			tr.next().remove();
 			tr.removeClass('active');
 		}
@@ -1425,7 +1622,9 @@ var data = {
 
 jQuery.post(ajax_object.ajaxurl, data, function (response){
 
-	var res = JSON.parse(response);
+	var arr = JSON.parse(response);
+	var res = arr[0];
+	var extra = arr[1];
 
 	var table = jQuery('<tr class="second_row"><td colspan="'+row.children().length+'"><table class="second_table"><thead><tr></tr></thead><tbody></tbody></table></td></tr>');
 
@@ -1445,7 +1644,12 @@ jQuery.post(ajax_object.ajaxurl, data, function (response){
 		table.find('tbody').append(tr);
 	}
 
+	table.find("table").after(extra);
+
 	 row.after(table);
+
+	 var apis = addBibLikeQTips(table, ["bibl", "stimulus", "informant"], ["blue", "blue", "blue"], ["", "sti", "inf"]);
+	 qtipApis[type + id + "_" + main_type + main_id] = apis;
 
 	 table.find('.second_table').tablesorter({theme: 'dark'});   
 
@@ -1480,8 +1684,26 @@ jQuery.post(ajax_object.ajaxurl, data, function (response){
 }
 
 function getPlaceHolderText(){
+
+		var res;
+
+        //municipalities
+	   if (urlParams.get("list")=="municipalities") {
+		    res= '<?php echo $Ue['LEX_ARTICLE_COUNT']; ?>';	
+		    var string = res.split(" ");
+		    string[1] = all_data.length;
+		    string[2] = '<?php echo $Ue['Gemeinden']; ?>';
+
+		    res = string[0]+" "+string[1]+" "+string[2]+"...";
+	    }
+
+    	else{
+
 	    var placeholder = '<?php echo $Ue['LEX_ARTICLE_COUNT']; ?>';
-	    var res = placeholder.replace('*NUMBER*', all_data.length);
+	    res = placeholder.replace('*NUMBER*', all_data.length);
+
+	    }
+
 		return res;
 }
 		
@@ -1514,6 +1736,7 @@ function clickLexSearchMenu(){
 	
 	<?php 
 
+
 echo '<div id="lexImageModal" class="modal fade top_menu_modal" tabindex="-1" role="dialog">
   <div class="modal-dialog modal-md" role="document">
     <div class="modal-content">
@@ -1526,7 +1749,7 @@ echo '<div id="lexImageModal" class="modal fade top_menu_modal" tabindex="-1" ro
       <div class="modal-body">
 
 
-			<div id="carouselExampleIndicators" class="carousel slide" data-ride="carousel">
+			<div id="carouselExampleIndicators" class="carousel slide" data-ride="carousel" data-interval="2500" data-pause="false" data-wrap="true">
 			  <ol class="carousel-indicators">
 			  </ol>
 			  <div class="carousel-inner">
@@ -1552,18 +1775,34 @@ echo '<div id="lexImageModal" class="modal fade top_menu_modal" tabindex="-1" ro
 		echo '<div class="lex_header_inner">';	
 				
 
-			echo '<div class="lexlogowrapper">';	
-			echo '<div class="lexlogo lexhead">	<img class="lexlogo" src="' . VA_PLUGIN_URL . '/images/lexicon_logo.svg"/></div>';
+			echo '<div class="lexlogowrapper">';
 
-			echo '
-			<div class="lexsearch">
-			<div>
-			<input></input>
-			<button class="actionbtn"><i class="fas fa-search" aria-hidden="true"></i></button>
-			<div class="lexsep" style="display:none;"></div>
-			<button class="actionbtn lexmenubtn"><i class="fas fa-bars" aria-hidden="true"></i></button>
-			</div>
-			</div>';
+			$extra_class = "";
+			if ($mun_list || $meth_list)$extra_class= "no_svg";	
+			
+			echo '<div class="lexlogo lexhead '.$extra_class.'">';
+			if (!$mun_list && !$meth_list){
+				echo '<img class="lexlogo" src="' . VA_PLUGIN_URL . '/images/lexicon_logo.svg"/>';
+			}
+			else if($mun_list){
+				echo '<div class="lexlogo_text">'.$Ue["Gemeinden"].'</div>';
+			}
+			else if($meth_list){
+				echo '<div class="lexlogo_text" style="position: relative;">'.$Ue["METHODOLOGIE"].'</div>';
+			}
+			echo '</div>';
+
+			//if (!$mun_list){
+				echo '
+				<div class="lexsearch">
+				<div>
+				<input></input>
+				<button class="actionbtn"><i class="fas fa-search" aria-hidden="true"></i></button>
+				<div class="lexsep" style="display:none;"></div>
+				<button class="actionbtn lexmenubtn"><i class="fas fa-bars" aria-hidden="true"></i></button>
+				</div>
+				</div>';
+			//}
 
 	     echo '</div>';
 	   echo '</div>';
@@ -1574,16 +1813,45 @@ echo '<div id="lexImageModal" class="modal fade top_menu_modal" tabindex="-1" ro
 
 
 	echo '<div class="lexcontent">';
+
+	$db_id = 0;
+
+	global $va_xxx;
 	
-	
-	$pre = $vadb->get_var("SELECT Erlaeuterung_$lang FROM glossar WHERE Terminus_D = 'Präambel_LexAlp'");
-	if ($pre){
+	if ($mun_list){
+
+		$db_id = $va_xxx->get_var("SELECT Id_Eintrag FROM glossar WHERE Terminus_D = 'Präambel_Gemeinden'");
+
+	}
+	else if ($meth_list){
+
+		$db_id = $va_xxx->get_var("SELECT Id_Eintrag FROM glossar WHERE Terminus_D = 'Präambel_Methodologie_Neu'");
+
+	}
+	else {
+		$db_id = $va_xxx->get_var("SELECT Id_Eintrag FROM glossar WHERE Terminus_D = 'Präambel_LexAlp'");
+
+	}
+
+	// if ($pre){
+
+    	$loc = get_locale();
+        $langdb = explode("_", $loc)[0];
+        $db_lang = strtoupper($langdb[0]);
+
+		$glossary_entry = va_get_glossary_entry($db_id, $db_lang, true, "Sonder", $Ue);
+        $text = va_get_glossary_html($glossary_entry[0], true);
+
+        $pre = $text;
+
 		parseSyntax($pre, true);
 		echo '<div class="lex_articles" id="scrollLexContent"><div class="lexstartcontent">' . $pre . '</div></div>';
-	}
-	else{
-		echo '<div class="lex_articles" id="scrollLexContent"><div class="lexstartcontent">No description available</div></div>';
-	}	
+
+
+	// }
+	// else{
+		// echo '<div class="lex_articles" id="scrollLexContent"><div class="lexstartcontent">No description available</div></div>';
+	// }	
 
 
     echo '</div>'; 
@@ -1613,12 +1881,23 @@ echo '<div id="lexImageModal" class="modal fade top_menu_modal" tabindex="-1" ro
     echo '<div class="lex_slide_uncollapse"> <i class="fas fa-chevron-right"></i></div>';
     echo '<div class="lex_scrollup"> <i class="fas fa-chevron-up"></i></div>';
 
+    echo '<div class="lex_close_all"> <i class="fas fa-times"></i></div>';
+
     echo '<div class="mobile_sidebar_bg"></div>';
 
     echo '<div class="lexsidebar">';
     echo '<div class="abc_wrap"><div class="lex_abc"></div></div>';
 
+	if (!$mun_list){
+
     echo '<div class="search"><i class="fas fa-search" aria-hidden="true"></i><input id="lextitelinput" type="text" class="form-control input-md" placeholder="'.$Ue['LEX_FILTER'].'"> </div>';
+
+    }
+
+    else{
+    	   echo '<div class="search"><i class="fas fa-search" aria-hidden="true"></i><input id="lextitelinput" type="text" class="form-control input-md" placeholder="'.$Ue['Gemeinden'].'..."> </div>';
+    }
+
     echo '<div class="lex_slide_collapse"> <i class="fas fa-chevron-left"></i></div>';
 
     echo '<div id="scrollArea">';

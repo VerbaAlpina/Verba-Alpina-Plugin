@@ -5,7 +5,7 @@ add_action( 'edit_attachment', 'save_media_fields'); //Speichern der Mediathek-F
 add_action( 'print_media_templates', 'css_adapt' );
 add_action( 'admin_footer', 'css_adapt2' );
 add_action('wp_ajax_createCostHtml', 'createCostHtml');
-add_action('wp_ajax_saveTax', 'saveTaxonomiesManually');
+//add_action('wp_ajax_saveTax', 'saveTaxonomiesManually');
 
 
 function createCostHtml (){
@@ -60,23 +60,24 @@ function createCostHtml (){
 	die;
 }
 
-function saveTaxonomiesManually (){
-	if($_REQUEST['selected'] == "true"){
-		echo json_encode(wp_set_object_terms( $_REQUEST['id'], array(intval($_REQUEST['num'])), 'media_category', true ));
-	}
-	else {
-		$old_terms = wp_get_object_terms($_REQUEST['id'], 'media_category', array('fields' => 'ids'));
-		$key = array_search(intval($_REQUEST['num']), $old_terms);
-		unset($old_terms[$key]);
-		echo json_encode(wp_set_object_terms( $_REQUEST['id'], $old_terms, 'media_category', false ));
-	}
-	die;
-}
+// function saveTaxonomiesManually (){
+	// if($_REQUEST['selected'] == "true"){
+		// echo json_encode(wp_set_object_terms( $_REQUEST['id'], array(intval($_REQUEST['num'])), 'media_category', true ));
+	// }
+	// else {
+		// $old_terms = wp_get_object_terms($_REQUEST['id'], 'media_category', array('fields' => 'ids'));
+		// $key = array_search(intval($_REQUEST['num']), $old_terms);
+		// unset($old_terms[$key]);
+		// echo json_encode(wp_set_object_terms( $_REQUEST['id'], $old_terms, 'media_category', false ));
+	// }
+	// die;
+// }
 
 function css_adapt (){
 	?>
 	<style>
 		media-sidebar .setting, .attachment-details .setting { display : none} /*Hide wordpress default fields*/
+		table.compat-attachment-fields tr.compat-field-media_category {display: none !important} /*Second not working category box */
     </style>
 	<?php
 }
@@ -101,7 +102,7 @@ function css_adapt2 (){
 			$id = getVA_ID($post->ID);
 		?>
 
-		var id = <?php echo $id;?>;
+		var VA_MEDIUM_ID = <?php echo $id;?>;
 		function setStartValues (){
 			//Create html code
 			
@@ -118,12 +119,12 @@ function css_adapt2 (){
 				jQuery("textarea").on("change", function (){changed(this)});
 				
 				appendInputElement(arr[1], '#morphDiv');
-				jQuery('#id_typen').chosen({allow_single_deselect: true});
+				jQuery('#id_typen').select2();
 				
 				//Set start values and onChange functions
 				var b = jQuery("#id_typen");
 				b.val(JSON.parse(jQuery('#morphDiv').attr('data-str')));
-				b.trigger("chosen:updated");
+				b.trigger("change");
 				lastSelVal = b.val();
 				
 				b.on("change", function (){
@@ -134,33 +135,33 @@ function css_adapt2 (){
 					if(lengthNull(v) > lengthNull(lastSelVal)){
 						var diff = jQuery(v).not(lastSelVal).get();
 						if(!isNaN(diff[0]))
-							updateValue(id, "ADD_TYPE", diff[0]);
+							updateValue(VA_MEDIUM_ID, "ADD_TYPE", diff[0]);
 					}
 					else {
 						var diff = jQuery(lastSelVal).not(v).get();
 						if(!isNaN(diff[0]))
-							updateValue(id, "DELETE_TYPE", diff[0]);
+							updateValue(VA_MEDIUM_ID, "DELETE_TYPE", diff[0]);
 					}
 					lastSelVal = v;
 				});
 				
 				//Speichere Kategorien manuell (TODO bessere Lösung)
-				jQuery("input[type=checkbox]").on("change", function (){
-					data = {
-						'action' : 'saveTax',
-						'num' : this.value,
-						'id' : '<?php echo $post->ID; ?>',
-						'selected' : this.checked,
-					};
+				// jQuery("input[type=checkbox]").on("change", function (){
+					// data = {
+						// 'action' : 'saveTax',
+						// 'num' : this.value,
+						// 'id' : '<?php echo $post->ID; ?>',
+						// 'selected' : this.checked,
+					// };
 			
-				jQuery.post(ajaxurl, data, function (response){});
-				});
+				// jQuery.post(ajaxurl, data, function (response){});
+				// });
 
 				appendInputElement(arr[0], '#konzeptDiv');
-				jQuery('#id_konzepte').chosen({allow_single_deselect: true});
+				jQuery('#id_konzepte').select2();
 				var b = jQuery("#id_konzepte");
 				b.val(JSON.parse(jQuery('#konzeptDiv').attr('data-str')));
-				b.trigger("chosen:updated");
+				b.trigger("change");
 				lastSelValKonz = b.val();
 				
 				b.on("change", function (){
@@ -171,12 +172,12 @@ function css_adapt2 (){
 					if(lengthNull(v) > lengthNull(lastSelValKonz)){
 						var diff = jQuery(v).not(lastSelValKonz).get();
 						if(!isNaN(diff[0]))
-							updateValue(id, "ADD_CONCEPT", diff[0]);
+							updateValue(VA_MEDIUM_ID, "ADD_CONCEPT", diff[0]);
 					}
 					else {
 						var diff = jQuery(lastSelValKonz).not(v).get();
 						if(!isNaN(diff[0]))
-							updateValue(id, "DELETE_CONCEPT", diff[0]);
+							updateValue(VA_MEDIUM_ID, "DELETE_CONCEPT", diff[0]);
 					}
 					lastSelValKonz = v;
 				});
@@ -193,10 +194,10 @@ function css_adapt2 (){
 					var v = jQuery(this).val();
 					if(v != "###NEW###"){
 						if(v == "-1"){
-							updateValue(id, "Abkuerzung_Bibliographie", null);
+							updateValue(VA_MEDIUM_ID, "Abkuerzung_Bibliographie", null);
 						}
 						else {
-							updateValue(id, "Abkuerzung_Bibliographie", v);
+							updateValue(VA_MEDIUM_ID, "Abkuerzung_Bibliographie", v);
 						}
 					}
 				});
@@ -289,24 +290,23 @@ function css_adapt2 (){
 	
 	<?php
 	
-	global $wpdb;
-	$id_prev = $wpdb->get_var("SELECT ID FROM wp_posts WHERE post_type='attachment' AND ID > $post->ID ORDER BY ID ASC LIMIT 1", 0, 0);
-	$id_next = $wpdb->get_var("SELECT ID FROM wp_posts WHERE post_type='attachment' AND ID < $post->ID ORDER BY ID DESC LIMIT 1", 0, 0);
+	// global $wpdb;
+	// $id_prev = $wpdb->get_var("SELECT ID FROM wp_posts WHERE post_type='attachment' AND ID > $post->ID ORDER BY ID ASC LIMIT 1", 0, 0);
+	// $id_next = $wpdb->get_var("SELECT ID FROM wp_posts WHERE post_type='attachment' AND ID < $post->ID ORDER BY ID DESC LIMIT 1", 0, 0);
 	?>
 	
-	<div id="attachment-nav" style="margin-left: 20pt; display:inline-block;">
+	<!--<div id="attachment-nav" style="margin-left: 20pt; display:inline-block;">
 		<?php if ($id_prev != null) { ?>
-		<a href="<?php echo get_edit_post_link($id_prev);?>" class="add-new-h2">Vorheriges Medium</a>
+		<a href="<?php echo get_edit_post_link($id_prev);?>" class="add-new-h2">Vorheriges Medium</a><br />
 		<?php } if ($id_next != null) { ?>
 		<a href="<?php echo get_edit_post_link($id_next);?>" class="add-new-h2">Nächstes Medium</a>
 		<?php } ?>
-	</div>
+	</div>-->
 	
 	<?php
 	}
 }
 
-//TODO Einträge löschen, wenn die Bilder gelöscht werden
 
 function add_more_fields ($form_fields, $post){
 	global $va_xxx;
@@ -522,14 +522,14 @@ function getVA_ID ($wp_id){
 	//Remove tranlslation url parts from url
 	$url = preg_replace('#www\.verba-alpina\.gwi\.uni-muenchen\.de/[a-z][a-z]/#', 'www.verba-alpina.gwi.uni-muenchen.de/', $url);
 	
-	select: 
-	$va_id = $va_xxx->get_results("SELECT Id_Medium FROM Medien WHERE Dateiname = '$url'", ARRAY_N);
+	$va_id = $va_xxx->get_var($va_xxx->prepare('SELECT Id_Medium FROM Medien WHERE Dateiname = %s', $url));
+
 	//TODO evtl. für lokale Versionen verhindern
 	//Neuen Eintrag anlegen:
-	if(count($va_id) == 0){
+	if(!$va_id){
 		$va_xxx->query("INSERT INTO `va_xxx`.`medien` (Dateiname, Genauigkeit_Geo) VALUES ('$url', 'nicht spezifiziert')");
-		goto select;
+		$va_id = $va_xxx->insert_id;
 	}
-	return $va_id[0][0];
+	return $va_id;
 }
 ?>

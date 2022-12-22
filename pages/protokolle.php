@@ -88,6 +88,27 @@
 				}
 				break; 
 				
+			case 'switchTops':
+				$max = $va_xxx->get_var($va_xxx->prepare('SELECT max(Nummer) FROM Protokolle_TOPs WHERE Id_Protokoll = %d', $_POST['pid']));
+				
+				$va_xxx->query($va_xxx->prepare('UPDATE protokolle_tops SET Nummer = %d WHERE Id_Protokoll = %d AND Nummer = %d',
+					$max + 1, $_POST['pid'], $_POST['number1']));
+					
+				$va_xxx->query($va_xxx->prepare('UPDATE protokolle_tops SET Nummer = %d WHERE Id_Protokoll = %d AND Nummer = %d',
+					$_POST['number1'], $_POST['pid'], $_POST['number2']));
+					
+				$result = $va_xxx->query($va_xxx->prepare('UPDATE protokolle_tops SET Nummer = %d WHERE Id_Protokoll = %d AND Nummer = %d',
+					$_POST['number2'], $_POST['pid'], $max + 1));
+					
+					
+				if($result === false){
+					echo 'error';
+				}
+				else {
+					echo 'success';
+				}
+				break;
+				
 			case 'skipTop':
 			    $new_pdata = false;
 			    $next_pid = $va_xxx->get_var($va_xxx->prepare('SELECT MIN(Id_Protokoll) FROM Protokolle WHERE Id_Protokoll > %d', $_POST['pid']));
@@ -120,7 +141,7 @@
 			    $title = stripslashes($_POST['title']);
 			    
 			    $va_xxx->insert('Protokolle_TOPs', ['Id_Protokoll' => $_POST['pid'], 'Nummer' => $new_top_number, 'Titel' => $title, 'Inhalt' => $text]);
-			    echo getTop ($new_top_number, $title, $text, $_POST['edit'] == 'true');
+			    echo getTop ($new_top_number, $title, $text, $_POST['edit'] == 'true', $new_top_number == 1, true);
             break;
             
 			case 'add_participant':
@@ -145,6 +166,7 @@
 		foreach ($protokolle as $ip => $protokoll){
 			if (!$current_p_id && $protokoll['Datum'] < $now){
 				$current_p_id = $ip - 1;
+				break;
 			}
 		}
 
@@ -192,7 +214,7 @@
 				
 			    })*/
 
-
+				updateTOPOptions();
 
 				jQuery("#protocol_insert_top_confirm_button").on("click", addTopConfirmed);
 
@@ -302,6 +324,17 @@
 					});
 				});
 			});
+			
+			function updateTOPOptions (){
+				jQuery("#protocolTextArea .protocol-top .optiontopUp").show();
+				jQuery("#protocolTextArea .protocol-top .optiontopDown").show();
+				jQuery("#protocolTextArea .protocol-top .option_sep").show();
+				
+				jQuery("#protocolTextArea .protocol-top:first .optiontopUp").hide();
+				jQuery("#protocolTextArea .protocol-top:first .option_sep").first().hide();
+				jQuery("#protocolTextArea .protocol-top:last .optiontopDown").hide();
+				jQuery("#protocolTextArea .protocol-top:last .option_sep:visible").first().hide();
+			}
 
 			function checkTime (){
 				var now = new Date();
@@ -344,6 +377,9 @@
 						jQuery(".dateField").datepicker({"dateFormat": "dd.mm.yy"});
 						bindChangeListeners();
 						addBiblioQTips(jQuery("#protocolTextArea"));
+						if (edit){
+							updateTOPOptions();
+						}
 					}
 					catch (e){
 						alert(response);
@@ -466,7 +502,8 @@
 					"edit" : edit
 				}, function (response){
 					var div = jQuery(response);
-					jQuery("#protocolTextArea").append(div);					
+					jQuery("#protocolTextArea").append(div);
+					updateTOPOptions();					
 					div.focus();
 					
 					if(edit){
@@ -498,11 +535,69 @@
 				}, function (response){
 					if(response == "success"){
 						jQuery("#protocolTOP" + number).remove();
+						updateTOPOptions();
 					}
 					else {
 						alert(response);
 					}
 				});
+			}
+			
+			function topUp (number){
+				let prevNumber = jQuery("#protocolTOP" + number).prev().data("number");
+				
+				if (!prevNumber){
+					return;
+				}
+				
+				jQuery.post(ajax_object.ajaxurl, {
+					"action" : "va_protocols",
+					"query" : "switchTops",
+					"pid" : jQuery("#protocolNumber").text().trim(),
+					"number1" : number,
+					"number2" : prevNumber
+				}, function (response){
+					if(response == "success"){
+						switchTOPsContent(number, prevNumber);
+					}
+					else {
+						alert(response);
+					}
+				});
+			}
+						
+			function topDown (number){
+				let nextNumber = jQuery("#protocolTOP" + number).next().data("number");
+				
+				if (!nextNumber){
+					return;
+				}
+				
+				jQuery.post(ajax_object.ajaxurl, {
+					"action" : "va_protocols",
+					"query" : "switchTops",
+					"pid" : jQuery("#protocolNumber").text().trim(),
+					"number1" : number,
+					"number2" : number + 1
+				}, function (response){
+					if(response == "success"){
+						switchTOPsContent(number, number + 1);
+					}
+					else {
+						alert(response);
+					}
+				});
+			}
+			
+			function switchTOPsContent (num1, num2){
+				let title1 = jQuery("#protocolTOP" + num1 + " .protocolTitle").val();
+				let content1 = jQuery("#protocolTOP" + num1 + " .protocolContent").val();
+				
+				jQuery("#protocolTOP" + num1 + " .protocolTitle").val(jQuery("#protocolTOP" + num2 + " .protocolTitle").val());
+				jQuery("#protocolTOP" + num1 + " .protocolContent").val(jQuery("#protocolTOP" + num2 + " .protocolContent").val());
+				
+				jQuery("#protocolTOP" + num2 + " .protocolTitle").val(title1);
+				jQuery("#protocolTOP" + num2 + " .protocolContent").val(content1);
 			}
 
 			function skipTop (number){
@@ -831,12 +926,16 @@
 			?>
 		</h3>
 
+		<?php if(!$editMode){ ?>
+		<div><h4 style="font-weight: bold; font-size: 120%; color: black;">0) Tagesordnung</h4></div>
+		<?php } ?>
+
 		<div id="protocolTextArea" style="margin-bottom: 50px;">
 	
 			<?php
 	
-			foreach ($tops as $top){
-				echo getTop($top['Nummer'], $top['Titel'], $top['Inhalt'], $editMode);
+			foreach ($tops as $i => $top){
+				echo getTop($top['Nummer'], $top['Titel'], $top['Inhalt'], $editMode, $i == 0, $i == count($tops) - 1);
 			}
 			
 			?>
@@ -848,23 +947,37 @@
 			}
 	}
 
-	function getTop ($number, $title, $content, $editMode){
-		$result = '<div id="protocolTOP' . $number . '" data-number="' . $number . '">';
-		$result .= '<a name="' . $number . '"></a>';
-		$result .= '<h4 style="font-weight: bold; font-size: 120%;">' . $number . ') ';
+	function getTop ($number, $title, $content, $editMode, $first, $last){
+		$result = '<div id="protocolTOP' . $number . '" class="protocol-top" data-number="' . $number . '">';
+		//$result .= '<a name="' . $number . '"></a>';
+		$result .= '<a id="top' . $number . '" class="fragment_anchor"></a>';
+		$result .= '<h4 style="font-weight: bold; font-size: 120%; color: black;"><span class="top_number">' . $number . '</span>) ';
 		if($editMode){
-			$result .= inputField(55, 500, 'protocolTitle' . $number, $title);
-			$result .= '&nbsp;<a href="javaScript:deleteTop(' . $number . ');">Löschen</a>';
-			$result .= '&nbsp;<a href="javaScript:skipTop(' . $number . ');">Verschieben</a>';
+			$result .= inputField(55, 500, 'protocolTitle' . $number, $title, 'protocolTitle');
+			$result .= '<br />';
+			$options = [];
+			
+			//if (!$first){
+				$options[] = ['topUp', 'Nach oben'];
+			// }
+			// if (!$last){
+				$options[] = ['topDown', 'Nach unten'];
+			// }
+			$options[] = ['skipTop', 'Auf nächste Sitzung verschieben'];
+			$options[] = ['deleteTop', 'Löschen'];
+			
+			$result .= implode('<span class="option_sep"> | </span>', array_map(function ($e) use ($number) {
+				return '<a class="option' . $e[0] . '" href="javaScript:' . $e[0] . '(' . $number . ');">' . $e[1] . '</a>';
+			}, $options));
 		}
 		else {
-			$result .= $title;
+			$result .= '<a style="color:black;" href="#top' . $number . '">' . $title . '</a>';
 		}
 		
 		$result .= '</h4>';
 		
 		if($editMode){
-			$result .= '<textarea id="protocolText' . $number . '" class="protocolEditField" cols="75" rows="10">';
+			$result .= '<textarea autocomplete="off" id="protocolText' . $number . '" class="protocolEditField protocolContent" cols="75" rows="10">';
 			$result .= $content;
 			$result .= '</textarea>';
 		}
@@ -876,7 +989,7 @@
 	}
 
 	function inputField ($length, $maxlength, $id, $val, $class = ''){
-		return "<input type='text' class='protocolEditField $class' size='$length' maxlength='$maxlength' value='$val' id='$id' />";
+		return "<input autocomplete='off' type='text' class='protocolEditField $class' size='$length' maxlength='$maxlength' value='$val' id='$id' />";
 	}
 
 	function showSearchPage ($protocols, $searchWords){

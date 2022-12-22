@@ -38,7 +38,7 @@ function va_show_team () {
 						<?php 	if($person['Link'] == '')
 									echo $person['Name'] . ', ' . $person['Vorname'] /*." (".$person['Kuerzel'].")"*/ ;
 								else
-									echo "<a href='" . va_translate_url($person['Link']) . "'>".$person['Name'] . ', ' .$person['Vorname'] /*." (".$person['Kuerzel'].")*/. "</a>";
+									echo "<a href='" . $person['Link'] . "'>".$person['Name'] . ', ' .$person['Vorname'] /*." (".$person['Kuerzel'].")*/. "</a>";
 						echo va_orcid_link($person['orcid']);
 						?>
 					</td>

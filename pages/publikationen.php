@@ -24,20 +24,9 @@ function wissPub (){
 		
 			foreach ($pub_rest as $p){
 				echo '<li>';
+				$link = va_replace_by_doi_url($p['Download_URL']);
 				
-				$link = $p['Download_URL'];
-				$container = $p['Enthalten_In'];
-				$parts = parse_url($link);
-				if(isset($parts['host']) && $parts['host'] === $_SERVER['HTTP_HOST']){
-					global $va_current_db_name;
-					$link = add_query_arg('db', substr($va_current_db_name, 3), $link);
-					$pos_host = strpos($link, $parts['host']);
-					$app = substr($link, $pos_host + strlen($parts['host']));
-					$link = va_get_doi_base_link(true) . urlencode($app);
-					//$container = '';
-				}
-				
-				echo va_format_bibliography($p['Autor'], $p['Titel'], $p['Jahr'], $p['Ort'], $link, $p['Band'], $container, $p['Seiten'], $p['Verlag'], false);
+				echo va_format_bibliography($p['Autor'], $p['Titel'], $p['Jahr'], $p['Ort'], $link, $p['Band'], $p['Enthalten_In'], $p['Seiten'], $p['Verlag'], false);
 				echo '</li>';
 				echo '<br />';
 			}
@@ -185,6 +174,55 @@ function infoMat (){
 
 		<div class="image_table">
 
+			       <div class="thumb_img_table">
+					    <a href="https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/karte_screenshot_presse_3.jpg">
+						    <div class="thumb_img_container" style="background: url(https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/karte_screenshot_presse_3.jpg) 0% 0% / cover no-repeat;">
+						    </div>
+					    </a>
+				    </div>
+
+
+			        <div class="thumb_img_table">
+					    <a href="https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/karte_screenshot_presse.jpg">
+						    <div class="thumb_img_container" style="background: url(https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/karte_screenshot_presse.jpg) 0% 0% / cover no-repeat;">
+						    </div>
+					    </a>
+				    </div>
+
+				        <div class="thumb_img_table">
+					    <a href="https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/karte_screenshot_presse_2.jpg">
+						    <div class="thumb_img_container" style="background: url(https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/karte_screenshot_presse_2.jpg) 0% 0% / cover no-repeat;">
+						    </div>
+					    </a>
+				    </div>
+
+
+				    <div class="thumb_img_table">
+					    <a href="https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/karte_schematisch.jpg">
+						    <div class="thumb_img_container" style="background: url(https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/karte_schematisch.jpg) 0% 0% / cover no-repeat;">
+						    </div>
+					    </a>
+				    </div>
+
+		
+
+				        <div class="thumb_img_table">
+					    <a href="https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/VA_LOGO_presse.png">
+						    <div class="thumb_img_container" style="background: url(https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/VA_LOGO_presse_dreiecke.jpg) 0% 0% / cover no-repeat;">
+						    </div>
+					    </a>
+				    </div>
+		
+			        <div class="thumb_img_table">
+					    <a href="https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/gs_2169_edited_better_smaller.jpg">
+						    <div class="thumb_img_container" style="background: url(https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/graserntegs_2169.png) 0% 0% / cover no-repeat;">
+						    </div>
+					    </a>
+				    </div>
+
+
+
+
 				    <div class="thumb_img_table">
 					    <a href="https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/gs_2522.jpg">
 						    <div class="thumb_img_container" style="background: url(https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/schuerzetaetigkeit-zur-extraktiongs_2522.png) 0% 0% / cover no-repeat;">
@@ -213,12 +251,6 @@ function infoMat (){
 					    </a>
 				    </div>
 		
-			        <div class="thumb_img_table">
-					    <a href="https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/gs_2169_edited_better_smaller.jpg">
-						    <div class="thumb_img_container" style="background: url(https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/graserntegs_2169.png) 0% 0% / cover no-repeat;">
-						    </div>
-					    </a>
-				    </div>
 			
 		</div>
 
@@ -230,13 +262,13 @@ function infoMat (){
 			<?php 
 				for ($c = 1; $c < 4; $c++) {
 				    echo '<div class="thumb_img_table"><a href="https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/cs_'.$c.'.jpg">
-				    <div class="thumb_img_container" style="background: url(https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/cs_'.$c.'.jpg) 0% 0% / cover no-repeat;">
+				    <div class="thumb_img_container" style="background: url(https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/cs_'.$c.'.jpg) center center / cover no-repeat;">
 				    </div>
 				    </a>
 				    </div>';
 				} 
 
-				   echo '<div class="thumb_img_table"><a href="https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/cs_4a.jpg"><div class="thumb_img_container" style="background: url(https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/cs_4a.jpg) 0% 0% / cover no-repeat;">
+				   echo '<div class="thumb_img_table"><a href="https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/cs_4a.jpg"><div class="thumb_img_container" style="background: url(https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/cs_4a.jpg) center center / cover no-repeat;">
 				   </div>
 				   </a>
 				   </div>';
@@ -244,7 +276,7 @@ function infoMat (){
 
 					for ($c = 5; $c < 16; $c++) {
 					    echo '<div class="thumb_img_table"><a href="https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/cs_'.$c.'.jpg">
-					    <div class="thumb_img_container" style="background: url(https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/cs_'.$c.'.jpg) 0% 0% / cover no-repeat;">	    
+					    <div class="thumb_img_container" style="background: url(https://www.verba-alpina.gwi.uni-muenchen.de/wp-content/uploads/cs_'.$c.'.jpg) center center / cover no-repeat;">	    
 					    </div>
 					    </a>
 					    </div>';
@@ -303,9 +335,21 @@ function va_echo_page (){
 
 	$res = '<div class="entry-content"><ul>';
 	
-	$entries = $va_xxx->get_results('SELECT Datum, Medium, Link, tot FROM Echo ORDER BY Datum DESC', ARRAY_A);
+	$entries = $va_xxx->get_results('SELECT Datum, Medium, Link, tot, Kategorie FROM Echo ORDER BY Kategorie ASC, Datum DESC', ARRAY_A);
+	$medien = false;
+	$wiss = false;
 	
 	foreach ($entries as $entry){
+		if (!$medien && $entry['Kategorie'] == 'Medien'){
+			$medien = true;
+			$res .= '<h3>' . $Ue['ECHO'] . '</h3>';
+		}
+		
+		if (!$wiss && $entry['Kategorie'] == 'Forschung'){
+			$wiss = true;
+			$res .= '<h3>' . $Ue['ECHO_WISSENSCHAFTLICH'] . '</h3>';
+		}
+		
 		if ($entry['tot']){
 			$res.= '<li>' . date('d.m.Y', strtotime($entry['Datum'])) . ' - ' . '<a style="color: red" href="' . $entry['Link'] . '" target="_BLANK">' . $entry['Medium'] . '</a> (' . str_replace('%s', date('d.m.Y', strtotime($entry['tot'])), $Ue['LINK_TOT']) . ')</li>';
 		}

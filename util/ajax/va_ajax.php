@@ -10,6 +10,7 @@ include_once('va_ajax_concept_tree.php');
 include_once('va_ajax_lex_alp.php');
 include_once('va_ajax_versions.php');
 include_once('va_ajax_overview.php');
+include_once('va_ajax_bulk_download.php');
 
 function va_ajax_handler (){
 	global $va_xxx;
@@ -18,7 +19,7 @@ function va_ajax_handler (){
 	
 	$page_count = 20; //Used for pagination of select2 ajax calls
 	
-	$db = $va_xxx;
+	$db = $va_xxx; //TODO Warum hiern va_xxx und nicht vadb???? Macht Probleme, z.B. in va_get_external_id_for_stimulus oder auch in va_version_summary
 	
 	if(isset($_REQUEST['dbname']))
 		$db->select($_REQUEST['dbname']);
@@ -135,6 +136,11 @@ function va_ajax_handler (){
 				break;
 			
 			va_ajax_concept_tree($db);
+		break;
+
+			//Bulk Download
+		case 'bulk_download':
+			 va_ajax_bulk_download($db);
 		break;
 		
 		//Overview page
@@ -446,10 +452,26 @@ function va_ajax_handler (){
 			
 		//Util tools
 		case 'util':
-			if ($_REQUEST['query'] == 'get_print_overlays'){
-				$db->select('va_xxx');
-				echo json_encode($db->get_col('SELECT AsText(Polygone_Vereinfacht.Geodaten) FROM Orte JOIN Polygone_Vereinfacht USING (Id_Ort) WHERE Id_Kategorie = 63 AND Epsilon = 0.003'));
-				break;
+		
+			//No user restriction
+			switch ($_REQUEST['query']){
+				case 'get_print_overlays':
+					$db->select('va_xxx');
+					echo json_encode($db->get_col('SELECT AsText(Polygone_Vereinfacht.Geodaten) FROM Orte JOIN Polygone_Vereinfacht USING (Id_Ort) WHERE Id_Kategorie = 63 AND Epsilon = 0.003'));
+					break 2;
+					
+				case 'get_community_names':
+					$comms = [];
+					foreach (explode(', ', $_POST['points']) as $point){
+						$comms[] = $db->get_var($db->prepare('SELECT Name FROM Orte WHERE Id_Kategorie = 62 AND ST_WITHIN(GeomFromText(%s), Geodaten)', $point));
+					}
+				 	echo implode(', ', $comms);
+				 	break 2;
+					
+										
+				case 'get_community_name':
+				 	echo $db->get_var($db->prepare('SELECT Name FROM Orte WHERE Id_Kategorie = 62 AND ST_WITHIN(GeomFromText(%s), Geodaten)', $_POST['point']));
+				 	break 2;
 			}
 			
 			//TODO maybe better user control
@@ -554,19 +576,7 @@ function va_ajax_handler (){
 				 		echo 'ERR:' . $e;
 				 	}
 				 	break;
-				 	
-				 case 'get_community_name':
-				 	echo $db->get_var($db->prepare('SELECT Name FROM Orte WHERE Id_Kategorie = 62 AND ST_WITHIN(GeomFromText(%s), Geodaten)', $_POST['point']));
-				 	break;
-					
-				case 'get_community_names':
-					$comms = [];
-					foreach (explode(', ', $_POST['points']) as $point){
-						$comms[] = $db->get_var($db->prepare('SELECT Name FROM Orte WHERE Id_Kategorie = 62 AND ST_WITHIN(GeomFromText(%s), Geodaten)', $point));
-					}
-				 	echo implode(', ', $comms);
-				 	break;
-				 	
+
 				 case 'search_locations':
 				 	echo json_encode(search_va_locations($_POST['search']));
 				 	break;

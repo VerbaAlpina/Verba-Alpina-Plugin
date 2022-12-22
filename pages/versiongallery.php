@@ -26,16 +26,27 @@ function va_version_gallery(){
 			for(var i=0;i<res.length;i++){
 				
 					var temp = getFlipTemplate();
-					var url =  "<?php echo get_site_url(1);?>/wp-content/uploads/"+res[i].first+"_"+res[i].last+"_titel.jpg"; 
+					if (res[i].first == 15){
+						var url = "<?php echo get_site_url(1);?>/wp-content/uploads/DSC_02793.jpg";
+					}
+					else {
+						var url =  "<?php echo get_site_url(1);?>/wp-content/uploads/"+res[i].first+"_"+res[i].last+"_titel.jpg"; 
+					}
 					var img = jQuery('<div class="img_container"></div>').css("background-image",'url("'+url+'")');
 					temp.find('.b_content').append('<div class="b_content_img"></div>');
 					temp.find('.b_content_img').css("background-image",'url("'+url+'")');
 					temp.find('.content').append(img);
-					temp.find('.content').append('<div class="version_div">Version '+res[i].first+'/'+res[i].last+'</div>');
+					if (res[i].first == 15){
+						var vtext = "<?php echo $Ue['VOR_ERSTER_VERSION'];?>";
+					}
+					else {
+						var vtext = "<?php echo $Ue['VERSION'];?> " + res[i].first+'/'+res[i].last;
+					}
+					temp.find('.content').append('<div class="version_div">'+vtext+'</div>');
 					jQuery('.va_versions').append(temp)
 					temp.height(200);
 
-				   if(res[i].last==1){
+				   if(res[i].last==1 && res[i].first != 15){
 					  	jQuery('.va_versions').append('<div class="year">20'+res[i].first+'<span class="line"></span></div>');  		
 				    }
 				   else if(res[i].last==2){
@@ -44,6 +55,27 @@ function va_version_gallery(){
 
 				   temp.attr('version',res[i].first.toString()+res[i].last.toString());
 
+				   var ue_array = <?php echo json_encode($Ue); ?>;
+				   var img_desc_text = "VA_TITELBILD_"+res[i].first+res[i].last;
+				   var current_desc = ue_array[img_desc_text];
+
+			
+				   var infobutton_img = jQuery('<div class="info_div langbtn"><img src="<?php echo $url?>/wp-content/themes/verba-alpina/images/VA_Infobutton.png"></img></div>');
+				   var imgbutton_img = jQuery('<div class="info_div langbtn pic"> <a href="'+url+'"><img src="<?php echo $url?>/wp-content/themes/verba-alpina/images/VA_Imagebutton.png"></img></a></div>');
+
+				
+				   temp.find('.content .img_container').append(infobutton_img);
+				   temp.find('.content .img_container').append(imgbutton_img);
+
+					infobutton_img.qtip({
+						content : {
+							text : current_desc
+						},
+						style : {
+							classes : 'qtip-blue'
+						}
+					});
+				
 			}
 
 			jQuery('.lex_article').each(function(i,el){
@@ -100,6 +132,8 @@ function va_version_gallery(){
 								  	 		that.find('.flipbutton').find('i').removeClass('fa-angle-left').addClass('fa-info');		
 									  	 }
 						  		}, 75);
+
+
 						  });
 
 
@@ -122,6 +156,7 @@ function va_version_gallery(){
 										  	 	loading = false;
 										  	 	loadingcover.remove();
 									  	 		that.flip('toggle');
+									  	 		addPopups(that);
 							  	  			});
 
 					  	  			}
@@ -152,6 +187,8 @@ function va_version_gallery(){
 
 
 					})
+
+
 			})
 
 			setTimeout(function(){
@@ -193,10 +230,10 @@ function va_version_gallery(){
 		  var charts = jQuery('<div class="charts"></div>');
 		  div.append(charts); 	
 
-			  charts.before("<h2><?php echo $Ue['TIMELINE_QUANT'];?></h2>");
-			  charts.append("<div class='chart_container'><h4>Neue Sprachbelege</h4><div class='timeline_chart' id='instance_chart_" + index + "'></div></div>");
-		  charts.append("<div class='chart_container'><h4>Erstellte morpho-lexikalische Typen</h4><div class='timeline_chart' id='type_chart_" + index + "'></div></div>");
-		  charts.append("<div class='chart_container'><h4>Erstellte Konzepte</h4><div class='timeline_chart' id='concept_chart_" + index + "'></div>");
+			  charts.before("<h2 class='quant_headline'><?php echo $Ue['TIMELINE_QUANT'];?>:</h2>");
+			  charts.append("<div class='chart_container'><h4><?php echo $Ue['NEW_RECORDS'];?></h4><div class='timeline_chart' id='instance_chart_" + index + "'></div></div>");
+		  charts.append("<div class='chart_container'><h4><?php echo $Ue['NEW_MORPH_TYPES'];?></h4><div class='timeline_chart' id='type_chart_" + index + "'></div></div>");
+		  charts.append("<div class='chart_container'><h4><?php echo $Ue['NEW_CONCEPTS'];?></h4><div class='timeline_chart' id='concept_chart_" + index + "'></div>");
 			  
 		      barChart(res["data"]["instances"], "#instance_chart_" + index, 300,75);
 		      barChart(res["data"]["types"], "#type_chart_" + index, 150,30);
@@ -288,6 +325,8 @@ function va_version_gallery(){
 				res.push(max_version);
 				prev_ver = max_version;
 			}
+			
+			res.push({first:15,last:1});
 
 			return res;
 		}
@@ -385,6 +424,11 @@ function va_version_gallery(){
 		}
 
 
+
+
+function addPopups (div){
+	addBiblioQTips(div);
+}
 
 
 	</script>

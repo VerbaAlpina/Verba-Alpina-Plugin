@@ -4,7 +4,7 @@ function lex_problems (){
     ?>
     
     <script type="text/javascript">
-	var DATA = {"dbname": "va_xxx"};
+	var DATA = {"dbname": "va_xxx", "currentCommentID": null};
     
 	function callbackProblemInfo (response){
 		if (response === "Solved"){
@@ -170,6 +170,41 @@ function lex_problems (){
 				"type_text" : type_text
 			}, callbackProblemInfo);
 		});
+
+		jQuery(document).on("click", ".edit_tp_comment", function (){
+			DATA.currentCommentID = jQuery(this).data("id");
+			DATA.oldComment = jQuery(this).parent().find(".commentContent").html().replaceAll("<br>","");
+			jQuery("#changeCommentDiv #changeCommentInput").val(DATA.oldComment);
+			jQuery("#changeCommentDiv").dialog({
+				"title": "Kommentar bearbeiten",
+				"width": 530
+			});
+		});
+
+		jQuery("#confirmCommentUpdate").click(function (){
+			if (DATA.oldComment == jQuery("#changeCommentDiv #changeCommentInput").val()){
+				alert("No changes!");
+				return;
+			}
+			
+			jQuery.post(ajaxurl, {
+				"action" : "va",
+				"namespace" : "typification",
+				"query" : "update_problem_comment",
+				"id_problem" : jQuery("#recordSelect").val(),
+				"id_comment" : DATA.currentCommentID,
+				"comment" : jQuery("#changeCommentDiv #changeCommentInput").val()
+			}, function (response){
+				jQuery("#changeCommentDiv").dialog("close");
+				callbackProblemInfo(response);
+			});
+		});
+
+		jQuery(document).on("change", ".comment_version_select", function (){
+			let parentDiv = jQuery(this).closest(".commentContainer");
+			parentDiv.find(".commentContent").html(parentDiv.find(".comment_version_text[data-version=" + jQuery(this).val() + "]").html());
+			parentDiv.find(".edit_tp_comment ").toggle(jQuery(this).val() == jQuery(this).find("option").length);
+		});
 	});
 
 	function select2ForMorph (container){
@@ -249,7 +284,14 @@ function lex_problems (){
     <br />
     <br />
     
-    <div id="problemDetails"></div>
+    <div style="width: 99%;" id="problemDetails"></div>
+    <div style="display: none;" id="changeCommentDiv">
+    	<div style="background: salmon; padding: 3px; margin-bottom: 15px;">Die Funktion "Kommentar bearbeiten" sollte nur für formelle oder stilistische Anpassungen verwendet werden. In anderen Fällen bitte einen neuen, zusätzlichen Kommentar erstellen.</div>
+    	<textarea id="changeCommentInput" autocomplete="off" style="width: 500px; height: 300px;"></textarea>
+    	<br />
+    	<br />
+    	<input type="button" value="Bestätigen" id="confirmCommentUpdate" class="button button-primary" />
+    </div>
     <?php
     
     createTypeOverlay($va_xxx, null);

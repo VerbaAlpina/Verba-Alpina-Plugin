@@ -33,6 +33,7 @@ function va_ajax_versions ($db){
 
 function va_version_summary ($num){
     global $va_xxx;
+	global $Ue;
 	$va_xxx->select('va_xxx');
 	
     $date_end = $va_xxx->get_var($va_xxx->prepare('SELECT Erstellt_Am FROM Versionen WHERE Nummer = %s', $num));
@@ -55,8 +56,11 @@ function va_version_summary ($num){
     
     $sql = 'SELECT Hauptkategorie, count(*) AS num from Konzepte JOIN Konzepte_Kategorien USING (Id_Kategorie) WHERE ' . str_replace('Erfasst_Am', 'Angelegt_Am', $where) . ' GROUP BY Hauptkategorie ORDER BY num DESC';
     $concepts = $va_xxx->get_results($sql, ARRAY_N);
-    
-    
+	
+	foreach ($concepts as &$concept){
+		$concept[0] = va_translate($concept[0], $Ue);
+	}
+
     return ['instances' => $instances, 'types' => $types, 'concepts' => $concepts];
 }
 

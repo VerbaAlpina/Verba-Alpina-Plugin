@@ -222,6 +222,7 @@ function load_va_data (){
                         
                         if (!$data && $epsilon != 0){
                             //Fallback if there are no simplified polygons
+							$epsilon = 0;
                             $data = $db->get_results($db->prepare($query, 0), ARRAY_N);
                         }
                     }
@@ -280,68 +281,75 @@ function load_va_data (){
                         return $cat;
                     });
                         
-                        //error_log('After sort: ' . memory_get_usage());
-                        
-                        //Add records:
-                        $last_id = -1;
-                        $last_cat = -1;
-                        $current_windows = NULL;
-                        $last_geo_data = NULL;
-                        $last_quant_data = NULL;
-                        foreach ($data as $row){
-                            if($row[7] == -1){
-                                if($current_windows != NULL){
-                                    //Has to be a point symbol => most of the special cases treated in va_add_extra_ling_element can be omitted
-                                    $result->addMapElements($last_cat, $current_windows, $last_geo_data, NULL, $last_quant_data);
-                                    $current_windows = NULL;
-                                }
-                                
-                                //No clusterung => directly add record
-                                va_add_extra_ling_element(
-                                    $db,
-                                    $result,
-                                    $row[9],
-                                    va_extra_ling_info_window($_POST['category'], $_POST['key'], $row, $Ue, $lang),
-                                    $row[2],
-                                    $row[8]? va_format_bounding_box($row[8]): null,
-                                    $row[4],
-                                    $row[5],
-                                    $epsilon);
-                            }
-                            else if ($row[7] != $last_id || $last_cat != $row[9]){
-                                if($current_windows != NULL){
-                                    //Has to be a point symbol => most of the special cases treated in va_add_extra_ling_element can be omitted
-                                    $result->addMapElements($last_cat, $current_windows, $last_geo_data, NULL, $last_quant_data);
-                                }
-                                $current_windows = array(va_extra_ling_info_window($_POST['category'], $_POST['key'], $row, $Ue, $lang));
-                                $last_id = $row[7];
-                                $last_cat = $row[9];
-                                $last_geo_data = $row[2];
-                                $last_quant_data = va_get_quantify_data_extra_ling($row[5]);
-                            }
-                            else {
-                                $current_windows[] = va_extra_ling_info_window($_POST['category'], $_POST['key'], $row, $Ue, $lang);
-                            }
-                        }
-                        
-                        if($current_windows != NULL){
-                            //Has to be a point symbol => most of the special cases treated in va_add_extra_ling_element can be omitted
-                            $result->addMapElements($last_cat, $current_windows, $last_geo_data, NULL, $last_quant_data);
-                        }
-                        
-                        
-                        //error_log('End VA: ' .  memory_get_usage());
-                        
-                        break;
+					//error_log('After sort: ' . memory_get_usage());
+					
+					//Add records:
+					$last_id = -1;
+					$last_cat = -1;
+					$current_windows = NULL;
+					$last_geo_data = NULL;
+					$last_quant_data = NULL;
+					foreach ($data as $row){
+						if($row[7] == -1){
+							if($current_windows != NULL){
+								//Has to be a point symbol => most of the special cases treated in va_add_extra_ling_element can be omitted
+								$result->addMapElements($last_cat, $current_windows, $last_geo_data, NULL, $last_quant_data);
+								$current_windows = NULL;
+							}
+							
+							//No clusterung => directly add record
+							va_add_extra_ling_element(
+								$db,
+								$result,
+								$row[9],
+								va_extra_ling_info_window($_POST['category'], $_POST['key'], $row, $Ue, $lang, $epsilon),
+								$row[2],
+								$row[8]? va_format_bounding_box($row[8]): null,
+								$row[4],
+								$row[5],
+								$epsilon);
+						}
+						else if ($row[7] != $last_id || $last_cat != $row[9]){
+							if($current_windows != NULL){
+								//Has to be a point symbol => most of the special cases treated in va_add_extra_ling_element can be omitted
+								$result->addMapElements($last_cat, $current_windows, $last_geo_data, NULL, $last_quant_data);
+							}
+							$current_windows = [va_extra_ling_info_window($_POST['category'], $_POST['key'], $row, $Ue, $lang, $epsilon)];
+							$last_id = $row[7];
+							$last_cat = $row[9];
+							$last_geo_data = $row[2];
+							$last_quant_data = va_get_quantify_data_extra_ling($row[5]);
+						}
+						else {
+							$current_windows[] = va_extra_ling_info_window($_POST['category'], $_POST['key'], $row, $Ue, $lang, $epsilon);
+						}
+					}
+					
+					if($current_windows != NULL){
+						//Has to be a point symbol => most of the special cases treated in va_add_extra_ling_element can be omitted
+						$result->addMapElements($last_cat, $current_windows, $last_geo_data, NULL, $last_quant_data);
+					}
+					
+					
+					//error_log('End VA: ' .  memory_get_usage());
+					
+					break;
                         
                 case 7: //SQL
                     $where = stripslashes($_POST['filter']['where']);
-                    
+
                     if(strpos($where, ';') !== false){
                         return new IM_Error_Result('No semicolons permitted!');
                     }
                     
-                    $max_points = 5000;
+                    $no_info_windows = isset($_POST['filter']['quant']) && $_POST['filter']['quant'] === 'true';
+                    
+                    if ($no_info_windows){
+                        $max_points = false;   
+                    }
+                    else {
+                        $max_points = 10000;
+                    }
                     
                     $db->hide_errors();
                     
@@ -351,7 +359,7 @@ function load_va_data (){
                         return new IM_Error_Result($db->last_error);
                     }
                     
-                    if($num > $max_points){
+                    if($max_points !== false && $num > $max_points){
                         return new IM_Error_Result('Two many points: ' . $num . '. Maximum is ' . $max_points . '.');
                     }
                     
@@ -362,10 +370,16 @@ function load_va_data (){
                             return new IM_Error_Result('No semicolons permitted!');
                         }
                         
-                        $extra = stripslashes($_POST['filter']['groupingSQL']);
+                        $extra = '(SELECT ' . stripslashes($_POST['filter']['groupingSQL']) . ' FROM z_LING z2 WHERE z2.Id_Instance = z.Id_Instance AND ' . $where . ' LIMIT 1)'; //If only the value itself is used there may be a problem with the multiple rows per record
+						// (e.g. filter by morphType and SourceTyping=VA might filter by a second morph. Type that is not VA)
                     }
                     
-                    va_create_result_object('Id_Instance IN (SELECT DISTINCT Id_Instance FROM z_ling WHERE ' . $where . ')', $lang, $epsilon, $grid_category, $result, $Ue, $db, $extra);
+                    if ($no_info_windows){
+                        va_create_result_without_info_windows_for_sql('Id_Instance IN (SELECT DISTINCT Id_Instance FROM z_ling zmain WHERE ' . $where . ')', $epsilon, $grid_category, $result, $db, $extra);
+                    }
+                    else {
+                        va_create_result_object('Id_Instance IN (SELECT DISTINCT Id_Instance FROM z_ling zmain WHERE ' . $where . ')', $lang, $epsilon, $grid_category, $result, $Ue, $db, $extra);
+                    }
                     
                     if($db->last_error != ''){
                         return new IM_Error_Result($db->last_error);
@@ -403,7 +417,7 @@ function va_informant_description ($Ue, $number, $gender, $age, $notes){
     return $res;
 }
 
-function va_extra_ling_info_window ($category, $key, $row, $Ue, $lang){
+function va_extra_ling_info_window ($category, $key, $row, $Ue, $lang, $epsilon){
     
     if($row[6] == '0'){ //No translations
         $name = $row[0];
@@ -414,7 +428,7 @@ function va_extra_ling_info_window ($category, $key, $row, $Ue, $lang){
         //$descr = va_translate_content($row[1], $Ue);
     }
     
-    return new IM_LazyElementInfoWindowData($category, $key, $row[4], $name);
+    return new IM_LazyElementInfoWindowData($category, $key, $row[4], $name, ['epsilon' => $epsilon]);
     
     // 	if ($category == 6){
     // 		$id = $row[4];
@@ -470,19 +484,102 @@ function va_translate_content ($text, &$Ue){
         return $text;
 }
 
+function va_create_result_without_info_windows_for_sql ($where_clause, $epsilon, $grid_category, IM_Result &$result, &$db, $extra_field){
+    $geo_sql = va_get_geo_sql($epsilon);
+    
+    $query = "SELECT
+				" . $geo_sql . " AS Geo_Data,
+				Id_Informant,
+				Cluster_Id,
+				External_Id" . ($extra_field? ', ' . $extra_field . ' AS XXXFIELDXXX': '') . "
+			FROM Z_Ling z
+			WHERE " . $where_clause
+			. ($_POST['outside'] == 'false' ? ' AND Alpine_Convention' : '') . "
+			GROUP BY Id_Instance";
+		
+		$dbresult = $db->get_results($query, ARRAY_A);
+		
+		if ($epsilon !== 0){ //Hexagon grid => Find hexagon centers
+		    va_map_points_to_hexagon_centers($dbresult, $db, $epsilon, $grid_category);
+		}
+		
+		$map_data = [];
+		$informants = [];
+		
+		foreach ($dbresult as $row){
+		    if(!isset($informants[$row['Id_Informant']])){
+		        $informants[$row['Id_Informant']] = true;
+		    }
+		    
+		    $map_data[] = [$extra_field? ('#' . $row['XXXFIELDXXX']): -1, false, $row['Geo_Data'], $row['Id_Informant'] /* id_informant as stub for quantify data */, $row['Cluster_Id']];
+		}
+		
+		//Add quantify data
+		$quant_data = va_get_quantify_data_informant_array(array_keys($informants), $db);
+		
+		foreach ($map_data as $index => $row){
+		    if (isset($quant_data[$row[3]])){
+		        $map_data[$index][3] = $quant_data[$row[3]];
+		    }
+		    else {
+		        $map_data[$index][3] = null;
+		    }
+		}
+		
+		if ($extra_field){
+    		usort($map_data, function ($a, $b){
+    		    return strcmp($a[0], $b[0]);
+    		});
+		}
+		
+		$last_id = -1;
+        $last_cat = -1;
+        $last_geo_data = NULL;
+        $last_quantify_data = NULL;
+        $current_count = 0;
+        foreach ($map_data as $row){
+            if($row[4] == -1){ //No clusterung => directly add record
+                if($current_count > 0){
+                    $arr = array_fill(0, $current_count, new IM_NoInfoWindow());
+                    $result->addMapElements($last_cat, $arr, $last_geo_data, NULL, $last_quantify_data, -1);
+                    $current_count = 0;
+                }
+                
+                $result->addMapElement($row[0], new IM_NoInfoWindow(), $row[2], NULL, $row[3], -1);
+            }
+            else if ($row[4] != $last_id || $last_cat != $row[0]){
+                if($current_count > 0){
+                    $arr = array_fill(0, $current_count, new IM_NoInfoWindow());
+                    $result->addMapElements($last_cat, $arr, $last_geo_data, NULL, $last_quantify_data, -1);
+                }
+                $current_count = 1;
+                $last_id = $row[4];
+                $last_cat = $row[0];
+                $last_quantify_data = $row[3];
+                $last_geo_data = $row[2];
+            }
+            else {
+                $current_count++;
+            }
+        }
+        if($current_count > 0){
+            $arr = array_fill(0, $current_count, new IM_NoInfoWindow());
+            $result->addMapElements($last_cat, $arr, $last_geo_data, NULL, $last_quantify_data, -1);
+        }
+}
+
 function va_create_result_object ($where_clause, $lang, $epsilon, $grid_cat, IM_Result &$result, &$Ue, &$db, $extra_field = false){
     //global $time;
     
     $bibData = [];
     $stimulusData = [];
+    $informantData = [];
     $langData = [];
     $informants = [];
     
-    $isolangs = va_two_dim_to_assoc($db->get_results("
-			SELECT Abkuerzung, CONCAT(Bezeichnung_$lang, IF(ISO639 = '', '', CONCAT(' (ISO 639-', ISO639, ')'))) AS Bedeutung
-			FROM Sprachen
-			WHERE Bezeichnung_$lang != '' AND (ISO639 = '3' OR ISO639 = '5' OR ISO639 = '')", ARRAY_N));
-    
+    $isolangs = va_get_iso_map($lang, $db);
+    $source_types = va_get_bib_type_map($db);
+
     //error_log('Iso lang array created: ' . (microtime(true) - $time)); $time = microtime(true);
     
     $dbresult = va_get_db_results($where_clause, $epsilon, $grid_cat, $db, $extra_field);
@@ -628,33 +725,8 @@ function va_create_result_object ($where_clause, $lang, $epsilon, $grid_cat, IM_
         $current_array[] = $conceptArray;
         
         //Source:
-        $sdata = explode('#', $row['Instance_Source']);
-        $atlas = $sdata[0];
-        list($code, $html) = va_create_bibl_html($atlas);
-        
-        $atlas_lower = mb_strtolower($atlas);
-        if(!isset($bibData[$atlas_lower])){
-            $bibData[$atlas_lower] = $code;
-        }
-        
-        $key = $row['Id_Stimulus'] . '_' . $row['Id_Informant'];
-        if(!isset($stimulusData[$key])){
-            $res = '<div id="sti' . $key . '">' . $row['Stimulus'];
-            
-            $link = va_produce_external_map_link($atlas, $sdata[1], $sdata[2], $sdata[3]);
-            if($link){
-                $res .= '<br /><br />' . $link;
-            }
-            
-            $res .= '</div>';
-            
-            $stimulusData[$key] = $res;
-        }
-        
-        $html .= ' <span class="stimulus" data-stimulus="' . $key . '" style="text-decoration: underline; cursor: pointer;">' . $sdata[1] . '#' . $sdata[2] . '</span> ';
-        
-        $current_array[] = $html . $sdata[3] . ' (' . $sdata[4] . ')';
-        
+        $current_array[] = va_format_source_from_db($row, $bibData, $stimulusData, $informantData, $source_types, $isolangs);
+
         // community
         $community_names = explode('###', $row['Community_Name']);
         $cname = $community_names[0];
@@ -740,19 +812,6 @@ function va_create_result_object ($where_clause, $lang, $epsilon, $grid_cat, IM_
     
     //error_log('Quantify data added: ' . (microtime(true) - $time)); $time = microtime(true);
     
-    if ($bibData){
-        $bib_from_db = $db->get_results('SELECT Lower(Abkuerzung), Autor, Titel, Ort, Jahr, Download_URL, Band, Enthalten_In, Seiten, Verlag FROM Bibliographie WHERE Abkuerzung IN (' .
-            implode(',', va_surround(array_keys($bibData), "'")) . ')', ARRAY_N);
-        
-        foreach ($bib_from_db as $bib_array){
-            //Bibdata contains the code and is updated to contain the bib html
-            $bibData[$bib_array[0]] = "<div id='{$bibData[$bib_array[0]]}' style='display: none;'>" .
-            va_format_bibliography($bib_array[1], $bib_array[2], $bib_array[3], $bib_array[4], $bib_array[5], $bib_array[6], $bib_array[7], $bib_array[8], $bib_array[9]) . "</div>";
-        }
-    }
-    
-    //error_log('Bib data added: ' . (microtime(true) - $time)); $time = microtime(true);
-    
     usort($map_data, function ($a, $b){
         $cat = strcmp($a[0], $b[0]);
         
@@ -808,6 +867,7 @@ function va_create_result_object ($where_clause, $lang, $epsilon, $grid_cat, IM_
         
         $result->addExtraData('BIB', $bibData);
         $result->addExtraData('STI', $stimulusData);
+        $result->addExtraData('INF', $informantData);
         
         //error_log('Ready: ' . (microtime(true) - $time)); $time = microtime(true);
 }
@@ -965,19 +1025,8 @@ function va_get_db_results ($where_clause, $epsilon, $grid_cat, &$db, $extra_fie
     
     $db->query('SET SESSION group_concat_max_len = 100000');
     
-    
-    if($epsilon === 0){
-        if($_POST['community'] == 'true'){
-            $geo_sql = 'Community_Center';
-        }
-        else {
-            $geo_sql = 'Geo_Data';
-        }
-    }
-    else {
-        $geo_sql = 'NULL';
-    }
-    
+    $geo_sql = va_get_geo_sql($epsilon);
+
     $query = "SELECT
 				Instance,
 				GROUP_CONCAT(DISTINCT CONCAT(Type_Kind, '§', Id_Type, '§', Type, '§', Type_Lang, '§', POS, '§', Gender, '§', Affix, '§', Source_Typing, '§', IF(Type_Reference IS NULL, '', Type_Reference), '§', IFNULL(Type_LIDs, '')) SEPARATOR '-+-') AS Typings,
@@ -1001,36 +1050,54 @@ function va_get_db_results ($where_clause, $epsilon, $grid_cat, &$db, $extra_fie
 			. ($_POST['outside'] == 'false' ? ' AND Alpine_Convention' : '') . "
 			GROUP BY Id_Instance";
 			
-			va_query_log($query);
 			$dbresult = $db->get_results($query, ARRAY_A);
 			
 			if ($epsilon !== 0){ //Hexagon grid => Find hexagon centers
-			    $informants = [];
-			    foreach ($dbresult as $row){
-			        if (!isset($informants[$row['Id_Informant']])){
-			            $informants[$row['Id_Informant']] = true;
-			        }
-			    }
-			    
-			    $polygon_data = $db->get_results($db->prepare('
+			    va_map_points_to_hexagon_centers($dbresult, $db, $epsilon, $grid_cat);
+			}
+			
+			return $dbresult;	
+}
+
+function va_map_points_to_hexagon_centers (&$dbresult, &$db, $epsilon, $grid_cat){
+    $informants = [];
+    foreach ($dbresult as $row){
+        if (!isset($informants[$row['Id_Informant']])){
+            $informants[$row['Id_Informant']] = true;
+        }
+    }
+    
+    $polygon_data = $db->get_results($db->prepare('
 			SELECT Id_Informant, Id_Polygon, AsText(Center)
 			FROM Z_Geo JOIN A_Informant_Polygon ON Id_Geo = Id_Polygon
 			WHERE Id_Informant IN (' . implode(',', array_keys($informants)) . ') AND Epsilon = %f AND Id_Kategorie = %f', $epsilon, $grid_cat), ARRAY_N);
-			    
-			    $poly_map = [];
-			    foreach ($polygon_data as $polygon){
-			        $poly_map[$polygon[0]] = [$polygon[1], $polygon[2]];
-			    }
-			    
-			    foreach ($dbresult as &$row){
-			        $poly_for_row = $poly_map[$row['Id_Informant']];
-			        $row['Cluster_Id'] = $poly_for_row[0];
-			        $row['Geo_Data'] = $poly_for_row[1];
-			    }
-			}
-			
-			return $dbresult;
-			
+    
+    $poly_map = [];
+    foreach ($polygon_data as $polygon){
+        $poly_map[$polygon[0]] = [$polygon[1], $polygon[2]];
+    }
+    
+    foreach ($dbresult as &$row){
+        $poly_for_row = $poly_map[$row['Id_Informant']];
+        $row['Cluster_Id'] = $poly_for_row[0];
+        $row['Geo_Data'] = $poly_for_row[1];
+    }
+}
+
+function va_get_geo_sql ($epsilon){
+    if($epsilon === 0){
+        if($_POST['community'] == 'true'){
+            $geo_sql = 'Community_Center';
+        }
+        else {
+            $geo_sql = 'Geo_Data';
+        }
+    }
+    else {
+        $geo_sql = 'NULL';
+    }
+    
+    return $geo_sql;
 }
 
 function va_create_type_table (&$types, &$btypes, $lang, $source, &$Ue, $part_of_group){
@@ -1221,14 +1288,6 @@ class IM_InformantInfoWindowData extends IM_ElementInfoWindowData {
     protected function getTypeSpecificData (){
         return $this->data;
     }
-}
-
-function edit_va_data (){
-    $db = IM_Initializer::$instance->database;
-    
-    $db->insert('a_karte_aenderungen', array('Aenderung' => json_encode($_POST['changes'])));
-    echo $db->insert_id;
-    //echo 'Just logging...';
 }
 
 function va_format_bounding_box ($wkt){
@@ -1424,7 +1483,7 @@ function va_load_info_window ($category, $element_id, $overlay_ids, $lang){
     $db = IM_Initializer::$instance->database;
     $lang = strtoupper(substr($lang, 0, 1));
     global $Ue;
-    
+
     if ($category == 5 || $category == 6){
         $res = $db->get_results($db->prepare('SELECT Id_Geo, Name, Description, ContainsTranslations, Geonames_Id FROM z_geo WHERE Epsilon = 0 AND Id_Geo IN ' . im_key_placeholder_list($overlay_ids), $overlay_ids), ARRAY_A);
         
@@ -1573,5 +1632,69 @@ function va_type_concept_table ($id_polygon, $id_reference = NULL){
     }
     
     return $html;
+}
+
+function edit_va_data (){
+    if ($_REQUEST['type'] == 'polygon'){
+        va_replace_poylgon($_REQUEST['key'], $_REQUEST['geo'], $_REQUEST['epsilon']);
+    }
+}
+
+function va_replace_poylgon ($id, $wkt, $epsilon){
+    global $va_mitarbeiter;
+    global $admin;
+    global $va_xxx;
+    
+    if (!$va_mitarbeiter && !$admin){
+        echo 'Only for VA members!';
+        return;
+    }
+    
+    if (!$wkt){
+        echo 'No polygon given!';
+        return;
+    }
+    
+    if (!$epsilon && $epsilon !== '0'){
+        echo 'No epsilon value given!';
+        return;
+    }
+    
+    global $va_current_db_name;
+    if($va_current_db_name != 'va_xxx'){
+        echo 'Only allowed in va_xxx!';
+        return;
+    }
+    
+    if ($epsilon == 0){
+        $dbid = $va_xxx->get_var($va_xxx->prepare('SELECT Id_Ort FROM va_xxx.Orte WHERE Id_Ort = %d', $id));
+    }
+    else {
+        $dbid = $va_xxx->get_var($va_xxx->prepare('SELECT Id_Ort FROM va_xxx.polygone_vereinfacht WHERE Id_Ort = %d AND Epsilon = %f', $id, $epsilon));
+    }
+    
+    if (!$dbid){
+        echo 'No polygon found for this id and epsilon value!';
+        return;
+    }
+    
+    $valid = $va_xxx->get_var($va_xxx->prepare('SELECT GeomFromText(%s)', $wkt));
+    if (!$valid){
+        echo 'WKT data not valid!';
+        return;
+    }
+    
+    if ($epsilon == 0){
+        $va_xxx->query($va_xxx->prepare('INSERT INTO va_aussortiert.polygone_alt (id_ort, epsilon, polygon, ersetzt_am) VALUES (%d, 0, (SELECT Geodaten FROM Orte WHERE Id_Ort = %d), CURRENT_TIMESTAMP())', $id, $id));
+        $va_xxx->query($va_xxx->prepare('UPDATE va_xxx.Orte SET Geodaten = GeomFromText(%s) WHERE id_ort = %d', $wkt, $id));
+    }
+    else {
+        $va_xxx->query($va_xxx->prepare('INSERT INTO va_aussortiert.polygone_alt (id_ort, epsilon, polygon, ersetzt_am) VALUES (%d, %f, (SELECT Geodaten FROM Polygone_Vereinfacht WHERE Id_Ort = %d AND Epsilon = %f), CURRENT_TIMESTAMP())', $id, $epsilon, $id, $epsilon));
+        $va_xxx->query($va_xxx->prepare('UPDATE va_xxx.polygone_vereinfacht SET Geodaten = GeomFromText(%s) WHERE id_ort = %d AND Epsilon = %f', $wkt, $id, $epsilon));
+    }
+    $va_xxx->query($va_xxx->prepare('UPDATE z_geo SET Geo_Data = GeomFromText(%s) WHERE Id_Geo = %d AND Epsilon = %f', $wkt, $id, $epsilon));
+    
+    
+    echo 'success';
 }
 ?>

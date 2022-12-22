@@ -123,7 +123,7 @@ $show_legend = isset($_REQUEST['tk']) || isset($_REQUEST['single']);
 
 ?>
 <style type="text/css">
-.search_container input{
+.search_container textarea{
     background-image: url(<?php echo IM_PLUGIN_URL;?>/icons/font-awesome_4-7-0_search_256_0_ffffff_none.png) !important; <?php //TODO generalize?>
 }
 </style>
@@ -142,6 +142,9 @@ $show_legend = isset($_REQUEST['tk']) || isset($_REQUEST['single']);
 				
 				     		<div class="search_container">
 				         		<select multiple="multiple" class="global_search"></select> <?php //TODO move to im?>
+
+
+
 				         	</div>
 
 					<div id="trSelectionBar" class="menu_grp<?php echo (!$show_legend? ' active': '')?>">
@@ -450,6 +453,7 @@ $show_legend = isset($_REQUEST['tk']) || isset($_REQUEST['single']);
 
 <div id="VAbibDiv" style="display: none"></div>
 <div id="VAstiDiv" style="display: none"></div>
+<div id="VAinfDiv" style="display: none"></div>
 
 <?php 
 
@@ -464,6 +468,9 @@ va_create_hex_popup_html($Ue);
 va_create_sql_help_text($Ue);
 va_create_list_popup_html($Ue);
 va_create_export_list_popup_html($Ue);
+im_create_add_overlay_popup_html($Ue);
+im_create_add_overlay_button_html($Ue);
+im_create_synmap_cite_popup_html($Ue);
 
 // error_log('Ready: ' . (microtime(true) - $time)); $time = microtime(true);
 }
@@ -536,6 +543,8 @@ function va_create_sql_help_text ($Ue){
 	echo '<b>SUBSTRING(Instance, 1, 3)</b> --> ' . $Ue['GRUPPIERUNG'] . ' ' . $Ue['PRAEFIX'] . '<br />';
 	echo '<b>SUBSTRING_INDEX(Instance_Source, "#", 1)</b> --> ' . $Ue['GRUPPIERUNG'] . ' ' . $Ue['QUELLE'] . '<br />';
 	echo '</div>';
+	
+	echo '<div id="va_sql_quant_help_div" style="display: none;">' . $Ue['QUANT_ABFRAGE_INFO'] . '</div>';
 }
 
 function va_translate_col_type ($name){

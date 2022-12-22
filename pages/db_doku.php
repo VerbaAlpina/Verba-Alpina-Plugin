@@ -4,6 +4,12 @@
 
 function va_show_db_doku (){
 
+	//TODO make this optional?
+	// if (!current_user_can('read_db_documentation')){ //TODO currently this cap is created in va.php
+		// echo 'Forbidden!';
+		// return;
+	// }
+
     ?>
     <script type="text/javascript">
 	jQuery(function (){
@@ -21,7 +27,7 @@ function va_show_db_doku (){
 	if (isset($_REQUEST['table'])){
 		echo va_get_table_docu($_REQUEST['table']);
 	}
-	else {
+	else if (isset($_REQUEST['update'])){
 		list ($doku, $missing, $outdated_corr, $outdated_wrong, $doku_unconn) = va_check_table_state();
 		echo htmlentities(json_encode([$doku, $missing, $outdated_corr, $outdated_wrong, $doku_unconn]));
 
@@ -29,8 +35,45 @@ function va_show_db_doku (){
 			// echo va_get_table_docu($table_name, $tdata);
 		// }
 	}
+	else {
+		echo va_get_docu_overview();
+	}
 	
 	echo '</div>';
+}
+
+function va_get_docu_overview (){
+	global $va_xxx;
+	global $wp;
+	
+	$sql = 'SELECT id_tabelle, name, beschreibung, kategorie FROM doku_tabellen WHERE NOT veraltet ORDER BY IF(kategorie != "", kategorie, "zzzz") ASC, name ASC';
+	$tables_docu = $va_xxx->get_results($sql, ARRAY_A);
+	
+	$res = '';
+	$ccat = false;
+	foreach ($tables_docu as $td){
+		if ($td['kategorie'] != $ccat){
+			$ccat = $td['kategorie'];
+			$res .= '<h3>' . ($ccat?: '(Ohne Kategorie)') . '</h3>';
+		}
+		
+		$sql = 'SELECT sum(IF(beschreibung = "", 1, 0)) as missing, sum(IF(beschreibung != "", 1, 0)) as has_descr FROM doku_spalten WHERE NOT veraltet AND id_tabelle = ' . $td['id_tabelle'];
+		$row_desc_data = $va_xxx->get_row($sql, ARRAY_A);
+		
+		if ($td['beschreibung'] && $row_desc_data['missing'] == 0){
+			$ccol = 'green';
+		}
+		else if ($td['beschreibung'] || $row_desc_data['has_descr'] > 0){
+			$ccol = 'orange';
+		}
+		else {
+			$ccol = 'red';
+		}
+		
+		$res .= '<a style="color: ' . $ccol . '" href="' . add_query_arg(array_merge($wp->query_vars, ['table' => $td['name']]), home_url()) . '">' . $td['name'] . '</a><br />';
+	}
+	
+	return $res;
 }
 
 function va_get_table_docu ($table_name, $table_data = NULL){
@@ -261,7 +304,7 @@ function va_check_table_state (){
 	$sql = 'SELECT table_name FROM information_schema.tables WHERE table_schema = "va_xxx" ORDER BY table_name ASC';
 	$tables_existing = $va_xxx->get_col($sql);
 	
-	$sql = 'SELECT id_tabelle, name, beschreibung, prozedur, auto_update ausschnitt_beschreibung, ausschnitt, veraltet FROM doku_tabellen';
+	$sql = 'SELECT id_tabelle, name, beschreibung, prozedur, auto_update, ausschnitt_beschreibung, ausschnitt, veraltet FROM doku_tabellen';
 	$tables_docu = $va_xxx->get_results($sql, ARRAY_A);
 	$tables_docu_map = [];
 	foreach ($tables_docu as $td){

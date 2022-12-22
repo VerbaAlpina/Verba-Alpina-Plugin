@@ -176,7 +176,7 @@ function ladeGlossar (){
 				
 				parseSyntax($e['Text'], true, $intern, $mode) . '<br />';
 						
-				echo '<div class="entry-content">';
+				echo '<div class="entry-content methodology-text">';
 				echo "{$e['Text']} <br />";
 				
 				echo va_add_glossary_authors($e['Autoren'], $e['Uebersetzer']);
@@ -194,20 +194,24 @@ function ladeGlossar (){
 
 		global $va_current_db_name;
 		global $lang;
-		
+			
+		 $classes = [];	
+
 		if((current_user_can('va_glossary_edit')) && $va_current_db_name == 'va_xxx' && $lang == 'D'){
-			if($id == 33) //Interne Syntax
-				return ['background: LemonChiffon;', '', ''];
+			if($id == 33) {
+			    //Interne Syntax
+				return ['', 'lemon', ''];
+			}
 			
 			$style = '';
-			$classes = [];
+		
 			$imgs = [];
 			
 			global $va_xxx;
 			$info = $va_xxx->get_row("SELECT Fertig, Erlaeuterung_D, Intern FROM Glossar WHERE Id_Eintrag = $id", ARRAY_N);
 
 			if($info[0] == '0'){
-				$style .= 'color: red;';
+				$classes=['red'];
 			}
 			else {
 				$matches = [];
@@ -237,12 +241,12 @@ function ladeGlossar (){
 				}
 				
 				if(count($matches) > 0){
-					$style .= 'color: blue;';
+					$classes=['blue'];
 				}
 			}
 			
 			if ($info[2]){
-				$style .= 'background: LemonChiffon;';
+				$classes=['lemon'];
 			}
 			
 			return [$style, implode(' ', $classes), implode(' ', array_map(function ($e){
@@ -363,9 +367,9 @@ function ladeGlossar (){
 			global $vadb;
 			
 			foreach ($result as &$row){
-				if($row['Id_Eintrag'] == 61 /*Versionierung*/){
-					$row['Text'] .= va_add_image_gallery();
-				}
+				// if($row['Id_Eintrag'] == 61 /*Versionierung*/){
+					// $row['Text'] .= va_add_image_gallery();
+				// }
 				
 				if($row['Id_Eintrag'] == 150 /*Transkriptionsregeln*/){
 					ob_start();
@@ -403,6 +407,24 @@ function ladeGlossar (){
 				return strcasecmp(va_only_latin_letters($row1['Name']), va_only_latin_letters($row2['Name']));
 			});
 			return $titles;
+		}
+		
+		function va_get_methodology_titles ($intern, $lang){
+		    global $vadb;
+		    
+		    $titles = $vadb->get_results("
+                SELECT Terminus_$lang as Name, Id_Eintrag, Intern, GROUP_CONCAT(Id_Tag) AS Tags
+                FROM glossar
+                    LEFT JOIN VTBL_Eintrag_Tag USING (id_Eintrag) 
+                WHERE Terminus_$lang != ''
+                    AND Kategorie='Methodologie'" . ($intern? "" : " and Intern = '0' AND Fertig") . "
+		        GROUP BY Id_Eintrag", ARRAY_A);
+		    
+		    usort($titles, function ($row1, $row2){
+		        return strcasecmp(va_only_latin_letters($row1['Name']), va_only_latin_letters($row2['Name']));
+		    });
+		    
+		    return $titles;
 		}
 		
 		function termino (){

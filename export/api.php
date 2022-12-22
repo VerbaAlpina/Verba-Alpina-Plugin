@@ -193,7 +193,7 @@ function va_handle_api_call (){
 	
 	$va_xxx->select('va_' . $version);
 	
-	if ($_REQUEST['action'] == 'getIds' || $_REQUEST['action'] == 'getName' || $_REQUEST['action'] == 'getNames'){
+	if ($_REQUEST['action'] == 'getIds' || $_REQUEST['action'] == 'getName' || $_REQUEST['action'] == 'getNames' || $_REQUEST['action'] == 'getTextList'){
 
 		if (!isset($_REQUEST['changed'])){
 			$changed = false;
@@ -212,6 +212,9 @@ function va_handle_api_call (){
 			
 			$records = va_get_api_db_results($_REQUEST['id'], true);
 		}
+		else if ($_REQUEST['action'] == 'getTextList'){
+			$records = va_get_api_text_list();
+		}
 		else {
 			$records = va_get_api_db_results(false, true, $changed);
 		}
@@ -220,6 +223,18 @@ function va_handle_api_call (){
 		if ($_REQUEST['action'] == 'getName'){
 			header('Content-type: text/txt; charset=utf-8');
 			echo $records[0][1];
+		}
+		else if ($_REQUEST['action'] == 'getTextList' && isset($_REQUEST['format']) && $_REQUEST['format'] == 'xml'){
+			header('Content-type: text/xml; charset=utf-8');
+			header('Content-Disposition: attachment; filename=list_' . $version . '.xml');
+			
+			echo va_api_text_list_to_xml($records);
+		}
+		else if ($_REQUEST['action'] == 'getTextList' && isset($_REQUEST['format']) && $_REQUEST['format'] == 'json'){
+			header('Content-type: text/json; charset=utf-8');
+			header('Content-Disposition: attachment; filename=list_' . $version . '.json');
+			
+			echo va_api_text_list_to_json($records);
 		}
 		else {
 			header('Content-type: text/csv; charset=utf-8');
@@ -262,21 +277,11 @@ function va_handle_api_call (){
 	        $format = $_REQUEST['format'];
 	    }
 	    
-	    if (!isset($_REQUEST['lang'])){
-	        $lang = 'de';
-	    }
-	    else {
-	        $allowed_langs = ['de', 'en', 'fr', 'it', 'ld', 'rg', 'sl'];
-	        if (!in_array($_REQUEST['lang'], $allowed_langs)){
-	            va_api_error('Language "' . $_REQUEST['lang'] . '" not supported! Possible values are: ' . implode(',', $allowed_langs));
-	        }
-	        $lang = $_REQUEST['lang'];
-	    }
-	    
+
 	    try {
 	        switch ($format){
 	            case 'html':
-	                $conv = new VA_HTML_TextConverter($_REQUEST['id'], $lang, 'va_' . $version);
+	                $conv = new VA_HTML_TextConverter($_REQUEST['id'], 'va_' . $version);
 	                break;
 	                
 	            default:
@@ -302,33 +307,41 @@ function va_handle_api_call (){
 function va_api_get_record ($id, $version, $format, $empty, $send_header = true){
     global $va_xxx;
     
+	$id = str_replace(' ', '+', $id);
+	
     try {
-        switch ($format){
-            case 'xml':
-                $conv = new VA_XML_Converter($id, 'va_' . $version);
-                break;
-                
-            case 'csv':
-                $conv = new VA_CSV_Converter($id, 'va_' . $version);
-                break;
-                
-            case 'json':
-                $conv = new VA_JSON_Converter($id, 'va_' . $version);
-                break;
-                
-            default:
-                va_api_error('Format "' . $format . '" not supported!');
-        }
-        
-		if ($id[0] != 'B'){
-			$record_version = $va_xxx->get_var($va_xxx->prepare('SELECT Version FROM A_Versionen WHERE Id = %s', $id));
+		$res = '';
+		$prefix = $id[0];
+		foreach (explode('+', substr($id, 1)) as $sid){
 			
-			if(!$record_version){
-				va_api_error('Error in the version table!');
+			$sid = $prefix . $sid;
+			switch ($format){
+				case 'xml':
+					$conv = new VA_XML_Converter($sid, 'va_' . $version);
+					break;
+					
+				case 'csv':
+					$conv = new VA_CSV_Converter($sid, 'va_' . $version);
+					break;
+					
+				case 'json':
+					$conv = new VA_JSON_Converter($sid, 'va_' . $version);
+					break;
+					
+				default:
+					va_api_error('Format "' . $format . '" not supported!');
 			}
+			
+			if ($prefix != 'B'){
+				$record_version = $va_xxx->get_var($va_xxx->prepare('SELECT Version FROM A_Versionen WHERE Id = %s', $sid));
+				
+				if(!$record_version){
+					va_api_error('Error in the version table!');
+				}
+			}
+			
+			$res .= $conv->export($empty);
 		}
-        
-        $res = $conv->export($empty);
         
         if ($send_header){
             header('Content-Type: ' . $conv->get_mime() . '; charset=utf-8');
@@ -341,4 +354,227 @@ function va_api_get_record ($id, $version, $format, $empty, $send_header = true)
     catch (ErrorException $e){
         va_api_error($e->getMessage());
     }
+}
+
+function va_get_api_text_list (){
+	global $va_xxx;
+	
+	//Lexicon
+	
+	$lex = $va_xxx->get_results('SELECT Id, Sprache, "PLACEHOLDER",
+			GROUP_CONCAT(IF(Aufgabe = "auct", CONCAT(Name, ",", Vorname), NULL) SEPARATOR ";"), 
+			GROUP_CONCAT(IF(Aufgabe = "trad", CONCAT(Name, ",", Vorname), NULL) SEPARATOR ";"),
+			GROUP_CONCAT(IF(Aufgabe = "corr", CONCAT(Name, ",", Vorname), NULL) SEPARATOR ";")
+		FROM im_comments 
+			JOIN VTBL_kommentar_autor ON ID_Kommentar = id AND SUBSTRING(Language, 1, 1) = Sprache
+			JOIN Personen USING (Kuerzel)
+		WHERE Id != "" AND comment != "" AND SUBSTRING(Id, 1, 1) IN ("B", "L", "C")
+		GROUP BY Id, Language
+		ORDER BY Id ASC, Language ASC', ARRAY_N);
+		
+	foreach ($lex as $i => $row){
+		$lex[$i][2] = strip_tags(va_get_comment_title($row[0], $row[1]));
+	}
+		
+	//Methodologie
+	$sql = 'SELECT CONCAT("M", Id_Eintrag), Sprache, Titel, a, t, c FROM ((';
+	$first = true;
+	foreach (va_get_lang_array() as $lang){
+		if ($first){
+			$first = false;
+		}
+		else {
+			$sql .= ' UNION (';
+		}
+		$sql .= "SELECT Id_Eintrag, '$lang' AS Sprache, Terminus_$lang AS Titel,
+				GROUP_CONCAT(IF(Aufgabe = 'auct', CONCAT(Name, ',', Vorname), NULL) SEPARATOR ';') a, 
+				GROUP_CONCAT(IF(Aufgabe = 'trad', CONCAT(Name, ',', Vorname), NULL) SEPARATOR ';') t,
+				GROUP_CONCAT(IF(Aufgabe = 'corr', CONCAT(Name, ',', Vorname), NULL) SEPARATOR ';') c
+			FROM glossar
+				JOIN VTBL_eintrag_autor USING (Id_Eintrag)
+				JOIN Personen USING (Kuerzel)
+			WHERE Sprache = '$lang' AND Terminus_$lang != '' AND Erlaeuterung_D != '' AND Intern = '0' AND Fertig
+			GROUP BY Id_Eintrag)";
+	}
+	$sql .= ') e ORDER BY Id_Eintrag, Sprache ASC';
+	
+	$meth = $va_xxx->get_results($sql, ARRAY_N);
+	
+	//Beiträge
+	$re = 'va/([a-z]{2}/)?\?p=([0-9]+)';
+	$bib_entries = $va_xxx->get_results($va_xxx->prepare('SELECT Download_URL FROM bibliographie WHERE VA_Publikation = "1" AND Download_URL regexp %s', $re), ARRAY_A);
+	
+	$posts = [];
+	foreach ($bib_entries as $be){
+		$res = [];
+		 preg_replace_callback('#' . $re . '#', function ($match) use (&$res){
+			$res = [$match[2], $match[1]? substr($match[1], 0, 2): ''];
+		}, $be['Download_URL']);
+		
+		
+		if ($res[1]){
+			$va_lang = strtoupper(substr($res[1], 0, 1));
+			$blog_id = va_blog_id_from_lang($va_lang);
+			switch_to_blog($blog_id);
+		}
+		else {
+			$va_lang = 'D';
+		}
+		
+		
+		//Versions need NOT to be checked here, since only posts that are already listed in the bib table in this version are used (the revision id is only needed if the text content is returned)
+		$title = html_entity_decode(get_the_title($res[0]));
+		$rows = get_field('autoren_neu', $res[0]);
+		$authors = [];
+		foreach($rows as $row) {
+			$authors[] = $row['nachname'] . ',' . $row['vorname'];
+		}
+		
+		if ($res[1]){
+			restore_current_blog();
+		}
+		
+		$posts[] = ['P' . $res[0], $va_lang, $title, implode(';', $authors), '', ''];
+	}
+
+	$res = array_merge($lex, $meth, $posts);
+	
+	$orcid_mapping = [];
+	
+	$res = array_map(function ($e) use (&$orcid_mapping){ return [$e[0] . '_' . va_lang_to_iso($e[1]), $e[2], va_add_orcids($e[3], $orcid_mapping), va_add_orcids($e[4], $orcid_mapping), va_add_orcids($e[5], $orcid_mapping)];}, $res);
+	
+	return $res;
+}
+
+
+function va_add_orcids ($names, &$map){
+	
+	$res = [];
+	
+	foreach (explode(';', $names) as $name){ 
+		if (!array_key_exists($name, $map)){
+			global $va_xxx;
+			$n = explode(',', $name);
+			$map[$name] = $va_xxx->get_var($va_xxx->prepare('SELECT orcid FROM va_xxx.personen WHERE Name = %s AND Vorname = %s', $n[0], $n[1]));
+		}
+		$orcid = $map[$name];
+		
+		$res[] = $name . ($orcid? ' (' . $orcid . ')': '');
+		error_log(json_encode($map));
+	}
+	
+	return implode(';', $res);
+}
+
+function va_api_text_list_to_xml ($records){
+	$doc = new DOMDocument('1.0', 'UTF-8');
+	
+	$elements = $doc->createElement('elements');
+	
+	foreach ($records as $record){
+		$element = $doc->createElement('element');
+		$element->setAttribute('id', $record[0]);
+		
+		$title = $doc->createElement('title');
+		$title->nodeValue = $record[1];
+		$element->appendChild($title);
+		
+		va_add_person_xml($record[2], $element, 'author', $doc);
+		va_add_person_xml($record[3], $element, 'translator', $doc);
+		va_add_person_xml($record[4], $element, 'proofreader', $doc);
+		
+		$elements->appendChild($element);
+	}
+		
+	$doc->appendChild($elements);
+	$doc->formatOutput = true;
+		
+	return $doc->saveXML();
+}
+
+function va_api_text_list_to_json ($records){
+	$res = [];
+	
+	foreach ($records as $record){
+		$res[] = [
+			'ID' => $record[0],
+			'title' => $record[1],
+			'authors' => va_add_person_json($record[2]),
+			'translators' => va_add_person_json($record[3]),
+			'proofreaders' => va_add_person_json($record[4])
+		];
+	}
+	
+	return json_encode($res, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+}
+
+function va_add_person_json ($str){
+	if ($str){
+		$res = [];
+		
+		$data = explode(';', $str);
+		foreach ($data as $row){
+			$pos_br = mb_strpos($row, ' (');
+			if ($pos_br === false){
+				$name = $row;
+				$orcid = false;
+			}
+			else {
+				$name = mb_substr($row, 0, $pos_br);
+				$orcid = mb_substr($row, $pos_br + 2, -1);
+			}
+			
+			$nameParts = explode(',', $name);
+			$newEntry = [
+				'givenName' => $nameParts[1],
+				'familyName' => $nameParts[0]
+			];
+			
+			if ($orcid){
+				$newEntry['orcid'] = $orcid;
+			}
+			$res[] = $newEntry;
+		}
+		
+		return $res;
+	}
+	
+	return [];
+}
+
+function va_add_person_xml ($str, &$parent, $type, &$doc){
+	$persons = $doc->createElement($type . 's');
+	
+	if ($str){
+		$data = explode(';', $str);
+		foreach ($data as $row){
+			$person = $doc->createElement($type);
+			
+			$pos_br = mb_strpos($row, ' (');
+			if ($pos_br === false){
+				$name = $row;
+				$orcid = false;
+			}
+			else {
+				$name = mb_substr($row, 0, $pos_br);
+				$orcid = mb_substr($row, $pos_br + 2, -1);
+			}
+			
+			$nameParts = explode(',', $name);
+			$pre = $doc->createElement('givenName');
+			$pre->nodeValue = $nameParts[1];
+			$sur = $doc->createElement('familyName');
+			$sur->nodeValue = $nameParts[0];
+			
+			$person->appendChild($pre);
+			$person->appendChild($sur);
+			
+			if ($orcid){
+				$person->setAttribute('orcid', $orcid);
+			}
+			$persons->appendChild($person);
+		}
+	}
+	
+	$parent->appendChild($persons);
 }

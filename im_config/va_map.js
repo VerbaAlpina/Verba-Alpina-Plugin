@@ -165,6 +165,17 @@ function bindMenuSlide(){
 		}
 	});
 	
+	jQuery(document).on("im_edit_geo_ajax_data", function (event, data, mapShape){
+		let epsilon = mapShape?.infoWindowContent?.extra?.epsilon;
+		
+		if (epsilon === undefined || epsilon === null){
+			throw new Error("No epsilon value for polygon! Saving not possible!");
+		}
+		
+		data.epsilon = epsilon;
+	});
+	
+	
 	jQuery(document).on("im_show_print_borders", function (event, callback){
 		jQuery.post(ajax_object.ajaxurl, {
 			"action" : "va",
@@ -240,6 +251,12 @@ function bindMenuSlide(){
 		for (let /** string */ key in data["STI"]){
 			if(jQuery("#VAstiDiv #" + key).length == 0){
 				jQuery("#VAstiDiv").append(data["STI"][key]);
+			}
+		}
+		
+		for (let /** string */ key in data["INF"]){
+			if(jQuery("#VAinfDiv #" + key).length == 0){
+				jQuery("#VAinfDiv").append(data["INF"][key]);
 			}
 		}
 	});
@@ -386,6 +403,10 @@ function showOutsideOnlyElements(show){
 	jQuery("#conceptSelect a.sf-tree-leaf[data-in-ak=0]").css("display", show? "": "none");
 }
 
+jQuery(document).on("im_default_map_state", function (){
+	categoryManager.loadData(6, "A17", "custom", {"subElementCategory" : -1});
+});
+
 jQuery(document).on("im_map_initialized", function (){
 
 	categoryManager.addAjaxData("db", ajax_object.db);
@@ -395,7 +416,7 @@ jQuery(document).on("im_map_initialized", function (){
 	categoryManager.addInfoWindowContentConstructor("polygon", SyntaxInfoWindowContent);
 	categoryManager.addInfoWindowContentConstructor("simple", SyntaxInfoWindowContent);
 	
-	if (PATH["tk"] == undefined){
+	if (PATH["tk"] == undefined && (!PATH["single"] || PATH["single"].substring(0, 1) != "A")){
 		categoryManager.loadData(6, "A17", "custom", {"subElementCategory" : -1});
 	}
 	
@@ -445,18 +466,6 @@ jQuery(document).on("im_map_initialized", function (){
 	};
 });
 
-var /** boolean*/ backupCommunities;
-jQuery(document).on("im_edit_mode_started", function (){
-	backupCommunities = /** @type{boolean}*/ (optionManager.getOptionState("comm"));
-	optionManager.setOption("comm", false, {"reload" : false});
-});
-
-jQuery(document).on("im_edit_mode_stopped", function (){
-	if(backupCommunities !== undefined){
-		optionManager.setOption("comm", backupCommunities, {"reload" : false});
-	}
-});
-
 jQuery(document).on("im_syn_map_before_loading", function (event, mapInfos, data){
 	var /** string */ tdb = mapInfos["Options"]["tdb"];
 	
@@ -486,6 +495,8 @@ jQuery(document).on("im_add_options", function (){
 			}
 		}));
 	}
+
+
 	
 	optionManager.addOption("tdb", new HiddenOption((ajax_object.db == "xxx"? ajax_object.next_version: ajax_object.db), true));
 	
@@ -585,18 +596,6 @@ jQuery(document).on("im_legend_before_rebuild", function (event, legend){
 	jQuery("#IM_legend tr td:nth-child(3)").qtip("destroy", true);
 });
 
-jQuery(document).on("im_show_edit_mode", 
-	/**
-	* @param {Event} event
-	* @param {{result : boolean}} paramObject
-	* 
-	* @return {undefined}
-	*/
-	function (event, paramObject){
-		paramObject.result = false; //ajax_object.db == "xxx";
-	}
-);
-
 jQuery(".sql-query-btn").click(function (){
 	categoryManager.showFilterScreen(categories.Custom, "SQL");
 });
@@ -655,11 +654,15 @@ function addConceptQTip(currentElement){
 function createConceptToolTipContent (id){
 	var /** Array */ concept = Concepts[id];
 	
+	if (!concept){
+		return null;
+	}
+	
 	var /** string */ conceptName = /** @type{string} */ (concept[0]);
 	var /** string */ conceptDescr = /** @type{string} */ (concept[1]);
 	var /** string */ conceptImg = /** @type{string} */ (concept[4]);
 	
-	if((conceptName && conceptName != conceptDescr) || conceptImg){
+	if((conceptName && conceptName != conceptDescr) /*|| conceptImg*/){
 		var /** Element */ result = document.createElement("div");
 		
 		//if(conceptImg){
@@ -700,16 +703,6 @@ il.addListPrinter(new CsvListPrinter());
 
 var /** FieldType */ stringInput = new StringInputType();
 
-var /** EditConfiguration */ informatEditConfig = new EditConfiguration();
-informatEditConfig.setFieldData(OverlayType.PointSymbol, [
-	new FieldInformation("Erhebung", stringInput, true),
-	new FieldInformation("Nummer", stringInput, true),
-	new FieldInformation("Ortsname", stringInput, false),
-	new FieldInformation("Bemerkungen", stringInput, false)
-]);
-informatEditConfig.allowNewOverlays(OverlayType.PointSymbol);
-informatEditConfig.allowGeoDataChange(OverlayType.PointSymbol);
-
 categoryManager.registerCategory (
 	buildCategoryInformation ({
 		"categoryID" : categories.Informant, 
@@ -718,8 +711,7 @@ categoryManager.registerCategory (
 		"elementID" : "informantSelect", 
 		"textForNewComment" : Ue["KOMMENTAR_INFORMANT_SCHREIBEN"],
 		"textForListRetrieval" : "Informanten-Daten exportieren", //TODO translate
-		"listBuilder" : il,
-		"editConfiguration" : informatEditConfig
+		"listBuilder" : il
 	})
 );
 
@@ -795,6 +787,11 @@ categoryManager.registerCategory (
 						break;
 					}
 				}
+				
+				if (!base){
+					console.error("No name for this id: " + key);
+					return "(No Name)";
+				}
 			}
 			var /** string*/ gender = TypeGenders[id];
 			var /** string*/ insertString = "";
@@ -849,6 +846,11 @@ categoryManager.registerCategory (
 		"textForNewComment" : Ue["KOMMENTAR_KONZEPT_SCHREIBEN"],
 		"costumGetNameFunction" : function (key){
 			key = key.substring(1); //Remove prefix
+			
+			if (!Concepts[key]){
+				return "(Unknown)";
+			}
+			
 			return Concepts[key][0] == ""? /** @type{string} */ (Concepts[key][1]): /** @type{string} */ (Concepts[key][0]);
 		}
 	})
@@ -939,8 +941,8 @@ var /** GroupingComponent */ elingGroupingP = new GroupingComponent(function (ca
 }, true, undefined, undefined, elingGroupFunction);
 
 var /** EditConfiguration */ polyEditConfig = new EditConfiguration();
-polyEditConfig.allowGeoDataChange(OverlayType.PointSymbol, function (elementID){
-	return elementID == "A62";
+polyEditConfig.canEditGeoData(OverlayType.PointSymbol, function (elementID){
+	return true;
 });
 
 categoryManager.registerCategory (
@@ -992,7 +994,8 @@ categoryManager.registerCategory (
 			}
 			
 			return element.filterData["query_name"];
-		}
+		},
+		"countNames" : [Ue["BELEG"], Ue["BELEGE"]]
 	})
 );
 
@@ -1009,7 +1012,8 @@ categoryManager.registerCategory (
 		},
 		"subLegendNameFun" : function (filterData){
 			return filterData["groupingName"];
-		}
+		},
+		"countNames" : [Ue["BELEG"], Ue["BELEGE"]]
 	})
 );
 

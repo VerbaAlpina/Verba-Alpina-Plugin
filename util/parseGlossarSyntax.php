@@ -1,5 +1,5 @@
 <?php
-function parseSyntax(&$value, $replaceNewlines = false, $intern = false, $mode = 'A', $add_bib = false) {
+function parseSyntax(&$value, $replaceNewlines = false, $intern = false, $mode = 'A', $add_bib = false, $use_doi_links = false) {
 	set_error_handler('va_syntax_warning_handler', E_WARNING);
 	
 	try {
@@ -49,9 +49,18 @@ function parseSyntax(&$value, $replaceNewlines = false, $intern = false, $mode =
 		$value = preg_replace ('/(-\[\[.*\]\])/U', '<code>$1</code>', $value);
 		
 		// Bilder
-		$value = preg_replace ('/(?<!-)\[\[Bild:([^\|]*)\]\]/U', "<br /><figure><a href=\"$media_path$1\" target='_BLANK'><img src=\"$media_path$1\" /></a></figure><br />", $value);
 		
-		$value = preg_replace_callback ('/(?<!-)\[\[Bild:(.*)\|(.*)\]\]/U', function ($treffer) {
+		$value = preg_replace_callback ('/(?<!-)\[\[Bild:([^\|]*)\]\]/U', function ($treffer) use ($use_doi_links) {
+			global $media_path;
+			$url = $media_path . $treffer[1];
+			if ($use_doi_links){
+				$url = va_replace_by_doi_url($url);
+			}
+			
+			return "<br /><figure><a href=\"$url\" target='_BLANK'><img src=\"$url\" /></a></figure><br />";
+		}, $value);
+		
+		$value = preg_replace_callback ('/(?<!-)\[\[Bild:(.*)\|(.*)\]\]/U', function ($treffer) use ($use_doi_links) {
 			global $media_path;
 			
 			$parts = explode('|', $treffer[2]);
@@ -86,11 +95,16 @@ function parseSyntax(&$value, $replaceNewlines = false, $intern = false, $mode =
 				$attr .= "  height=\"$height\"";
 			}
 			
-			return "<br /><figure><a href=\"$media_path$treffer[1]\" target='_BLANK'><img src=\"$media_path$treffer[1]\"$attr /></a>$cap</figure><br />";
+			$url = $media_path . $treffer[1];
+			if ($use_doi_links){
+				$url = va_replace_by_doi_url($url);
+			}
+			
+			return "<br /><figure><a href=\"$url\" target='_BLANK'><img src=\"$url\"$attr /></a>$cap</figure><br />";
 		}, $value);
 		
 		// Themenkarte
-		$value = preg_replace_callback ('/(?<!-)\[\[(?:([^\]]*)\|)?Karte:([^|]*)(\|Popup)?\]\]/U', function ($treffer) {
+		$value = preg_replace_callback ('/(?<!-)\[\[(?:([^\]]*)\|)?Karte:([^|]*)(\|Popup)?\]\]/U', function ($treffer) use ($use_doi_links) {
 			global $map_path;
 			
 			$map = $treffer[2];
@@ -114,11 +128,16 @@ function parseSyntax(&$value, $replaceNewlines = false, $intern = false, $mode =
 				$dbset = 'xxx';
 			}
 			$murl = add_query_arg ('db', $dbset, $murl);
+			$murl = add_query_arg ('tk', $map, $murl);
+			
+			if ($use_doi_links){
+				$murl = va_replace_by_doi_url($murl);
+			}
 			
 			if (isset($treffer[3])) { //PHP omits the last element if it is empty...
-				return "<a target='_BLANK' href=\"" . add_query_arg ('tk', $map, $murl) . "\" onclick=\"window.open(this.href,this.target,'width=1024,height=768'); return false;\">$label</a>";
+				return "<a target='_BLANK' href=\"" . $murl . "\" onclick=\"window.open(this.href,this.target,'width=1024,height=768'); return false;\">$label</a>";
 			} else {
-				return "<a target='_BLANK' href=\"" . add_query_arg ('tk', $map, $murl) . "\">$label</a>";
+				return "<a target='_BLANK' href=\"" . $murl . "\">$label</a>";
 			}
 		}, $value);
 		
@@ -129,17 +148,21 @@ function parseSyntax(&$value, $replaceNewlines = false, $intern = false, $mode =
 		}
 
 		// Kommentare
-		$value = preg_replace_callback ('/(?<!-)\[\[(([^\]]*)\|)?Kommentar:(.)(.*)\]\]/U', function ($treffer) use ($is_lex, $lang) {
+		$value = preg_replace_callback ('/(?<!-)\[\[(([^\]]*)\|)?Kommentar:(.)(.*)\]\]/U', function ($treffer) use ($is_lex, $lang, $use_doi_links) {
 			global $comment_path;
 			$prefix = $treffer[3];
 			$id = $treffer[4];
 			
-			$link = $comment_path . '#' . $prefix . $id;
+			$link = $comment_path . '&single=' . $prefix . $id;
 			if ($is_lex) {
 				$start = '<a';
 				$link = 'javascript:localLink("' . $prefix . $id . '")';
 			} else {
+				if ($use_doi_links){
+					$link = va_replace_by_doi_url($link);
+				}	
 				$start = "<a target='_BLANK'";
+				
 			}
 			
 			if ($treffer[1] == '') {
@@ -204,11 +227,16 @@ function parseSyntax(&$value, $replaceNewlines = false, $intern = false, $mode =
 				$atts['lazy'] = false;
 			}
 			
+			if (isset($_POST['query']) && $_POST['query'] == 'get_text_content'){
+			    //AJAX call for methodology
+			    $atts['lazy'] = false;
+			}
+			
 			return sth_parseSQL ($atts);
 		}, $value);
 		
 		// Seiten
-		$value = preg_replace_callback ('/(?<!-)\[\[(([^\]]*)\|)?Seite:(.*)\]\]/U', function ($treffer) {
+		$value = preg_replace_callback ('/(?<!-)\[\[(([^\]]*)\|)?Seite:(.*)\]\]/U', function ($treffer) use ($use_doi_links) {
 			global $Ue;
 			
 			$fragment = false;
@@ -259,6 +287,10 @@ function parseSyntax(&$value, $replaceNewlines = false, $intern = false, $mode =
 				$link .= '#' . $fragment;
 			}
 
+			if ($use_doi_links){
+				$link = va_replace_by_doi_url($link);
+			}
+
 			if ($treffer[1] == '') {
 				return "<a href='" . $link . "'>" . ($dtext ?: $link) . "</a>";
 			} else {
@@ -282,7 +314,14 @@ function parseSyntax(&$value, $replaceNewlines = false, $intern = false, $mode =
 		}, $value);
 		
 		// Lokale UND globale Links
-		$value = preg_replace_callback ('/(?<!-)\[\[(?!(?:Abk:|Konst:))(.*)\]\]/U', function ($treffer) use ($mode, $intern) {
+	    $is_metho = false;
+	    global $post;
+	    if (($post && ($post->post_title === 'METHODOLOGIE' || $post->post_title === 'Methodologie NEU')) 
+	        || (isset($_REQUEST['namespace']) && $_REQUEST['namespace'] === 'lex_alp' && isset($_REQUEST['type']) && $_REQUEST['type'] == 'M')) {
+	        $is_metho = true;
+	    }
+		
+	    $value = preg_replace_callback ('/(?<!-)\[\[(?!(?:Abk:|Konst:))(.*)\]\]/U', function ($treffer) use ($mode, $intern, $use_doi_links, $is_metho) {
 			global $media_path;
 			global $lang;
 			global $vadb;
@@ -299,14 +338,22 @@ function parseSyntax(&$value, $replaceNewlines = false, $intern = false, $mode =
 			} 
 			else {
 				$image = stristr ($parts[1], "Bild:");
-				// Link auf Bild
+				// Link auf Bild (TODO wird wohl nicht mehr genutzt => überprüfen)
 				if ($image) {
-					return "<a href=\"" . $media_path . substr ($parts[1], 5) . "\">$beschreibung</a>";
+					
+					$url = $media_path . substr ($parts[1], 5);
+					if ($use_doi_links){
+						$url = va_replace_by_doi_url($url);
+					}	
+					
+					return "<a href=\"" . $url . "\">$beschreibung</a>";
 				}			// Link mit Beschreibung
 				else {
-					$eintrag = $parts[1];
-					if (mb_strpos($eintrag, 'va/') === 0){
-						$eintrag = get_home_url() . mb_substr($eintrag, 2);
+					if ($use_doi_links){
+						$eintrag = va_replace_by_doi_url($parts[1]);
+					}
+					else {
+						$eintrag = va_replace_url_abbreviation($parts[1]);
 					}
 				}
 			}
@@ -320,17 +367,40 @@ function parseSyntax(&$value, $replaceNewlines = false, $intern = false, $mode =
 				return "<a href=\"$eintrag\" target=\"_BLANK\">$beschreibung</a>";
 			
 			$url = va_get_glossary_link ();
-			if ($mode === 'A') {
+
+			if ($mode === 'A') { //Alphabetic
 				$ent = $vadb->get_row ("SELECT Id_Eintrag, Intern, Fertig FROM Glossar WHERE Terminus_$lang = '" . addslashes ($eintrag) . "'", ARRAY_A);
 				$url = add_query_arg ('letter', $eintrag[0], $url) . '#' . $ent['Id_Eintrag'];
-			} else {
+			}
+			else if ($mode === 'N') { //New
+			    $ent = $vadb->get_row ("SELECT Id_Eintrag, Intern, Fertig FROM Glossar WHERE Terminus_$lang = '" . addslashes ($eintrag) . "'", ARRAY_A);
+			    if ($is_metho){
+			        $url = "javascript:localLink('M" . $ent['Id_Eintrag'] . "')";
+			    }
+			    else {
+			        $url = add_query_arg ('single', 'M' . $ent['Id_Eintrag'], $url);
+			    }
+
+			} 
+			else { //Tags
 				$ent = $vadb->get_row ("SELECT Id_Eintrag, Id_Tag, Intern, Fertig FROM Glossar LEFT JOIN VTBL_Eintrag_Tag USING (Id_Eintrag) WHERE Terminus_$lang = '" . addslashes ($eintrag) . "'", ARRAY_A);
 				$url = add_query_arg ('tag', $ent['Id_Tag'] ? $ent['Id_Tag'] : 0, $url) . '#' . $ent['Id_Eintrag'];
 			}
 			
+			if (!$ent){
+			    if ($intern){
+			        return '<span style="background: red">' . $beschreibung . '</span>';
+			    }
+			    else {
+			        return $beschreibung;
+			    }
+			}
+			
+			list($estyle, $eclass,) = va_get_glossary_link_style($ent['Id_Eintrag']);
+			
 			if ($ent['Intern']){
 				if ($intern){
-					return "<a style='background: LemonChiffon' href=\"" . $url . "\">$beschreibung</a>";
+				    return "<a class='" . $eclass . "' style='" . $estyle . "' href=\"" . $url . "\">$beschreibung</a>";
 				}
 				else {
 					return $beschreibung;
@@ -338,12 +408,16 @@ function parseSyntax(&$value, $replaceNewlines = false, $intern = false, $mode =
 			}
 			else if (!$ent['Fertig']){
 				if ($intern){
-					return "<a style='background: #ffe6e6' href=\"" . $url . "\">$beschreibung</a>";
+					return "<a class='" . $eclass . "' style='" . $estyle . "' style='background: #ffe6e6' href=\"" . $url . "\">$beschreibung</a>";
 				}
 				else {
 					return $beschreibung;
 				}
 			}
+			
+			if ($use_doi_links){
+				$url = va_replace_by_doi_url($url);
+			}	
 			
 			return "<a href=\"" . $url . "\">$beschreibung</a>";
 		}, $value);
@@ -406,7 +480,7 @@ function parseBiblio(&$text, $add_bib) {
 	
 	$text = preg_replace_callback ('/([^-])\[\[(([^\[]*)\|)?Bibl:([^\[]*)\]\]/', function ($treffer) use (&$codesBibl) {
 		global $vadb;
-		$b = $vadb->get_results ("SELECT Autor, Titel, Ort, Jahr, Download_URL, Band, Enthalten_In, Seiten, Verlag FROM Bibliographie WHERE Abkuerzung = '$treffer[4]'", 'ARRAY_N');
+		$b = $vadb->get_results($vadb->prepare("SELECT Autor, Titel, Ort, Jahr, Download_URL, Band, Enthalten_In, Seiten, Verlag FROM Bibliographie WHERE Abkuerzung = %s", $treffer[4]), 'ARRAY_N');
 		$abk = $treffer[3] ? $treffer[3] : null;
 		list ($code, $html) = va_create_bibl_html ($treffer[4], $abk);
 		va_add_bibl_div ($code, $abk?: $treffer[4], ((sizeof ($b) == 0) ? 'Eintrag nicht gefunden' : va_format_bibliography ($b[0][0], $b[0][1], $b[0][3], $b[0][2], $b[0][4], $b[0][5], $b[0][6], $b[0][7], $b[0][8])), $codesBibl);
